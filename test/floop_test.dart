@@ -37,7 +37,8 @@ void main() {
 
   group('ObservedMap tests', () {
     test('get operations', () {
-      expect(observedMap['tasks'], isNot(equals(tasks)));
+      expect(observedMap['tasks'].hashCode, isNot(equals(tasks.hashCode)));
+      expect(observedMap['tasks'], equals(tasks));
       expect(observedMap['tasks'][0]['id'], equals(1));
       expect(observedMap['tasks'], isList);
       expect(observedMap['tasks'][1], isInstanceOf<ObservedMap>());
@@ -49,8 +50,8 @@ void main() {
 
       var oldTasks = observedMap['tasks'];
       observedMap['tasks'] = tasks;
-      expect(observedMap['tasks'], isNot(equals(oldTasks)));
-      expect(observedMap['tasks'][0]['id'], equals(1));
+      expect(observedMap['tasks'].hashCode, isNot(equals(oldTasks.hashCode)));
+      expect(observedMap['tasks'], equals(oldTasks));
 
       observedMap['tasks'][0]['id'] = 'one';
       expect(observedMap['tasks'][0]['id'], equals('one'));
@@ -67,8 +68,11 @@ void main() {
       expect(() => observedMap['boo'] = 123, throwsStateError);
       observedMap['boo'];
       observedMap['tennis'];
-      // note only two subscriptions in next read, when there are three reads
-      // TODO: it should trigger three observed reads, but Lists is not implemented as Observed yet
+      // There are three reads in next statement, observedMap['tasks'], [0] and ['title].
+      // However observedMap['tasks'] is a [List], and Lists are copied as [UnmodifiableList]
+      // internally by observadMap (see ObservadMap.convert for details), which are of course
+      // not Observed (there is no point in observing a structure that cannot change).
+      // Only observedMap and observedMap['tasks'][0] are the observed
       observedMap['tasks'][0]['title'];
       expect(controller.subscriptions, isEmpty);
       expect(controller.currentBuild, equals(mockEle));

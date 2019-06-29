@@ -41,13 +41,15 @@ class FloopController {
     // print('Subscribed elements ${_subscriptions.keys}');
   }
 
-  void updateElements(Set<Element> elements) {
+  void markElementsAsNeedBuild(Set<Element> elements) {
     if(_currentBuild!=null) {
-      throw StateError('A floop widget is building while setting a value in floop, this is not allowed (infinite build recursion)');
-    } else {
-      elements?.forEach((obj) {
-        obj.markNeedsBuild();
-      });
+      throw StateError(
+        'A Floop widget is building while setting a value in floop map.\n'
+        'This is not allowed as it could cause an infinite build recursion.');
+    } else if (elements!=null) {
+      for(var ele in elements) {
+        ele.markNeedsBuild();
+      }
     }
   }
 

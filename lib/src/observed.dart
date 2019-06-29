@@ -94,9 +94,26 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     return _keyToValue[k];
   }
 
-  operator []=(Object key, value) {
-    print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
-    if(!_keyToValue.containsKey(key)) controller.updateElements(_mutationSubscriptions);
+  
+  _checkAndMarkIfRequireRebuild(Object key) {
+    if(!_keyToValue.containsKey(key)) controller.markElementsAsNeedBuild(_mutationSubscriptions);
+    controller.markElementsAsNeedBuild(_keySubscriptions[key]);
+  }
+  
+  /// Behaves 
+  setValueRaw(Object key, V value) {
+    _checkAndMarkIfRequireRebuild(key);
+    _keyToValue[key] = value;
+  }
+
+  /// Sets the value of the given key.
+  /// In the cases of [Map] or [List] values, it will recursively traverse them and
+  /// save copied versions of them.
+  /// For each value of type [Map] it will create an [ObservedMap] copy of it.
+  /// For each value of type [List] it will create a [UnmodifiableListView] copy of it.
+  operator []=(Object key, V value) {
+    // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
+    _checkAndMarkIfRequireRebuild(key);
     _keyToValue[key] = convert(value);
   }
 
@@ -104,8 +121,8 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   void clear() {
     _keyToValue.clear();
     // updating all elements will unsubscribe all keys during the refresh cycle
-    controller.updateElements(_elementSubscriptions.keys);
-    controller.updateElements(_mutationSubscriptions);
+    controller.markElementsAsNeedBuild(_elementSubscriptions.keys);
+    controller.markElementsAsNeedBuild(_mutationSubscriptions);
   }
 
   /// Returns the keys of this ObservedMap, retrieved from an internal [LinkedHashMap]
@@ -124,8 +141,8 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   @override
   V remove(Object key) {
-    controller.updateElements(_keySubscriptions.remove(key));
-    controller.updateElements(_mutationSubscriptions);
+    controller.markElementsAsNeedBuild(_keySubscriptions.remove(key));
+    controller.markElementsAsNeedBuild(_mutationSubscriptions);
     return _keyToValue.remove(key);
   }
 }
