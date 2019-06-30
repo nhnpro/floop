@@ -9,6 +9,7 @@ class FloopController {
   Set<Observed> _currentBuildSubscriptions;
   Map<Element, Set<Observed>> _subscriptions = {};
 
+  /// [BuildContext] of the ongoing [buildWithFloop].
   Element get currentBuild => _currentBuild;
 
   Iterable<Observed> get currentBuildSubscriptions => _currentBuildSubscriptions;

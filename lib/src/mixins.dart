@@ -9,11 +9,11 @@ import './controller.dart';
 /// widget that is incorporated into the tree multiple times will be inflated
 /// multiple times.
 mixin Floop on StatelessWidget {
-  /// override this function instead of build, do NOT override build or floop
-  /// will fail to listen reads to it's state
+  /// Override this method as you would normally override the [build] method.
+  /// Do NOT override [build] or floop will fail to listen reads to it's global state.
   Widget buildWithFloop(BuildContext context);
 
-  /// do NOT override this method, use buildWithFloop to build your widget
+  /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
     controller.startListening(context);

@@ -75,17 +75,15 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   convert(value) {
-    var res = value;
-    // if(value is UnmodifiableMapView) {
-    //   print('UNMODIFIABLEMAP');
-    //   res = value;
-    // } else
     if(value is Map) {
-      res = ObservedMap.of(value);
-    } else if (value is List) {
-      res = UnmodifiableListView(value.map((v) => convert(v)).toList());
+      return ObservedMap.of(value);
     }
-    return res;
+    else if (value is List) {
+      return UnmodifiableListView(value.map((v) => convert(v)).toList());
+    }
+    else {
+      return value;
+    }
   }
 
   operator [](k) {
@@ -100,13 +98,15 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     controller.markElementsAsNeedBuild(_keySubscriptions[key]);
   }
   
-  /// Behaves 
+  /// Sets the `value` of the `key`.
+  /// Use this method instead of `[]=` to store a value exactly as it is given.
   setValueRaw(Object key, V value) {
     _checkAndMarkIfRequireRebuild(key);
     _keyToValue[key] = value;
   }
 
-  /// Sets the value of the given key.
+  /// Sets the `value` of the `key`. `value` will get copied into new objects when
+  /// it is of type [Map] or [List].
   /// In the cases of [Map] or [List] values, it will recursively traverse them and
   /// save copied versions of them.
   /// For each value of type [Map] it will create an [ObservedMap] copy of it.
@@ -125,14 +125,14 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     controller.markElementsAsNeedBuild(_mutationSubscriptions);
   }
 
-  /// Returns the keys of this ObservedMap, retrieved from an internal [LinkedHashMap]
+  /// Returns the keys of this [ObservedMap], retrieved from an internal [LinkedHashMap]
   /// instance.
   /// 
   /// Retrieving `keys` during a [Widget] or [State] `buildWithFloop` cycle will subscribe
   /// the correspnding widget to any insertions or removals of keys in this Map, regardless
   /// of the keys being iterated over or not. It does not make the widget subscription
   /// sensitive to a key's corresponding value though (unless the value is also retrieved
-  /// during the build cycle), so setting a key to a different value will not trigger a rebuild.
+  /// during the build cycle), so setting a key to a different value will not trigger rebuilds.
   @override
   Iterable<K> get keys {
     subscribeMutationIfListening();
