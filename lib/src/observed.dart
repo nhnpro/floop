@@ -93,28 +93,40 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   
-  _checkAndMarkIfRequireRebuild(Object key) {
+  _checkAndMarkIfRequireRebuild(Object key, V value) {
     if(!_keyToValue.containsKey(key)) controller.markElementsAsNeedBuild(_mutationSubscriptions);
-    controller.markElementsAsNeedBuild(_keySubscriptions[key]);
+    if(_keyToValue[key] != value) controller.markElementsAsNeedBuild(_keySubscriptions[key]);
   }
   
   /// Sets the `value` of the `key`.
-  /// Use this method instead of `[]=` to store a value exactly as it is given.
+  /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
   setValueRaw(Object key, V value) {
-    _checkAndMarkIfRequireRebuild(key);
+    _checkAndMarkIfRequireRebuild(key, value);
     _keyToValue[key] = value;
   }
 
-  /// Sets the `value` of the `key`. `value` will get copied into new objects when
-  /// it is of type [Map] or [List].
-  /// In the cases of [Map] or [List] values, it will recursively traverse them and
-  /// save copied versions of them.
+  /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of 
+  /// type [Map] or [List].
+  /// [Map] and [List] values will be recursively traversed saving copied versions of them.
+  /// Stored [Map] values are modifiable while [List] values are unmodifiable.
   /// For each value of type [Map] it will create an [ObservedMap] copy of it.
-  /// For each value of type [List] it will create a [UnmodifiableListView] copy of it.
+  /// For each value of type [List] it will create an [UnmodifiableListView] copy of it.
+  /// 
+  /// If the `key` was already in [this], the subscribed widgets to the `key` will only get
+  /// updated when `this[key]!=value`. When there is a desire to update all subscribed widgets
+  /// to they key without setting a new value use `forceUpdate` instead.
   operator []=(Object key, V value) {
     // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
-    _checkAndMarkIfRequireRebuild(key);
+    _checkAndMarkIfRequireRebuild(key, value);
     _keyToValue[key] = convert(value);
+  }
+
+  /// Updates all widgets subscribed to they key. Avoid using this method, it's hard to think
+  /// of a use case.
+  /// The `operator []=` already update subscribed widgets to the `key` when a value changes,
+  /// which is only case when a widget should get updated.
+  void forceUpdate(Object key) {
+    controller.markElementsAsNeedBuild(_keySubscriptions[key]);
   }
 
   @override

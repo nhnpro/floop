@@ -35,6 +35,31 @@ class Clicker extends StatelessWidget with Floop {
   }
 }
 
+class ClickerStateful extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() => ClickerState();
+}
+
+class ClickerState extends State with FloopState {
+  @override
+  Widget buildWithFloop(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          floop['clicks'].toString(),
+          style: TextStyle(
+            color: Colors.red,
+            fontSize: 100,
+          ))
+        ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed: () => floop['clicks']++
+      ),
+    );
+  }
+}
+
 
 void mainSimple() {
   floop['clicks'] = 0;
