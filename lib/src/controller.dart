@@ -21,7 +21,7 @@ class FloopController {
     assert(() {
       if(currentBuild != null) {
         stopListening();
-        _subscriptions.keys.forEach((e) => controller.unsubscribeFromAll(e));
+        // _subscriptions.keys.forEach((e) => controller.unsubscribeFromAll(e));
         return false;
       }
       return true;

@@ -79,7 +79,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
       return ObservedMap.of(value);
     }
     else if (value is List) {
-      return UnmodifiableListView(value.map((v) => convert(v)).toList());
+      return List.unmodifiable(value.map((v) => convert(v)));
     }
     else {
       return value;
@@ -107,10 +107,12 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of 
   /// type [Map] or [List].
+  /// 
   /// [Map] and [List] values will be recursively traversed saving copied versions of them.
-  /// Stored [Map] values are modifiable while [List] values are unmodifiable.
+  /// Stored [Map] values can be modified while [List] values are unmodifiable.
+  /// 
   /// For each value of type [Map] it will create an [ObservedMap] copy of it.
-  /// For each value of type [List] it will create an [UnmodifiableListView] copy of it.
+  /// For each value of type [List] it will create a copy using [List.unmodifiable].
   /// 
   /// If the `key` was already in [this], the subscribed widgets to the `key` will only get
   /// updated when `this[key]!=value`. When there is a desire to update all subscribed widgets
