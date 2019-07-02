@@ -89,4 +89,3 @@ class SimpleClicker extends StatelessWidget with Floop {
     );
   }
 }
-
