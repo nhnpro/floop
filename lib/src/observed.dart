@@ -22,7 +22,10 @@ abstract class Observed<K, V> {
   /// or removals) to [this]
   Set<Element> get mutationSubscriptions => _mutationSubscriptions;
 
+  // it would be preferable to hold this on the controller, however performance-wise
+  // this is faster.
   Element _currentElement;
+  Set<K> _currentKeys;
 
   bool isListening() {
     _currentElement = controller.currentBuild;
@@ -30,24 +33,110 @@ abstract class Observed<K, V> {
   }
   
   /// Subscribes the key if a floop [Widget]'s build is ongoing.
-  void subscribeKeyIfListening(Object key) {
-    if(!isListening()) return;
+  // void subscribeKeyIfListening(Object key) {
+  //   if(!isListening()) return;
+  //   subscribeKey(key);
+  // }
+
+  /// Subscribes the key if a floop [Widget]'s build is ongoing.
+  void _subscribeKey(Object key) {
     controller.subscribeObserved(this);
-    var keySubs = _keySubscriptions.putIfAbsent(key, () => Set<Element>());
-    var eleSubs = _elementSubscriptions.putIfAbsent(_currentElement, () => Set<K>());
-    keySubs.add(_currentElement);
-    eleSubs.add(key);
+    _currentKeys.add(key);
+    // var keySubs = _keySubscriptions.putIfAbsent(key, () => Set<Element>());
+    // var eleSubs = _elementSubscriptions.putIfAbsent(_currentElement, () => Set<K>());
+    // keySubs.add(_currentElement);
+    // eleSubs.add(key);
   }
 
-  subscribeMutationIfListening() {
-    if(!isListening()) return;
+  _subscribeMutation() {
     controller.subscribeObserved(this);
     _mutationSubscriptions.add(_currentElement);
   }
 
+  // subscribeMutationIfListening() {
+  //   if(!isListening()) return;
+  //   subscribeMutation();
+  // }
+
+  // _unsubscribeCurrentDifferences() {
+  //   var differenceKeys = _elementSubscriptions[_currentElement]?.difference(_currentKeys);
+  //   if(differenceKeys!=null) {
+  //     differenceKeys
+  //       .forEach((K key) {
+  //         assert(keySubscriptions[key].contains(_currentElement));
+  //         keySubscriptions[key].remove(_currentElement);
+  //       });
+  //     _elementSubscriptions[_currentElement] = _currentKeys;
+  //   }
+  // }
+
+  _subscribeElementToKeys(Element element, Set keysToAdd) {
+    for(K key in keysToAdd) {
+      assert(keySubscriptions[key].contains(element));
+      keySubscriptions.putIfAbsent(key, () => Set<Element>()).add(element);
+    }
+    _elementSubscriptions.putIfAbsent(
+      element, () => Set<K>()).addAll(keysToAdd.cast<K>());
+  }
+
+  _unsubscribeElementFromKeys(Element element, Set keysToRemove) {
+    for(K key in keysToRemove) {
+      assert(keySubscriptions[key].contains(element));
+      keySubscriptions[key].remove(element);
+      if(_keySubscriptions[key].isEmpty) {
+        _keySubscriptions.remove(key);
+      }
+    }
+    _elementSubscriptions[element].removeAll(keysToRemove);
+    if(_elementSubscriptions[element].isEmpty)
+      _elementSubscriptions.remove(element);
+  }
+
+  void updateElementKeySubscriptions(Element element, Set newKeys) {
+    assert(element != null);
+    assert(newKeys != null);
+    Set<K> previousKeys = _elementSubscriptions[element];
+    if(previousKeys==null) {
+      _subscribeElementToKeys(element, newKeys);
+    }
+    else {
+      _unsubscribeElementFromKeys(element, previousKeys.difference(newKeys));
+      _subscribeElementToKeys(element, newKeys..removeAll(previousKeys));
+    }
+  }
+
+  void updateMutationSubscription(Element element, [bool add=true]) {
+    if(add)
+      _mutationSubscriptions.add(element);
+    else
+      _mutationSubscriptions.remove(element);
+  }
+
+  // commitCurrentSubscriptions() {
+  //   // _unsubscribeCurrentDifferences();
+  //   var differenceKeys = _elementSubscriptions[_currentElement]?.difference(_currentKeys);
+  //   if(differenceKeys!=null) {
+  //     differenceKeys
+  //       .forEach((K key) {
+  //         assert(keySubscriptions[key].contains(_currentElement));
+  //         keySubscriptions[key].remove(_currentElement);
+  //       });
+  //     _elementSubscriptions[_currentElement] = _currentKeys;
+  //   }
+  //   _currentElement = null;
+  //   _currentKeys = null;
+  // }
+
+  // _unsubscribeElementFromKey(Element element, K key) {
+  //   assert(_keySubscriptions[key].contains(element));
+  //   _elementSubscriptions[element].remove(key);
+  //   _keySubscriptions[key].remove(element);
+  // }
+
   /// Unsubscribes the element from all keys on this [Observed]
   void unsubscribeElement(Element element) {
     assert(_elementSubscriptions[element] != null);
+    // if(_elementSubscriptions[element]==null) return;
     for(var key in _elementSubscriptions[element]) {
       assert(() {
         var keySubs = _keySubscriptions[key];
@@ -86,23 +175,24 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     }
   }
 
+  bool _prepareAndCheckIfListening() {
+    assert(_currentElement==null || _currentElement == controller.currentBuild);
+    if(controller.currentBuild==null) return false;
+    if(_currentElement!=null) return true;
+    _currentElement = controller.currentBuild;
+    _currentKeys = Set();
+    return true;
+  }
+
   operator [](k) {
     // print('Get $k while building ${controller.currentBuild}');
-    subscribeKeyIfListening(k);
+    if(_prepareAndCheckIfListening()) _subscribeKey(k);
     return _keyToValue[k];
   }
 
-  
   _checkAndMarkIfRequireRebuild(Object key, V value) {
     if(!_keyToValue.containsKey(key)) controller.markElementsAsNeedBuild(_mutationSubscriptions);
     if(_keyToValue[key] != value) controller.markElementsAsNeedBuild(_keySubscriptions[key]);
-  }
-  
-  /// Sets the `value` of the `key`.
-  /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
-  setValueRaw(Object key, V value) {
-    _checkAndMarkIfRequireRebuild(key, value);
-    _keyToValue[key] = value;
   }
 
   /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of 
@@ -121,6 +211,13 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
     _checkAndMarkIfRequireRebuild(key, value);
     _keyToValue[key] = convert(value);
+  }
+
+  /// Sets the `value` of the `key`.
+  /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
+  setValueRaw(Object key, V value) {
+    _checkAndMarkIfRequireRebuild(key, value);
+    _keyToValue[key] = value;
   }
 
   /// Updates all widgets subscribed to they key. Avoid using this method, it's hard to think
@@ -149,7 +246,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// during the build cycle), so setting a key to a different value will not trigger rebuilds.
   @override
   Iterable<K> get keys {
-    subscribeMutationIfListening();
+    if(_prepareAndCheckIfListening()) _subscribeMutation();
     return _keyToValue.keys;
   }
 

@@ -3,8 +3,12 @@ typedef PeriodicFunction = Function(Repeater);
 
 /// A class for asynchronously calling a function with give frquency.
 class Repeater extends Stopwatch {
+  /// Stops the repeating execution.
   bool _stop = true;
   
+  /// Used to ensure only one asynchrnous repeating call in ongoing on this repeater.
+  bool _executionLock = false;
+
   /// The function that will be called when method `start` is called on this repeater.
   /// The function gets called with this repeater as parameter.
   PeriodicFunction f;
@@ -34,19 +38,20 @@ class Repeater extends Stopwatch {
   /// Starts recurrent calls to `this.f` with the given `frequency`.
   /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
   start([int frequency]) {
-    if(!_stop) {
+    if(!_stop || _executionLock) {
       print('The Periodic was already running');
       return;
     }
-    frequency = frequency ?? frequencyMilliseconds;
     _stop = false;
+    _executionLock = true;
+    frequency = frequency ?? frequencyMilliseconds;
     super.start();
     run() {
       Future.delayed(
         Duration(milliseconds: frequency),
         () {
           if(_stop) {
-            stop();
+            _executionLock = false;
             return;
           }
           f(this);
