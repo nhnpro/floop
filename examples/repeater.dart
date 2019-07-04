@@ -1,7 +1,7 @@
 
 typedef PeriodicFunction = Function(Repeater);
 
-/// A class for asynchronously calling a function with give frquency.
+/// A class for asynchronously calling a function with given frquency.
 class Repeater extends Stopwatch {
   /// Stops the repeating execution.
   bool _stop = true;
@@ -18,10 +18,9 @@ class Repeater extends Stopwatch {
   /// this value.
   int frequencyMilliseconds;
 
-  /// 
   Repeater(this.f, [this.frequencyMilliseconds=50]);
 
-  /// Stops the recurrent execution of `this.f`.
+  /// Stops this stopwatch and the recurrent executions to `this.f`.
   stop() {
     super.stop();
     _stop = true;
@@ -35,7 +34,7 @@ class Repeater extends Stopwatch {
     !callF ?? f(this);
   }
 
-  /// Starts recurrent calls to `this.f` with the given `frequency`.
+  /// Starts this stopwatch making recurrent calls to `this.f` with the given `frequency`.
   /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
   start([int frequency]) {
     if(!_stop || _executionLock) {
@@ -77,7 +76,7 @@ class Repeater extends Stopwatch {
   /// Returns the proportion of a [double] `number` in a cycle of length `periodMilliseconds`
   /// running for `this.elapsed.inMilliseconds`.
   /// 
-  /// Floating point precision version of method `proportionInt`. See `proportionInt` for example.
+  /// Floating point precision version of method `[Repeater.proportionInt]`.
   double proportionDouble(double number, int periodMilliseconds) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     return number*current/periodMilliseconds;
