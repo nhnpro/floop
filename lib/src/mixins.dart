@@ -16,9 +16,9 @@ mixin Floop on StatelessWidget {
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
-    controller.startListening(context);
+    floopController.startListening(context);
     var widget = buildWithFloop(context);
-    controller.stopListening();
+    floopController.stopListening();
     return widget;
   }
 
@@ -34,7 +34,7 @@ class StatelessElementFloop extends StatelessElement {
   
   @override
   void unmount() {
-    controller.unsubscribeFromAll(this);
+    floopController.unsubscribeFromAll(this);
     super.unmount();
   }
 }
@@ -44,21 +44,21 @@ mixin FloopState on State { //on StatelessWidget
 
   @visibleForOverriding
   Widget build(BuildContext context) {
-    controller.startListening(context);
+    floopController.startListening(context);
     var widget = buildWithFloop(context);
-    controller.stopListening();
+    floopController.stopListening();
     return widget;
   }
 
   @override
   deactivate() {
-    controller.unsubscribeFromAll(this.context);
+    floopController.unsubscribeFromAll(this.context);
     super.deactivate();
   }
 
   @override
   dispose() {
-    controller.unsubscribeFromAll(this.context);
+    floopController.unsubscribeFromAll(this.context);
     super.dispose();
   }
 }

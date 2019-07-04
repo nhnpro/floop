@@ -34,10 +34,10 @@ main() {
   print('Benchmarks for LightWidget');
   runBenchmarks();
 
-  widgetCreatorReference = () => MediumWeightWidget(plainRead);
-  widgetCreatorFloop = () => MediumWeightWidgetFloop(plainRead);
-  widgetName = 'Scaffold';
-  print('Benchmarks for ScaffoldWidget (heavier)');
+  widgetCreatorReference = () => HeavyWidget(plainRead);
+  widgetCreatorFloop = () => HeavyWidgetFloop(plainRead);
+  widgetName = 'HeavyWidget';
+  print('Benchmarks for HeavyWidget');
   runBenchmarks();
 }
 
@@ -61,7 +61,7 @@ void widgetBuildBenchmark(int numberKeys, [String bencharkHeadLine='Running Benc
     for(int i=0; i<1000; i++) widget.build(mockEle);
   }
   
-  print('Controller subscribed element count: ${controller.subscriptions.length}');
+  print('Controller subscribed element count: ${floopController.subscriptions.length}');
   
   store = Map.of(data);
   widget = LightWidget(readOperation);
@@ -110,7 +110,7 @@ plainRead() {  //Map data, Iterable keys
 }
 
 void warmUpController(int n) {
-  controller.subscriptions.keys.toList().forEach((e) => controller.unsubscribeFromAll(e));
+  floopController.subscriptions.keys.toList().forEach((e) => floopController.unsubscribeFromAll(e));
   store = ObservedMap.of(createMapWithValues(3));
   print('warm up keys: ${store.keys.length} $_');
   StatelessWidget widget = LightWidgetFloop(() => plainRead());
@@ -144,10 +144,10 @@ class LightWidget extends StatelessWidget {
 
 class LightWidgetFloop = LightWidget with Floop;
 
-class MediumWeightWidget extends StatelessWidget {
+class HeavyWidget extends StatelessWidget {
   final Function readOperation;
 
-  MediumWeightWidget(this.readOperation);
+  HeavyWidget(this.readOperation);
 
   @override
   Widget buildWithFloop(BuildContext context) {
@@ -195,4 +195,4 @@ class MediumWeightWidget extends StatelessWidget {
   }
 }
 
-class MediumWeightWidgetFloop = MediumWeightWidget with Floop;
+class HeavyWidgetFloop = HeavyWidget with Floop;

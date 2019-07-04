@@ -62,21 +62,22 @@ class Repeater extends Stopwatch {
     run();
   }
 
-  /// Utility function that returns the integer proportion of an [int] `number` in a cycle
-  /// of length `periodMilliseconds` compared to this repeater's `elapsed` time.
+  /// Utility function that returns an integer between 0 inclusive and `maxNumber` exclusive
+  /// corresponding to the proportional position in a cycle of `periodMilliseconds` in current
+  /// `elapsed` time.
   /// 
   /// For example if elapsed time is 23ms and period is 10ms, then the current cycle time is
   /// 3ms or 30% of the cycle run. If `number` is 100, the result would be 30 (30% of 100).
-  int proportionInt(int number, int periodMilliseconds) {
+  int proportionInt(int maxNumber, int periodMilliseconds) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
-    var res = (number*current)~/periodMilliseconds;
+    var res = (maxNumber*current)~/periodMilliseconds;
     return res;
   }
 
-  /// Returns the proportion of a [double] `number` in a cycle of length `periodMilliseconds`.
+  /// Returns the proportion of a [double] `number` in a cycle of length `periodMilliseconds`
+  /// running for `this.elapsed.inMilliseconds`.
   /// 
-  /// Floating point precision version of method `proportionInt`. See `proportionInt`
-  /// doc for .
+  /// Floating point precision version of method `proportionInt`. See `proportionInt` for example.
   double proportionDouble(double number, int periodMilliseconds) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     return number*current/periodMilliseconds;

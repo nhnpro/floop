@@ -1,6 +1,6 @@
 library floop;
 
-export 'package:floop/src/observed.dart' show floop, Observed, ObservedMap;
+export 'package:floop/src/observed.dart' show floop, ObservedController, ObservedMap;
 export 'package:floop/src/mixins.dart' show Floop, FloopState;
 
 // import 'package:flutter/cupertino.dart';

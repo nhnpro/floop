@@ -18,9 +18,9 @@ class MockElement extends Mock implements Element {
 }
 
 void subscribeKeyToElement(ObservedMap observed, key, element) {
-  controller.startListening(element);
+  floopController.startListening(element);
   observed[key];
-  controller.stopListening();
+  floopController.stopListening();
 }
 
 
@@ -29,8 +29,8 @@ void main() {
   ObservedMap observedMap;
 
   setUp(() {
-    controller.subscriptions.clear();
-    assert(controller.currentBuildSubscriptions==null);
+    floopController.subscriptions.clear();
+    assert(floopController.currentBuildSubscriptions==null);
     observedMap = ObservedMap();
     observedMap.addAll({'tasks': tasks});
   });
@@ -61,9 +61,9 @@ void main() {
   group('FloopController tests', () {
     test('listener key subscriptions, mutiple keys', () {
       var mockEle = MockElement();
-      controller.startListening(mockEle);
-      expect(controller.subscriptions, isEmpty);
-      expect(controller.currentBuildSubscriptions, isEmpty);
+      floopController.startListening(mockEle);
+      expect(floopController.subscriptions, isEmpty);
+      expect(floopController.currentBuildSubscriptions, isEmpty);
 
       expect(() => observedMap['boo'] = 123, throwsStateError);
       observedMap['boo'];
@@ -74,16 +74,16 @@ void main() {
       // not Observed (there is no point in observing a structure that cannot change).
       // Only observedMap and observedMap['tasks'][0] are the observed
       observedMap['tasks'][0]['title'];
-      expect(controller.subscriptions, isEmpty);
-      expect(controller.currentBuild, equals(mockEle));
-      expect(controller.currentBuildSubscriptions, hasLength(2));
+      expect(floopController.subscriptions, isEmpty);
+      expect(floopController.currentBuild, equals(mockEle));
+      expect(floopController.currentBuildSubscriptions, hasLength(2));
       expect(observedMap.keySubscriptions, hasLength(3));
       expect(observedMap['tasks'][0].keySubscriptions, hasLength(1));
 
-      controller.stopListening();
-      expect(controller.subscriptions, hasLength(1));
-      expect(controller.subscriptions, contains(mockEle));
-      expect(controller.subscriptions[mockEle], unorderedEquals([observedMap, observedMap['tasks'][0]]));
+      floopController.stopListening();
+      expect(floopController.subscriptions, hasLength(1));
+      expect(floopController.subscriptions, contains(mockEle));
+      expect(floopController.subscriptions[mockEle], unorderedEquals([observedMap, observedMap['tasks'][0]]));
     });
 
     test('set value calls markNeedsBuild on Elements', () {
@@ -109,7 +109,7 @@ void main() {
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(controller.subscriptions, hasLength(2));
+      expect(floopController.subscriptions, hasLength(2));
 
       // set operation updates both elements
       observedMap['tennis'] = 'match point';      
@@ -122,16 +122,16 @@ void main() {
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(controller.subscriptions[mockEle], unorderedEquals([observedMap]));
+      expect(floopController.subscriptions[mockEle], unorderedEquals([observedMap]));
       expect(observedMap.keySubscriptions, hasLength(1));
       expect(observedMap.keySubscriptions['tennis'], unorderedEquals([mockEle, mockEle2]));
 
-      controller.unsubscribeFromAll(mockEle);
-      expect(controller.subscriptions[mockEle], isNull);
+      floopController.unsubscribeFromAll(mockEle);
+      expect(floopController.subscriptions[mockEle], isNull);
       expect(observedMap.keySubscriptions['tennis'], isNot(contains(mockEle)));
 
-      controller.unsubscribeFromAll(mockEle2);
-      expect(controller.subscriptions[mockEle2], isNull);
+      floopController.unsubscribeFromAll(mockEle2);
+      expect(floopController.subscriptions[mockEle2], isNull);
       expect(observedMap.keySubscriptions, hasLength(0));
       expect(observedMap.elementSubscriptions, hasLength(0));
     });
