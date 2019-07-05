@@ -20,7 +20,7 @@ void main() {
   );
 }
 
-createIconButton(IconData iconData, {size: 40.0}) => IconButton(
+createIconButton(IconData iconData, {double size = 40.0}) => IconButton(
   iconSize: size,
   icon: Icon(iconData),
   onPressed: () {

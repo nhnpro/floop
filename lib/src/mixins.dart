@@ -9,6 +9,19 @@ import './controller.dart';
 /// widget that is incorporated into the tree multiple times will be inflated
 /// multiple times.
 mixin Floop on StatelessWidget {
+
+  // static FloopController controller = floopController;
+  
+  // static switchToDefaultController() => FloopController.switchToDefaultController();
+
+  // static switchToFullControllerUntilFinishBuild() => FloopController.switchToFullControllerUntilFinishBuild();
+
+  // static switchToLightControllerUntilFinishBuild() => FloopController.switchToLightControllerUntilFinishBuild();
+
+  // static setDefaultControllerToFull() => FloopController.setDefaultControllerToFull();
+
+  // static setDefaultControllerToLight() => FloopController.setDefaultControllerToLight();
+
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to it's global state.
   Widget buildWithFloop(BuildContext context);
