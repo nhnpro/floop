@@ -19,7 +19,6 @@ class MockElement extends Object implements Element {
 
 void doNothing([v]) {}
 
-
 double benchmarkFunction(f, [messagePrefix='Function']) {
   var avgTime = BenchmarkBase.measureFor(f, 2000);
   print('$messagePrefix average time: $avgTime us');
@@ -27,7 +26,8 @@ double benchmarkFunction(f, [messagePrefix='Function']) {
 }
 
 addObservedSubscriptions(ObservedMap observed, [int numberOfKeys=10]) {
-  warmUpController(100, observed, observed.keys.toList().sublist(0, 10));
+  numberOfKeys = numberOfKeys > observed.length ? observed.length : numberOfKeys;
+  warmUpController(100, observed, observed.keys.toList().sublist(0, numberOfKeys));
 }
 
 void warmUpController(int numberOfElements, [ObservedMap readMap, Iterable keys]) {
@@ -41,6 +41,16 @@ void warmUpController(int numberOfElements, [ObservedMap readMap, Iterable keys]
     plainRead(readMap, keys);
     floopController.stopListening();
   }
+  assert(() {
+    if(floopController.length != numberOfElements && keys.length>0) {
+      print(
+        'Inconsistency: ${floopController.runtimeType.toString()} elements is\n'
+        '${floopController.length} but should be $numberOfElements.\n'
+      );
+      return false;
+    }
+    return true;
+  }());
   // print('warm up subscription: ${(store as ObservedMap).keySubscriptions.length}');
 }
 
@@ -50,11 +60,19 @@ String valueFuncion(int i) => 'insertion number $i';
 createMapWithValues(int numberOfValues, [indexToKey=keyFuncion, indexToValue=valueFuncion]) {
   var map = Map();
   for(var i = 0; i < numberOfValues; i++) {
-    map['field$i'] = 'insertion number $i';
+    map[indexToKey(i)] = indexToValue(i);
   }
   return map;
 }
 
 plainRead(Map data, Iterable keys) {
   for(var k in keys) data[k];
+}
+
+createValueReader(Map map, [int numberOfReads]) {
+  numberOfReads = numberOfReads ?? map.length;
+  var keys = map.keys.toList().sublist(0, numberOfReads);
+  return () {
+    for(var k in keys) map[k];
+  };
 }

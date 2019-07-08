@@ -9,19 +9,6 @@ import './controller.dart';
 /// widget that is incorporated into the tree multiple times will be inflated
 /// multiple times.
 mixin Floop on StatelessWidget {
-
-  // static FloopController controller = floopController;
-  
-  // static switchToDefaultController() => FloopController.switchToDefaultController();
-
-  // static switchToFullControllerUntilFinishBuild() => FloopController.switchToFullControllerUntilFinishBuild();
-
-  // static switchToLightControllerUntilFinishBuild() => FloopController.switchToLightControllerUntilFinishBuild();
-
-  // static setDefaultControllerToFull() => FloopController.setDefaultControllerToFull();
-
-  // static setDefaultControllerToLight() => FloopController.setDefaultControllerToLight();
-
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to it's global state.
   Widget buildWithFloop(BuildContext context);
@@ -29,9 +16,31 @@ mixin Floop on StatelessWidget {
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
-    floopController.startListening(context);
+    fullController.startListening(context);
     var widget = buildWithFloop(context);
-    floopController.stopListening();
+    fullController.stopListening();
+    return widget;
+  }
+
+  @override
+  StatelessElement createElement() {
+    return StatelessElementFloop(this);
+  }
+}
+
+abstract class FloopWidget extends StatelessWidget with Floop {}
+
+mixin FloopLight on StatelessWidget {
+  /// Override this method as you would normally override the [build] method.
+  /// Do NOT override [build] or floop will fail to listen reads to it's global state.
+  Widget buildWithFloop(BuildContext context);
+
+  /// Do NOT override this method, use [buildWithFloop] to build your widget.
+  @visibleForOverriding
+  Widget build(BuildContext context) {
+    lightController.startListening(context);
+    var widget = buildWithFloop(context);
+    lightController.stopListening();
     return widget;
   }
 
@@ -43,6 +52,7 @@ mixin Floop on StatelessWidget {
 
 /// Wrapper class of StatelessElement used to catch calls to unmount
 class StatelessElementFloop extends StatelessElement {
+  
   StatelessElementFloop(StatelessWidget widget) : super(widget);
   
   @override
@@ -52,14 +62,20 @@ class StatelessElementFloop extends StatelessElement {
   }
 }
 
-mixin FloopState on State { //on StatelessWidget 
+
+/// Floop Mixin for StatefulWidgets. Use the mixin in the State class instead
+/// corresponding to the Widget.
+mixin FloopState on State {
+  /// Override this method as you would normally override the [build] method.
+  /// Do NOT override [build] or floop will fail to listen reads to it's global state.
   Widget buildWithFloop(BuildContext context);
 
+  /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
-    floopController.startListening(context);
+    fullController.startListening(context);
     var widget = buildWithFloop(context);
-    floopController.stopListening();
+    fullController.stopListening();
     return widget;
   }
 

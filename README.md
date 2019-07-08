@@ -65,6 +65,22 @@ Widgets are always only subscribed to the keys **read during their last build**.
 ## <a name="performance">Performance</a>
 In short, `buildWithFloop` is like adding 20 lines of variable read-write operations to a widget (imaging wrapping your widget with a widget that has 20 initialization fields). Each  On average the Building widgets is blazingly fast. All you do in a build operation is instantiate a bunch of objects. You can
 
+The wrapped map Observad map has regligeble permorfance decrease over a regular LinkedHashMap (about x1.15). While the controller is listening (because a Widget is building) permorfance decreases to x2.0 per read.   droroughly 4 times slower that reading a plain map
+
+- x1.25 using the map like a regular map.
+- x2.5 (x2 Light) while Floop is on 'listening' mode (when a Widget is building)
+- x4.7 (x4 Light) considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting áll the reads that were 'observed' during the build of widget.
+
+Performance can drop up to x6 or x7 in debug mode, because of the assertion checks.
+
+How does this tranlate into Widget build time? Widgets build blazingly fast, they are just a bunch of constructors. As a reference, building a small widget 1000 times takes less than 1ms. This means that reading a field of a Map is not a minor task.
+
+- x1.25 using the map like a regular map.
+- x2.5 (x2 Light) while Floop is on 'listening' mode (when a Widget is building)
+- x4.7 (x4 Light) considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting áll the reads that were 'observed' during the build of widget.
+
+
+
 In practice, Floop performs very well for simple animated applications. Overall using Floop should improve performance, by updating and rebuilding directly the Widgets that have changed, instead of having a parent widgets that manage state, have to rebuild a whole tree of child widgets. In practice, building the Widget tree is a lightweight operation compared to the whole rending cycle, so performance wise the impact is negligible.
 
 There are some benchmark files intending to answer two questions:
