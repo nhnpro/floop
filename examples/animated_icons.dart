@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
 
-import 'repeater.dart';
 import 'constants.dart';
 
 // Create your own store from ObservedMap instead of using `floop` (it's the same)
@@ -36,7 +35,7 @@ initializeStoreValues() {
 
   // the following used just for general storage purposes
   store['rotationSpeed'] = 0.1;
-  store['iconWidgets'] = icons.map((ic) => AnimatedIconButton(ic)).toList();  // used just for storing
+  store['iconWidgets'] = icons.map((ic) => AnimatedIconButton(ic)).toList();
 }
 
 initializeRepeaters() {

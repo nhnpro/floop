@@ -35,6 +35,9 @@ class Clicker extends StatelessWidget with Floop {
   }
 }
 
+
+// The following are alternative implementations of the same
+
 class ClickerStateful extends StatefulWidget {
   @override
   State<StatefulWidget> createState() => ClickerState();

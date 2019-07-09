@@ -29,11 +29,11 @@ class DragCircle extends StatelessWidget with Floop {
     double radius = floop['radius'] + floop['scalePx'];
     if(radius>radiusMax) {
       radius = radiusMax;
-      floop['scalePx'] = -2.0;
+      floop['scalePx'] *= -1;
     }
     else if(radius<radiusMin) {
       radius = radiusMax;
-      floop['scalePx'] = 2.0;
+      floop['scalePx'] *= -1;
     }
     floop['radius'] = radius;
   
