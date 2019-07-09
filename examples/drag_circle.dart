@@ -32,7 +32,7 @@ class DragCircle extends StatelessWidget with Floop {
       floop['scalePx'] *= -1;
     }
     else if(radius<radiusMin) {
-      radius = radiusMax;
+      radius = radiusMin;
       floop['scalePx'] *= -1;
     }
     floop['radius'] = radius;
@@ -45,8 +45,8 @@ class DragCircle extends StatelessWidget with Floop {
 
   void onDrag(DragUpdateDetails dragInfo) {
     Map position = floop['circle'];
-    position['x'] = dragInfo.globalPosition.dx;
-    position['y'] = dragInfo.globalPosition.dy;
+    position['x'] += dragInfo.delta.dx;
+    position['y'] += dragInfo.delta.dy;
   }
 
   void startAnimation([_]) {
@@ -85,6 +85,7 @@ class DragCircle extends StatelessWidget with Floop {
         onPressed: () {
           floop['circle']['x'] = 100.0;
           floop['circle']['y'] = 100.0;
+          floop['radius'] = 20.0;
         },
       ),
     );
