@@ -1,3 +1,3 @@
-## [0.0.1] - TODO: Add release date.
+## [0.0.1] - 09/07/2019
 
-* TODO: Describe initial release.
+First version of Floop. See README.md for details.
