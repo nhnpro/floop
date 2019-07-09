@@ -28,8 +28,13 @@ mixin Floop on StatelessWidget {
   }
 }
 
-abstract class FloopWidget extends StatelessWidget with Floop {}
+/// StatelessWidget class that includes [Floop].
+/// 
+/// `class MyWidget extends FloopWidget` is equivalent to
+/// `class MyWidget extends StatelessWidget with Floop`
+abstract class FloopWidget = StatelessWidget with Floop;
 
+/// 
 mixin FloopLight on StatelessWidget {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to it's global state.
@@ -50,6 +55,9 @@ mixin FloopLight on StatelessWidget {
   }
 }
 
+// mixin Mixin = Floop, Floop;
+
+
 /// Wrapper class of StatelessElement used to catch calls to unmount
 class StatelessElementFloop extends StatelessElement {
   
@@ -57,7 +65,7 @@ class StatelessElementFloop extends StatelessElement {
   
   @override
   void unmount() {
-    floopController.unsubscribeFromAll(this);
+    unsubscribeElement(this);
     super.unmount();
   }
 }
@@ -65,9 +73,9 @@ class StatelessElementFloop extends StatelessElement {
 
 /// Floop Mixin for StatefulWidgets. Use the mixin in the State class instead
 /// corresponding to the Widget.
-mixin FloopState on State {
+mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   /// Override this method as you would normally override the [build] method.
-  /// Do NOT override [build] or floop will fail to listen reads to it's global state.
+  /// Do NOT override [build] or floop will fail to listen reads to [ObservedMaps].
   Widget buildWithFloop(BuildContext context);
 
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
@@ -80,14 +88,18 @@ mixin FloopState on State {
   }
 
   @override
+  @mustCallSuper
   deactivate() {
-    floopController.unsubscribeFromAll(this.context);
+    unsubscribeElement(this.context);
     super.deactivate();
   }
 
   @override
+  @mustCallSuper
   dispose() {
-    floopController.unsubscribeFromAll(this.context);
+    unsubscribeElement(this.context);
     super.dispose();
   }
 }
+
+abstract class FloopState<T extends StatefulWidget> = State<T> with FloopStateMixin<T>;

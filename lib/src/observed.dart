@@ -81,22 +81,25 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// to they key without setting a new value use `forceUpdate` instead.
   operator []=(Object key, V value) {
     // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
-    _notifySetValue(key, value);
+    _notifyListenerIfChange(key, value);
     _keyToValue[key] = convert(value);
   }
 
   /// Sets the `value` of the `key`.
   /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
   setValueRaw(Object key, V value) {
-    _notifySetValue(key, value);
+    _notifyListenerIfChange(key, value);
     _keyToValue[key] = value;
   }
 
-  _notifySetValue(Object key, V value) {
-    if(!_keyToValue.containsKey(key))
-      _listener.mutated();
-    else if(_keyToValue[key] != value)
+  _notifyListenerIfChange(Object key, V value) {
+    // if(!_keyToValue.containsKey(key)) {
+    //   print('Mutated $key, $value');
+      // _listener.mutated();
+    // }
+    if(!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
       _listener.valueChanged(key);
+    }
   }
 
   /// Updates all widgets subscribed to they key. Avoid using this method unless strictly necessary.
@@ -114,9 +117,9 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   @override
   V remove(Object key) {
-    if(!_keyToValue.containsKey(key)) {
+    if(_keyToValue.containsKey(key)) {
       _listener.valueChanged(key);
-      _listener.mutated();
+      // _listener.mutated();
     }
     return _keyToValue.remove(key);
   }

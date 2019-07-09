@@ -40,7 +40,7 @@ class ClickerStateful extends StatefulWidget {
   State<StatefulWidget> createState() => ClickerState();
 }
 
-class ClickerState extends State with FloopState {
+class ClickerState extends State<ClickerStateful> with FloopStateMixin {
   @override
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(

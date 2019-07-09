@@ -17,20 +17,19 @@ class MockElement extends Mock implements Element {
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.debug}) => super.toString();
 }
 
-void subscribeKeyToElement(ObservedMap observed, key, element) {
+void subscribeKeyToElement(ObservedMap observed, Object key, Element element) {
   floopController.startListening(element);
   observed[key];
   floopController.stopListening();
 }
-
 
 void main() {
 
   ObservedMap observedMap;
 
   setUp(() {
-    floopController.subscriptions.clear();
-    assert(floopController.currentBuildSubscriptions==null);
+    floopController.reset();
+    assert(FloopController.current.length==0);
     observedMap = ObservedMap();
     observedMap.addAll({'tasks': tasks});
   });
@@ -62,33 +61,38 @@ void main() {
     test('listener key subscriptions, mutiple keys', () {
       var mockEle = MockElement();
       floopController.startListening(mockEle);
-      expect(floopController.subscriptions, isEmpty);
-      expect(floopController.currentBuildSubscriptions, isEmpty);
+      expect(floopController.length, 0);
+      expect(floopController.listening, true);
 
-      expect(() => observedMap['boo'] = 123, throwsStateError);
+      // Set value of 'boo'. Because there are no key subscriptions, this
+      // is not a problem.
+      expect(() => observedMap['boo'] = 123, isNot(throwsAssertionError));
       observedMap['boo'];
       observedMap['tennis'];
       // There are three reads in next statement, observedMap['tasks'], [0] and ['title].
-      // However observedMap['tasks'] is a [List], and Lists are copied as [UnmodifiableList]
-      // internally by observadMap (see ObservadMap.convert for details), which are of course
-      // not Observed (there is no point in observing a structure that cannot change).
-      // Only observedMap and observedMap['tasks'][0] are the observed
+      // ObservedMap['tasks'] is a [List], and Lists are copied as [UnmodifiableList]
+      // internally by observadMap (see ObservadMap.convert for details), which are
+      // not Observed.
+      // Only observedMap and observedMap['tasks'][0] are [Observed] datastructures
+      // that are listened.
       observedMap['tasks'][0]['title'];
-      expect(floopController.subscriptions, isEmpty);
+      expect(floopController.length, 0);
       expect(floopController.currentBuild, equals(mockEle));
-      expect(floopController.currentBuildSubscriptions, hasLength(2));
-      expect(observedMap.keySubscriptions, hasLength(3));
-      expect(observedMap['tasks'][0].keySubscriptions, hasLength(1));
+      // expect(observedMap['tasks'][0].keySubscriptions, hasLength(1));
 
       floopController.stopListening();
-      expect(floopController.subscriptions, hasLength(1));
-      expect(floopController.subscriptions, contains(mockEle));
-      expect(floopController.subscriptions[mockEle], unorderedEquals([observedMap, observedMap['tasks'][0]]));
+      expect(floopController.length, 1);
+      expect(floopController.contains(mockEle), true);
+      expect((floopController as FullController).subscriptions[mockEle].length, 2);
     });
 
-    test('set value calls markNeedsBuild on Elements', () {
+    test('set value calls updates Element when key is not in ObservedMap', () {
       var mockEle = MockElement();
       subscribeKeyToElement(observedMap, 'boo', mockEle);
+      expect(floopController.contains(mockEle), true);
+
+      // ObservedListener listener = (floopController as FullController).subscriptions[mockEle].first;
+      // expect(listener.keyToElements.containsKey('boo'), true);
       observedMap['boo'] = [1, 2, 3];
       verify(mockEle.markNeedsBuild()).called(1);
     });
@@ -109,7 +113,7 @@ void main() {
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(floopController.subscriptions, hasLength(2));
+      expect(floopController.length, 2);
 
       // set operation updates both elements
       observedMap['tennis'] = 'match point';      
@@ -122,18 +126,19 @@ void main() {
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(floopController.subscriptions[mockEle], unorderedEquals([observedMap]));
-      expect(observedMap.keySubscriptions, hasLength(1));
-      expect(observedMap.keySubscriptions['tennis'], unorderedEquals([mockEle, mockEle2]));
+      expect(floopController.contains(mockEle), true);
+      expect(floopController.contains(mockEle2), true);
+      expect(observedMap.length, 1);
+      // expect(observedMap.keySubscriptions['tennis'], unorderedEquals([mockEle, mockEle2]));
 
-      floopController.unsubscribeFromAll(mockEle);
-      expect(floopController.subscriptions[mockEle], isNull);
-      expect(observedMap.keySubscriptions['tennis'], isNot(contains(mockEle)));
+      unsubscribeElement(mockEle);
+      expect(floopController.contains(mockEle), false);
+      // expect(observedMap.keySubscriptions['tennis'], isNot(contains(mockEle)));
 
-      floopController.unsubscribeFromAll(mockEle2);
-      expect(floopController.subscriptions[mockEle2], isNull);
-      expect(observedMap.keySubscriptions, hasLength(0));
-      expect(observedMap.elementSubscriptions, hasLength(0));
+      unsubscribeElement(mockEle2);
+      expect(floopController.contains(mockEle2), false);
+      // expect(observedMap.keySubscriptions, hasLength(0));
+      // expect(observedMap.elementSubscriptions, hasLength(0));
     });
   });
 }

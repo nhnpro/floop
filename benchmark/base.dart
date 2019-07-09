@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:benchmark_harness/benchmark_harness.dart';
 import 'package:flutter/widgets.dart';
 
@@ -54,16 +56,30 @@ void warmUpController(int numberOfElements, [ObservedMap readMap, Iterable keys]
   // print('warm up subscription: ${(store as ObservedMap).keySubscriptions.length}');
 }
 
-String keyFuncion(int i) => 'field$i';
-String valueFuncion(int i) => 'insertion number $i';
+// String keyFuncion(int i) => 'field$i';
+// String valueFuncion(int i) => 'insertion number $i';
+int keyFuncion(int i) => i;//'field$i';
+int valueFuncion(int i) => i;//'insertion number $i';
 
 createMapWithValues(int numberOfValues, [indexToKey=keyFuncion, indexToValue=valueFuncion]) {
   var map = Map();
-  for(var i = 0; i < numberOfValues; i++) {
+  var numbers = randomIntList(numberOfValues);
+  for(var i in numbers) {
     map[indexToKey(i)] = indexToValue(i);
   }
   return map;
 }
+
+Iterable randomIntList(length) {
+  Random random = Random();
+  int maxInt = length*100;
+  Set<int> result = Set();
+  while(result.length<length) {
+    result.add(random.nextInt(maxInt));
+  }
+  return result;
+}
+
 
 plainRead(Map data, Iterable keys) {
   for(var k in keys) data[k];

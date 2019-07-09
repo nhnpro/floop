@@ -1,6 +1,6 @@
 # Floop
 
-A super simplified state management for flutter. No need to manage state anymore. Inspired by [react-recollect](https://github.com/davidgilbertson/react-recollect).
+An automatic Widget refresh library for flutter. Inspired by [react-recollect](https://github.com/davidgilbertson/react-recollect). Alternative approach for state management.
 
 Floop uses an observed 'global store' state management paradigm. Widgets will always display the current value in the store. With Floop it's possible to build a whole interactive app using purely stateless widgets.
 
@@ -9,32 +9,28 @@ Floop uses an observed 'global store' state management paradigm. Widgets will al
 ```diff
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-+// class ClickerState extends State with FloopState {  // for stateful Widgets
++// class ClickerState extends State with FloopState { 
 
   @override
--Widget build(BuildContext context)
+-Widget build(BuildContext context) {
 +Widget buildWithFloop(BuildContext context) {
-+// do not modify store like floop['myValue'] += 1 inside buildWithFloop, it's the only forbidden use
+buildWithFloop
     return Scaffold(
       body: Center(
-          child: Text(floop['clicks'].toString())    // widget displays with the current value of `floop['clicks']`
++          child: Text(floop['clicks'].toString())
         ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () => floop['clicks']++    // change 'clicks' from anywhere in the app and the widget will get updated
++        onPressed: () => floop['clicks']++    // change 'clicks' from anywhere in the app and the widget will get updated
       ),
     );
   }
 }
 ```
 
-The example above displays everything required to use the library, you may keep reading to learn more [details](#details)), but it's not necessary. See the full example [here](../blob/master/examples/clicker.dart).
+The example above displays everything required to use the library, you may keep reading to learn more [details](#details)), but it's not really necessary. See the full example [here](../blob/master/examples/clicker.dart).
 
-In summary, the two rules two use Floop:
-1. Widget will always rebuild with the last value in the store
-2. Do not modify the store during the build
-
-Any kind of values can be kept in the global store `floop`.
+Any kind of values can be kept in the global store `floop`. If you wish, you may create you own stores by doing `Map myStore = ObservedMap()` instead of using the built in store `floop`.
 
 ## Install
 
@@ -47,45 +43,45 @@ depedencies:
 
 Run `flutter pub get` in the root folder of your project.
 
-## Why use Floop
+## Advantages of Using Floop
 
 - It's an intuitive way of building UI. Many people expect that when they add a component `Text(myText)`, the UI will display whatever value is set on the var myText. That's exactly what happens if you do `Text(floop['myText'])`.
-- There is no learning curve. Anyone can use it and understand it immediately, the example above is all there is.
+
+- When data that is common for the whole app changes (for example user data), automatically all widgets that use that data get updated, so there is one thing less to worry about.
+
+- There is no learning curve. It can be understood immediately, the example above is all there is.
+
 - It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated.
-- Animations simplified: a different animation paradigm. Animations can be completely decoupled from the component, allowing you to use the basic stateless components you already know and just make them read values that will be changing. Create oscillating values, put them in the store and read those values in the widgets you want to animate. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../blob/master/examples/animated_icons.dart).
+
+- Easily make simple animations. Animations can be completely decoupled from the component, allowing you to use the common basic stateless components and just make them read values that will be changing. Create oscillating values, put them in the store and read those values in the widgets you want to animate. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../blob/master/examples/animated_icons.dart).
 
 ## <a name="details">Details</a>
 
-`floop` is just an instance of [ObservedMap], which implements [Map], create alternative 'stores' doing `Map myStore = ObservedMap()` ([Map<K, V>] also possible).
+`floop` is just an instance of [ObservedMap], which implements [Map]. create alternative 'stores' doing `Map myStore = ObservedMap()` ([Map<K, V>] also possible).
 
-Widgets are always only subscribed to the keys **read during their last build**. 
+Widgets only subscribe to the keys **read during the last build**. This means that keys that were read in a previous build that for example are used inside conditions that didn't trigger, will not get "subscribed" to the widget.
 
-[Map] and [Iterable] values will not be stored by reference, but rather they'll get deep copied (automatically). Every [Map] will be copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable].
+[Map] and [List] values will not be stored as they are, but rather they'll get deep copied (automatically). Every [Map] will be copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and Lists can be stored as they are using the method [ObservedMap.setValueRaw], however in those cases the values inside the Map or List will not update Widgets when they change.
 
 ## <a name="performance">Performance</a>
-In short, `buildWithFloop` is like adding 20 lines of variable read-write operations to a widget (imaging wrapping your widget with a widget that has 20 initialization fields). Each  On average the Building widgets is blazingly fast. All you do in a build operation is instantiate a bunch of objects. You can
+As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with another Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time.
 
-The wrapped map Observad map has regligeble permorfance decrease over a regular LinkedHashMap (about x1.15). While the controller is listening (because a Widget is building) permorfance decreases to x2.0 per read.   droroughly 4 times slower that reading a plain map
+In a small Widget, including Floop implies the following performance hit in build time:
+- x1.15 when Floop is included, but no value is read from the an ObservedMap.
+- x2 when up to 5 values are read.
+
+In medium Widgets:
+- x1 or negligible performance hit when Floop is included, but no value is read from the an ObservedMap.
+- x2 when up to 15 values are read.
+
+If more values are read, the Map read operation starts becoming the bottleneck of Widget build time even when reading from a regular Map. The more values are read from the Map, the more the performance hit approaches the difference between reading from a Map and an ObservedMap while listening. The performance hit when reading from an ObservedMap in comparison to a regular LinkedHashMap is the following:
 
 - x1.25 using the map like a regular map.
-- x2.5 (x2 Light) while Floop is on 'listening' mode (when a Widget is building)
-- x4.7 (x4 Light) considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting áll the reads that were 'observed' during the build of widget.
+- x2.5 while Floop is on 'listening' mode (when a Widget is building).
+- x5 - x8 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were 'observed' during the build of a widget.
 
-Performance can drop up to x6 or x7 in debug mode, because of the assertion checks.
+Benchmarks have quite some variability, the numbers vary on each run, depending if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging around x7.
 
-How does this tranlate into Widget build time? Widgets build blazingly fast, they are just a bunch of constructors. As a reference, building a small widget 1000 times takes less than 1ms. This means that reading a field of a Map is not a minor task.
-
-- x1.25 using the map like a regular map.
-- x2.5 (x2 Light) while Floop is on 'listening' mode (when a Widget is building)
-- x4.7 (x4 Light) considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting áll the reads that were 'observed' during the build of widget.
-
-
-
-In practice, Floop performs very well for simple animated applications. Overall using Floop should improve performance, by updating and rebuilding directly the Widgets that have changed, instead of having a parent widgets that manage state, have to rebuild a whole tree of child widgets. In practice, building the Widget tree is a lightweight operation compared to the whole rending cycle, so performance wise the impact is negligible.
-
-There are some benchmark files intending to answer two questions:
-
-1. How much slower is the ObservedMap operation overhead (not while listening a Widget's build) compared to the base LinkedHashMap?
-Good benchmarks need yet to be done. Different approaches were tried, some resulted in an overhead of up to 3.5 times slower, but the latest plain read benchmark throws an overhead of 1.5 times. Note that this is negligible, it's hard to believe that reading Maps while building Widget's is more than 1% of the total build time. 
-2. How much slower does the Widget build method run when being listened by Floop?
+### Writing on an ObservedMap
+Writing on an ObservedMap has a rough permorfance hit of x3.2 in all circumstances.
 
