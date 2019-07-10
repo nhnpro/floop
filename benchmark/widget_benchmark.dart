@@ -1,9 +1,7 @@
 import 'dart:math';
-
-// import 'package:benchmark_harness/benchmark_harness.dart';
-import 'package:floop/src/mixins.dart';
 import 'package:flutter/material.dart';
 
+import 'package:floop/src/mixins.dart';
 import 'package:floop/floop.dart';
 import 'package:floop/src/controller.dart';
 
@@ -12,7 +10,7 @@ import 'base.dart';
 /// Benchmarks for the Widget build time.
 /// 
 /// Run benchmarks by entering 'flutter test .\benchmark\observed_benchamark.dart' in 
-/// console, inside the root folder.
+/// console, in the root folder of the project.
 
 Map store;
 MockElement mockEle = MockElement();
