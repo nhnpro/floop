@@ -28,7 +28,7 @@ buildWithFloop
 }
 ```
 
-The example above displays everything required to use the library, you may keep reading to learn more [details](#details)), but it's not really necessary. See the full example [here](../blob/master/examples/clicker.dart).
+The example above displays everything required to use the library, you may keep reading to learn more [details](#details)), but it's not necessary. See the full example [here](../master/example/clicker.dart).
 
 Any kind of values can be kept in the global store `floop`. Own stores can be created by `Map myStore = ObservedMap()` instead of using the built in store `floop`.
 
@@ -53,7 +53,7 @@ Run `flutter pub get` in the root folder of your project.
 
 - It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that cause a whole branch of the Widget tree to update.
 
-- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets that require animation. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../blob/master/examples/animated_icons.dart).
+- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets that require animation. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../master/example/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
 
 ## <a name="details">Details</a>
 
