@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 import './controller.dart';
 
-/// Mixin that let's the Widget be listened while building. Include this
-/// mixin in your StatelessWidget and override the buildWithFloop method.
+/// Mixin that causes the Widget be listened while building. Include this
+/// mixin in a StatelessWidget and override the buildWithFloop method.
 mixin Floop on StatelessWidget {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to it's global state.
@@ -63,8 +63,8 @@ class StatelessElementFloop extends StatelessElement {
   }
 }
 
-/// Floop Mixin for StatefulWidgets. Use the mixin in the State class that is
-/// desired to get auto updated by Floop.
+/// Mixin for StatefulWidgets. Use the FloopStateMixin in a State class to
+/// enable Floop listened reads during buildWithFloop calls.
 mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to [ObservedMaps].
