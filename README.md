@@ -71,11 +71,11 @@ As a rule of thumb, including Floop in a Widget can be considered (being pessimi
 The following performance impact exist on the Widget build time compared to StatefulWidgets that would call setState manually.
 
 In very small Widgets (less than 10 lines in the build method), including Floop implies the following performance hit in build time:
-- x1.15 when Floop is included, but no value is read from the an ObservedMap. This implies that including Floop 'just in case' in every Widget is almost negligible.
+- x1.15 when Floop is included, but no value is read from an ObservedMap. This implies that including Floop 'just in case' in every Widget is almost negligible.
 - x3 when up to 5 values are read.
 
 In medium Widgets:
-- x1 or negligible performance hit when Floop is included, but no value is read from the an ObservedMap.
+- x1 or negligible performance hit when Floop is included, but no value is read from an ObservedMap.
 - x3 when up to 15 values are read.
 
 If more values are read, the Map read operation starts becoming the bottleneck of Widget build time even when reading from a regular Map. The more values are read from the Map, the more the performance hit approaches the difference between reading from a Map and an ObservedMap while listening. The performance hit when reading from an ObservedMap in comparison to a regular LinkedHashMap is the following:

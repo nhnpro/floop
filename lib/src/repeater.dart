@@ -1,6 +1,6 @@
 typedef PeriodicFunction = Function(Repeater);
 
-/// A class for making asynchronous calls to a function with given frequencies.
+/// A class for making asynchronous calls to a function with a certain frequency.
 class Repeater extends Stopwatch {
   /// Stops the repeating execution.
   bool _stop = true;
