@@ -25,7 +25,7 @@ mixin Floop on StatelessWidget {
 }
 
 /// StatelessWidget class that includes [Floop].
-/// 
+///
 /// `class MyWidget extends FloopWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`
 abstract class FloopWidget = StatelessWidget with Floop;
@@ -54,9 +54,8 @@ mixin FloopLight on StatelessWidget {
 
 /// Wrapper class of StatelessElement used to catch calls to unmount
 class StatelessElementFloop extends StatelessElement {
-  
   StatelessElementFloop(StatelessWidget widget) : super(widget);
-  
+
   @override
   void unmount() {
     unsubscribeElement(this);
@@ -95,4 +94,5 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-abstract class FloopState<T extends StatefulWidget> = State<T> with FloopStateMixin<T>;
+abstract class FloopState<T extends StatefulWidget> = State<T>
+    with FloopStateMixin<T>;

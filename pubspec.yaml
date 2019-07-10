@@ -1,5 +1,5 @@
 name: floop
-description: Widget state management. Automatic Widget refresher for Flutter. Extremely easy to use.
+description: Flutter state management library. Automatically refresh Widgets on data changes. Extremely easy to use.
 version: 0.1.0
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop

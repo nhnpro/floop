@@ -6,12 +6,10 @@ import './controller.dart';
 final ObservedMap<String, dynamic> floop = ObservedMap();
 
 abstract class Observed<K, V> {
-
   ObservedListener _listener = ObservedListener();
 }
-    
-class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
+class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   Map<K, V> _keyToValue = Map();
 
   ObservedMap();
@@ -21,13 +19,11 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   convert(value) {
-    if(value is Map) {
+    if (value is Map) {
       return ObservedMap.of(value);
-    }
-    else if (value is List) {
+    } else if (value is List) {
       return List.unmodifiable(value.map((v) => convert(v)));
-    }
-    else {
+    } else {
       return value;
     }
   }
@@ -40,7 +36,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   /// Returns the keys of this [ObservedMap], retrieved from an internal [LinkedHashMap]
   /// instance.
-  /// 
+  ///
   /// Retrieving `keys` during a [Widget] or [State] `buildWithFloop` cycle will subscribe
   /// the correspnding widget to any insertions or removals of keys in this Map, regardless
   /// of the keys being iterated over or not. It does not make the widget subscription
@@ -53,15 +49,15 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     return _keyToValue.keys;
   }
 
-  /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of 
+  /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of
   /// type [Map] or [List].
-  /// 
+  ///
   /// [Map] and [List] values will be recursively traversed saving copied versions of them.
   /// Stored [Map] values can be modified while [List] values are unmodifiable.
-  /// 
+  ///
   /// For each value of type [Map] it will create an [ObservedMap] copy of it.
   /// For each value of type [List] it will create a copy using [List.unmodifiable].
-  /// 
+  ///
   /// If the `key` was already in [this], the subscribed widgets to the `key` will only get
   /// updated when `this[key]!=value`. When there is a desire to update all subscribed widgets
   /// to they key without setting a new value use `forceUpdate` instead.
@@ -79,7 +75,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   _notifyListenerIfChange(Object key, V value) {
-    if(!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
+    if (!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
       _listener.valueChanged(key);
     }
   }
@@ -99,7 +95,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   @override
   V remove(Object key) {
-    if(_keyToValue.containsKey(key)) {
+    if (_keyToValue.containsKey(key)) {
       _listener.valueChanged(key);
     }
     return _keyToValue.remove(key);

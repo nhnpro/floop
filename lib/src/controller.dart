@@ -8,17 +8,15 @@ final LightController lightController = LightController();
 FloopController floopController = fullController;
 
 void unsubscribeElement(Element element) {
-  if(fullController.contains(element)) {
+  if (fullController.contains(element)) {
     fullController.unsubscribeFromAll(element);
     assert(!lightController.contains(element));
-  }
-  else if(lightController.contains(element)) {
+  } else if (lightController.contains(element)) {
     lightController.unsubscribeFromAll(element);
   }
 }
 
 abstract class FloopController {
-
   /// Switches the global Floop state controller to [FullController].
   static useFullController() => floopController = fullController;
 
@@ -41,7 +39,7 @@ abstract class FloopController {
   void startListening(covariant Element element) {
     floopController = this;
     assert(() {
-      if(listening) {
+      if (listening) {
         stopListening();
         return false;
       }
@@ -80,18 +78,16 @@ abstract class FloopController {
 
   @mustCallSuper
   void markAsNeedBuild(Set<Element> elements) {
-    if(listening) {
-      print(
-        'ERROR: A Floop widget is building ([Floop.buildWithFloop]) while\n'
-        'setting a value in an ObservedMap. Update to widgets will not be\n'
-        'made, because it could produce an infinite build recursion.\n'
-        'Avoid writing to an ObservedMap while bulding your Widgets. A map\n'
-        'write during a build can be safely done asynchronously. For example\n'
-        'Future.delayed can be used to achieve this.'
-      );
+    if (listening) {
+      print('ERROR: A Floop widget is building ([Floop.buildWithFloop]) while\n'
+          'setting a value in an ObservedMap. Update to widgets will not be\n'
+          'made, because it could produce an infinite build recursion.\n'
+          'Avoid writing to an ObservedMap while bulding your Widgets. A map\n'
+          'write during a build can be safely done asynchronously. For example\n'
+          'Future.delayed can be used to achieve this.');
       assert(false);
-    } else if (elements!=null) {
-      for(var ele in elements) {
+    } else if (elements != null) {
+      for (var ele in elements) {
         assert(contains(ele));
         ele.markNeedsBuild();
       }
@@ -100,11 +96,10 @@ abstract class FloopController {
 }
 
 class FullController extends FloopController {
-
   Element _currentBuild;
 
   Set<ObservedListener> _currentObservedListeners = Set();
-  
+
   Map<Element, Set<ObservedListener>> _subscriptions = {};
 
   @visibleForTesting
@@ -132,24 +127,21 @@ class FullController extends FloopController {
     // It should be uncommon, since widgets usually read the same
     // field from a Map.
     // Conditional reads or reading from a new Map could cause it.
-    if(
-      previousSubscriptions != null &&
-      (previousSubscriptions.length > _currentObservedListeners.length ||
-      !previousSubscriptions.containsAll(_currentObservedListeners))
-      ) {
+    if (previousSubscriptions != null &&
+        (previousSubscriptions.length > _currentObservedListeners.length ||
+            !previousSubscriptions.containsAll(_currentObservedListeners))) {
       previousSubscriptions.removeAll(_currentObservedListeners);
       unsubscribeFromObserveds(_currentBuild, previousSubscriptions);
     }
 
     // updates subscriptions of Observed read during the current widget build.
-    if(_currentObservedListeners.isNotEmpty) {
-      for(var obs in _currentObservedListeners) {
+    if (_currentObservedListeners.isNotEmpty) {
+      for (var obs in _currentObservedListeners) {
         obs.commitCurrentReads(_currentBuild);
       }
       _subscriptions[_currentBuild] = _currentObservedListeners;
       _currentObservedListeners = Set();
-    }      
-    else {
+    } else {
       _subscriptions.remove(_currentBuild);
     }
   }
@@ -167,21 +159,20 @@ class FullController extends FloopController {
     assert(_subscriptions.isEmpty);
   }
 
-  void unsubscribeFromObserveds(Element element, Iterable<ObservedListener> listeners) {
+  void unsubscribeFromObserveds(
+      Element element, Iterable<ObservedListener> listeners) {
     assert(element != null);
     assert(listeners != null);
     listeners?.forEach((lst) => lst.unsubscribeElement(element));
   }
 }
 
-
 /// Light weight controller that listens to at most one [Observed] per build cycle.
-/// 
-/// Because it holds at most one [Observed] per build cycle, widgets are 
+///
+/// Because it holds at most one [Observed] per build cycle, widgets are
 /// also associated with at most one [Observed]. This allows a gain in performance.
 /// It's faster than the standard [FullController].
 class LightController extends FloopController {
-
   ObservedListener _currentListener;
 
   Map<Element, ObservedListener> _subscriptions = {};
@@ -198,34 +189,31 @@ class LightController extends FloopController {
   @override
   void registerPeekedListener(ObservedListener listener) {
     assert(listening);
-    if(_currentListener == null) {
+    if (_currentListener == null) {
       _currentListener = listener;
-    }
-    else if(_currentListener != listener) {
+    } else if (_currentListener != listener) {
       print(
-        'ERROR: When using FloopLightController, there shouldn\'t be more than\n'
-        'one ObservedMap read during the build cycle of a widget, otherwise\n'
-        'subscriptions will not correctly commit.\n'
-        'Switching to FullController will fix the issue.'
-        // ' Call\n'
-        // 'Floop.switchToStandardController at the beginning of the build or\n'
-        // 'call Floop.defaultToStandardController() at the beginning of the app.\n'
-      );
+          'ERROR: When using FloopLightController, there shouldn\'t be more than\n'
+          'one ObservedMap read during the build cycle of a widget, otherwise\n'
+          'subscriptions will not correctly commit.\n'
+          'Switching to FullController will fix the issue.'
+          // ' Call\n'
+          // 'Floop.switchToStandardController at the beginning of the build or\n'
+          // 'call Floop.defaultToStandardController() at the beginning of the app.\n'
+          );
       assert(false);
     }
   }
 
   @override
   void _commitObservedReads() {
-    if(_currentListener != null) {
+    if (_currentListener != null) {
       _currentListener.commitCurrentReads(_currentBuild);
       _subscriptions[_currentBuild] = _currentListener;
       _currentListener = null;
-    }
-    else {
+    } else {
       _subscriptions.remove(_currentListener);
     }
-    
   }
 
   @override
@@ -242,23 +230,20 @@ class LightController extends FloopController {
     _subscriptions[element].unsubscribeElement(element);
     _subscriptions.remove(element);
   }
-
 }
-
 
 /// ObservedController class is a utility class used by
 class ObservedListener {
-
   /// The map that associates keys with the Elements that should be updated when the
   /// value of the key is updated.
   Map<Object, Set<Element>> _keyToElements = Map();
-  
+
   @visibleForTesting
   Map get keyToElements => _keyToElements;
 
   /// The reverse map of `keyToElements`, it goes from Element to keys
   Map<Element, Set<Object>> _elementToKeys = Map();
-  
+
   /// The [Set] of Elements that should be updated when there is a mutation in the
   /// [Observed].
   Set<Element> _mutations = Set();
@@ -269,16 +254,16 @@ class ObservedListener {
   bool currentMutationRead = false;
 
   _associateElementToKeys(Element element, Iterable<Object> keysToAdd) {
-    for(var key in keysToAdd) {
+    for (var key in keysToAdd) {
       _keyToElements.putIfAbsent(key, () => Set<Element>()).add(element);
     }
   }
 
   _dissociateElementFromKeys(Element element, Iterable<Object> keysToRemove) {
-    for(Object key in keysToRemove) {
+    for (Object key in keysToRemove) {
       assert(_keyToElements[key].contains(element));
       _keyToElements[key].remove(element);
-      if(_keyToElements[key].isEmpty) {
+      if (_keyToElements[key].isEmpty) {
         _keyToElements.remove(key);
       }
     }
@@ -288,31 +273,29 @@ class ObservedListener {
     assert(element != null);
     assert(newKeys != null);
     Set<Object> elementKeys = _elementToKeys[element];
-    if(elementKeys == null) {
+    if (elementKeys == null) {
       _associateElementToKeys(element, newKeys);
       _elementToKeys[element] = newKeys;
     }
     // Previous keys that are not the same as current keys only happens when
     // there are conditional or non constant key reads from the Observed.
     // It shouldn't be the most common usage.
-    else if(
-      elementKeys.length > newKeys.length ||
-      !elementKeys.containsAll(newKeys)) {
+    else if (elementKeys.length > newKeys.length ||
+        !elementKeys.containsAll(newKeys)) {
       _dissociateElementFromKeys(element, elementKeys.difference(newKeys));
       _associateElementToKeys(element, newKeys.difference(elementKeys));
       _elementToKeys[element] = newKeys;
     }
 
-    if(newKeys.isEmpty) {
-      _elementToKeys.remove(element);      
-    }
-    else {
+    if (newKeys.isEmpty) {
+      _elementToKeys.remove(element);
+    } else {
       _elementToKeys[element] = newKeys;
     }
   }
 
   void updateMutation(Element element) {
-    if(currentMutationRead)
+    if (currentMutationRead)
       _mutations.add(element);
     else
       _mutations.remove(element);
@@ -328,7 +311,7 @@ class ObservedListener {
   /// Unsubscribes the element from all keys on this [ObservedListener]
   void unsubscribeElement(Element element) {
     assert(_elementToKeys.containsKey(element) || _mutations.contains(element));
-    if(_elementToKeys.containsKey(element)) {
+    if (_elementToKeys.containsKey(element)) {
       _dissociateElementFromKeys(element, _elementToKeys[element]);
       _elementToKeys.remove(element);
     }
@@ -336,23 +319,22 @@ class ObservedListener {
   }
 
   void valueRetrieved(Object key) {
-    if(floopController.listening) {
+    if (floopController.listening) {
       currentKeyReads.add(key);
       floopController.registerPeekedListener(this);
     }
   }
 
   void mutationRead() {
-    if(floopController.listening) {
+    if (floopController.listening) {
       floopController.registerPeekedListener(this);
     }
   }
 
   void valueChanged(Object key) {
-    if(_keyToElements.containsKey(key))
+    if (_keyToElements.containsKey(key))
       floopController.markAsNeedBuild(_keyToElements[key]);
-    else if(_mutations.isNotEmpty)
-      floopController.markAsNeedBuild(_mutations);
+    else if (_mutations.isNotEmpty) floopController.markAsNeedBuild(_mutations);
   }
 
   void cleared() {

@@ -14,7 +14,8 @@ const tasks = [
 
 class MockElement extends Mock implements Element {
   @override
-  String toString({DiagnosticLevel minLevel = DiagnosticLevel.debug}) => super.toString();
+  String toString({DiagnosticLevel minLevel = DiagnosticLevel.debug}) =>
+      super.toString();
 }
 
 void subscribeKeyToElement(ObservedMap observed, Object key, Element element) {
@@ -24,12 +25,11 @@ void subscribeKeyToElement(ObservedMap observed, Object key, Element element) {
 }
 
 void main() {
-
   ObservedMap observedMap;
 
   setUp(() {
     floopController.reset();
-    assert(floopController.length==0);
+    assert(floopController.length == 0);
     observedMap = ObservedMap();
     observedMap.addAll({'tasks': tasks});
   });
@@ -83,7 +83,8 @@ void main() {
       floopController.stopListening();
       expect(floopController.length, 1);
       expect(floopController.contains(mockEle), true);
-      expect((floopController as FullController).subscriptions[mockEle].length, 2);
+      expect(
+          (floopController as FullController).subscriptions[mockEle].length, 2);
     });
 
     test('set value calls updates Element when key is not in ObservedMap', () {
@@ -97,7 +98,8 @@ void main() {
       verify(mockEle.markNeedsBuild()).called(1);
     });
 
-    test('only read keys during the last listening cycle should be subscribed', () {
+    test('only read keys during the last listening cycle should be subscribed',
+        () {
       var mockEle = MockElement();
       subscribeKeyToElement(observedMap, 'boo', mockEle);
       subscribeKeyToElement(observedMap, 'faz', mockEle); // should forget 'boo'
@@ -116,7 +118,7 @@ void main() {
       expect(floopController.length, 2);
 
       // set operation updates both elements
-      observedMap['tennis'] = 'match point';      
+      observedMap['tennis'] = 'match point';
       verify(mockEle.markNeedsBuild()).called(1);
       verify(mockEle2.markNeedsBuild()).called(1);
     });

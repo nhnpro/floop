@@ -1,11 +1,10 @@
-
 typedef PeriodicFunction = Function(Repeater);
 
 /// A class for asynchronously calling a function with given frquency.
 class Repeater extends Stopwatch {
   /// Stops the repeating execution.
   bool _stop = true;
-  
+
   /// Used to ensure only one asynchrnous repeating call in ongoing on this repeater.
   bool _executionLock = false;
 
@@ -18,17 +17,17 @@ class Repeater extends Stopwatch {
   /// this value.
   int frequencyMilliseconds;
 
-  Repeater(this.f, [this.frequencyMilliseconds=50]);
+  Repeater(this.f, [this.frequencyMilliseconds = 50]);
 
   /// Stops this stopwatch and the recurrent executions to `this.f`.
   stop() {
     super.stop();
     _stop = true;
-  } 
+  }
 
   /// Stops and resets all values of this repeater to it's starting values. It makes a
   /// single call to `this.f` at the end.
-  reset([bool callF=true]) {
+  reset([bool callF = true]) {
     stop();
     super.reset();
     !callF ?? f(this);
@@ -37,11 +36,10 @@ class Repeater extends Stopwatch {
   /// Starts this stopwatch making recurrent calls to `this.f` with the given `frequency`.
   /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
   start([int frequency]) {
-    if(!_stop) {
+    if (!_stop) {
       print('The repeater is already running');
       return;
-    }
-    else if(_executionLock) {
+    } else if (_executionLock) {
       print('Another asynchronous instance is already running');
       return;
     }
@@ -50,40 +48,37 @@ class Repeater extends Stopwatch {
     frequency = frequency ?? frequencyMilliseconds;
     super.start();
     run() {
-      Future.delayed(
-        Duration(milliseconds: frequency),
-        () {
-          if(_stop) {
-            _executionLock = false;
-          }
-          else {
-            f(this);
-            run();
-          }
+      Future.delayed(Duration(milliseconds: frequency), () {
+        if (_stop) {
+          _executionLock = false;
+        } else {
+          f(this);
+          run();
         }
-      );
+      });
     }
+
     run();
   }
 
   /// Utility function that returns an integer between 0 inclusive and `maxNumber` exclusive
   /// corresponding to the proportional position in a cycle of `periodMilliseconds` in current
   /// `elapsed` time.
-  /// 
+  ///
   /// For example if elapsed time is 23ms and period is 10ms, then the current cycle time is
   /// 3ms or 30% of the cycle run. If `number` is 100, the result would be 30 (30% of 100).
   int proportionInt(int maxNumber, int periodMilliseconds) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
-    var res = (maxNumber*current)~/periodMilliseconds;
+    var res = (maxNumber * current) ~/ periodMilliseconds;
     return res;
   }
 
   /// Returns the proportion of a [double] `number` in a cycle of length `periodMilliseconds`
   /// running for `this.elapsed.inMilliseconds`.
-  /// 
+  ///
   /// Floating point precision version of method `[Repeater.proportionInt]`.
   double proportionDouble(double number, int periodMilliseconds) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
-    return number*current/periodMilliseconds;
+    return number * current / periodMilliseconds;
   }
 }
