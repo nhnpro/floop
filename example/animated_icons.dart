@@ -12,20 +12,17 @@ List<Repeater> repeaters = [];
 void main() {
   initializeStoreValues();
   initializeRepeaters();
-  runApp(
-    MaterialApp(
+  runApp(MaterialApp(
       title: 'Animated Icons',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: IconThumbnails()
-    )
-  );
+      home: IconThumbnails()));
 }
 
 initializeStoreValues() {
   // following key-values update widgets
-  store['showBig'] = false;   
+  store['showBig'] = false;
   store['animate'] = false;
   store['iconsShift'] = 0;
   store['colorOffset'] = 0;
@@ -41,20 +38,27 @@ initializeStoreValues() {
 initializeRepeaters() {
   repeaters = [
     Repeater((Repeater per) => store['angle'] += store['rotationSpeed']),
-    Repeater((Repeater per) => store['colorOffset'] = per.proportionInt(256, 5000)),
-    Repeater((Repeater per) => store['iconsShift'] = per.proportionInt(icons.length, 1000*1000), 200),
+    Repeater(
+        (Repeater per) => store['colorOffset'] = per.proportionInt(256, 5000)),
+    Repeater(
+        (Repeater per) =>
+            store['iconsShift'] = per.proportionInt(icons.length, 1000 * 1000),
+        200),
   ];
-  store['speedUp'] = Repeater((_) => store['rotationSpeed'] = min(0.4, (store['rotationSpeed'] as double)+0.01));
-  store['speedDown'] = Repeater((_) => store['rotationSpeed'] = max(-0.4, (store['rotationSpeed'] as double)-0.01));
+  store['speedUp'] = Repeater((_) => store['rotationSpeed'] =
+      min(0.4, (store['rotationSpeed'] as double) + 0.01));
+  store['speedDown'] = Repeater((_) => store['rotationSpeed'] =
+      max(-0.4, (store['rotationSpeed'] as double) - 0.01));
 }
 
 shiftRight(List list, int shift) {
-  return list.sublist(list.length-shift) + list.sublist(0, list.length-shift);
+  return list.sublist(list.length - shift) +
+      list.sublist(0, list.length - shift);
 }
 
 startAnimations() {
   store['animate'] = true;
-  for(Repeater rep in repeaters) rep.start();
+  for (Repeater rep in repeaters) rep.start();
 }
 
 stopAnimations() {
@@ -62,16 +66,13 @@ stopAnimations() {
   repeaters.forEach((Repeater rep) => rep.stop());
 }
 
-rotateWidget(Widget widget, [speed=1]) {
-  return Transform.rotate(
-    angle: store['angle'] ?? 0,
-    child: widget
-  );
+rotateWidget(Widget widget, [speed = 1]) {
+  return Transform.rotate(angle: store['angle'] ?? 0, child: widget);
 }
 
 class IconThumbnails extends StatelessWidget with Floop {
   reset() {
-    for(Repeater rep in repeaters) rep.reset();
+    for (Repeater rep in repeaters) rep.reset();
     (store['speedUp'] as Repeater).reset();
     (store['speedDown'] as Repeater).reset();
     initializeStoreValues();
@@ -80,18 +81,16 @@ class IconThumbnails extends StatelessWidget with Floop {
   @override
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          store['showBig'] ? DisplayBox(): Container(),
-          Expanded(
+      body: Column(children: [
+        store['showBig'] ? DisplayBox() : Container(),
+        Expanded(
             child: GridView.count(
-              crossAxisCount: 4,
-              padding: EdgeInsets.all(5.0),
-              children: shiftRight(store['iconWidgets'], store['iconsShift'] ?? 0).cast<Widget>()
-            )
-          )
-        ]
-      ),
+                crossAxisCount: 4,
+                padding: EdgeInsets.all(5.0),
+                children:
+                    shiftRight(store['iconWidgets'], store['iconsShift'] ?? 0)
+                        .cast<Widget>()))
+      ]),
       bottomNavigationBar: BottomNavigationBar(
         iconSize: 32,
         type: BottomNavigationBarType.fixed,
@@ -109,10 +108,10 @@ class IconThumbnails extends StatelessWidget with Floop {
           BottomNavigationBarItem(
             title: Container(),
             icon: GestureDetector(
-              child: Icon(
-                Icons.fast_rewind,
-                color: store['speedDownPressed'] ? Colors.red : Colors.indigoAccent
-              ),
+              child: Icon(Icons.fast_rewind,
+                  color: store['speedDownPressed']
+                      ? Colors.red
+                      : Colors.indigoAccent),
               onTap: () => store['rotationSpeed'] -= 0.1,
               onLongPress: () {
                 (store['speedDown'] as Repeater).start(100);
@@ -129,7 +128,8 @@ class IconThumbnails extends StatelessWidget with Floop {
             icon: GestureDetector(
               child: Icon(
                 Icons.fast_forward,
-                color: store['speedUpPressed'] ? Colors.red : Colors.indigoAccent,
+                color:
+                    store['speedUpPressed'] ? Colors.red : Colors.indigoAccent,
               ),
               onTap: () => store['rotationSpeed'] += 0.1,
               onLongPress: () {
@@ -151,7 +151,7 @@ class IconThumbnails extends StatelessWidget with Floop {
             ),
           ),
         ],
-      ),        
+      ),
     );
   }
 }
@@ -162,7 +162,8 @@ class DisplayBox extends StatelessWidget with Floop {
     return Container(
       height: 300.0,
       child: Center(
-        child: rotateWidget(AnimatedIconButton(store['selectedIcon'], size: 200.0), 2),
+        child: rotateWidget(
+            AnimatedIconButton(store['selectedIcon'], size: 200.0), 2),
       ),
     );
   }
@@ -178,11 +179,12 @@ class AnimatedIconButton extends StatelessWidget with Floop {
     var sameIcon = store['selectedIcon'] == iconData;
     var animationRunning = store['animate'];
     var shouldHide = !animationRunning && sameIcon && store['showBig'];
-    var shouldStartAnimation = (!animationRunning && !shouldHide) || !store['showBig'];
+    var shouldStartAnimation =
+        (!animationRunning && !shouldHide) || !store['showBig'];
     var shouldAnimate = !sameIcon || !store['showBig'];
 
-    if(shouldStartAnimation) startAnimations();
-    if(!shouldAnimate) stopAnimations();
+    if (shouldStartAnimation) startAnimations();
+    if (!shouldAnimate) stopAnimations();
     store['showBig'] = !shouldHide;
     store['selectedIcon'] = iconData;
   }
@@ -190,15 +192,15 @@ class AnimatedIconButton extends StatelessWidget with Floop {
   @override
   Widget buildWithFloop(BuildContext context) {
     int c = store['colorOffset'] ?? 0;
-    var color = store['animate'] ? 
-      Color.fromRGBO(c+90, c+180, Random().nextInt(256), 1.0) :
-      IconTheme.of(context).color;
+    var color = store['animate']
+        ? Color.fromRGBO(c + 90, c + 180, Random().nextInt(256), 1.0)
+        : IconTheme.of(context).color;
     return IconButton(
-      color: iconData==icons[0] ? Colors.red : color,
+      color: iconData == icons[0] ? Colors.red : color,
       splashColor: Colors.blue,
       iconSize: size,
       icon: Icon(iconData),
-      onPressed: updateAnimations,        
+      onPressed: updateAnimations,
     );
   }
 }

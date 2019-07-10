@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart' as meta;
+import 'package:meta/meta.dart';
 import './controller.dart';
 
 /// Mixin that let's the Widget be listened while building. Include this
@@ -10,7 +10,7 @@ mixin Floop on StatelessWidget {
   Widget buildWithFloop(BuildContext context);
 
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
-  @meta.visibleForOverriding
+  @visibleForOverriding
   Widget build(BuildContext context) {
     fullController.startListening(context);
     var widget = buildWithFloop(context);
@@ -25,7 +25,7 @@ mixin Floop on StatelessWidget {
 }
 
 /// StatelessWidget class that includes [Floop].
-/// 
+///
 /// `class MyWidget extends FloopWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`
 abstract class FloopWidget = StatelessWidget with Floop;
@@ -38,7 +38,7 @@ mixin FloopLight on StatelessWidget {
   Widget buildWithFloop(BuildContext context);
 
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
-  @meta.visibleForOverriding
+  @visibleForOverriding
   Widget build(BuildContext context) {
     lightController.startListening(context);
     var widget = buildWithFloop(context);
@@ -54,9 +54,8 @@ mixin FloopLight on StatelessWidget {
 
 /// Wrapper class of StatelessElement used to catch calls to unmount
 class StatelessElementFloop extends StatelessElement {
-  
   StatelessElementFloop(StatelessWidget widget) : super(widget);
-  
+
   @override
   void unmount() {
     unsubscribeElement(this);
@@ -72,7 +71,7 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   Widget buildWithFloop(BuildContext context);
 
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
-  @meta.visibleForOverriding
+  @visibleForOverriding
   Widget build(BuildContext context) {
     fullController.startListening(context);
     var widget = buildWithFloop(context);
@@ -95,4 +94,5 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-abstract class FloopState<T extends StatefulWidget> = State<T> with FloopStateMixin<T>;
+abstract class FloopState<T extends StatefulWidget> = State<T>
+    with FloopStateMixin<T>;

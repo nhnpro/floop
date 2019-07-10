@@ -1,6 +1,6 @@
 # Floop
 
-An automatic Widget refresh library for flutter. Inspired by [react-recollect](https://github.com/davidgilbertson/react-recollect). Alternative approach for state management.
+An automatic Widget refresh library for Flutter. Inspired by [react-recollect](https://github.com/davidgilbertson/react-recollect). Alternative approach for state management.
 
 Floop uses an observed 'global store' state management paradigm. Widgets will always display the current value in the store. With Floop it's possible to build a whole interactive app using purely stateless widgets.
 
