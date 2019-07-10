@@ -36,8 +36,6 @@ void warmUpController(int numberOfElements, [ObservedMap readMap, Iterable keys]
   floopController.reset();
   readMap = readMap!=null ? readMap : ObservedMap.of(createMapWithValues(3)); 
   keys = keys!=null ? keys : readMap.keys;
-  // print('warm up keys: ${observedMap.keys.length} $_');
-  // StatelessWidget widget = LightWidgetFloop(() => plainRead());
   for(int i=0; i<numberOfElements; i++) {
     floopController.startListening(MockElement());
     plainRead(readMap, keys);
@@ -53,7 +51,6 @@ void warmUpController(int numberOfElements, [ObservedMap readMap, Iterable keys]
     }
     return true;
   }());
-  // print('warm up subscription: ${(store as ObservedMap).keySubscriptions.length}');
 }
 
 // String keyFuncion(int i) => 'field$i';

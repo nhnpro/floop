@@ -8,11 +8,6 @@ final ObservedMap<String, dynamic> floop = ObservedMap();
 abstract class Observed<K, V> {
 
   ObservedListener _listener = ObservedListener();
-
-  // set controller(ObservedListener listener) {
-  //   assert(_listener == null);
-  //   _listener = listener;
-  // }
 }
     
 class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
@@ -36,15 +31,6 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
       return value;
     }
   }
-
-  // bool _prepareAndCheckIfListening() {
-  //   assert(_currentElement==null || _currentElement == controller.currentBuild);
-  //   if(controller.currentBuild==null) return false;
-  //   if(_currentElement!=null) return true;
-  //   _currentElement = controller.currentBuild;
-  //   _currentKeys = Set();
-  //   return true;
-  // }
 
   operator [](key) {
     // print('Get $k while building ${controller.currentBuild}');
@@ -93,10 +79,6 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   _notifyListenerIfChange(Object key, V value) {
-    // if(!_keyToValue.containsKey(key)) {
-    //   print('Mutated $key, $value');
-      // _listener.mutated();
-    // }
     if(!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
       _listener.valueChanged(key);
     }
@@ -119,7 +101,6 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   V remove(Object key) {
     if(_keyToValue.containsKey(key)) {
       _listener.valueChanged(key);
-      // _listener.mutated();
     }
     return _keyToValue.remove(key);
   }

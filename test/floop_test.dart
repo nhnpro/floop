@@ -29,7 +29,7 @@ void main() {
 
   setUp(() {
     floopController.reset();
-    assert(FloopController.current.length==0);
+    assert(floopController.length==0);
     observedMap = ObservedMap();
     observedMap.addAll({'tasks': tasks});
   });

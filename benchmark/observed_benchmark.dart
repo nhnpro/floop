@@ -6,7 +6,7 @@ import 'base.dart';
 /// Benchmarks for the ObservedMap implementation.
 /// 
 /// Run benchmarks by entering 'flutter test .\benchmark\observed_benchamark.dart' in 
-/// console, inside the root folder.
+/// console, in the root folder of the project.
 
 main() => runObservedBenchmarks();
 
@@ -38,9 +38,6 @@ void readBenchmarks([int numberOfValues=1000]) {
   Map data = createMapWithValues(numberOfValues);
   Iterable keys = data.keys.toList();
   runReadBenchmark(data, keys, 'Ordered keys read benchmark');
-  // print('-----------------------------------------------------');
-  // keys = data.keys.toList()..shuffle();
-  // runReadBenchmark(data, keys, 'Shuffled keys read benchmark');
 }
 
 runReadBenchmark(Map data, Iterable keys, [String benchmarkHeadLine='Running Benchmark']) {
@@ -164,9 +161,6 @@ runReadBenchmark(Map data, Iterable keys, [String benchmarkHeadLine='Running Ben
 
 runWriteBenchmark([int writeCount=10000, String benchmarkHeadLine='Running Benchmark', ]) {
   print('\n${benchmarkHeadLine.toUpperCase()}\n');
-
-  // controller is irrelevant, because no values are subscribed when writing on this test
-  // warmUpController(100);
 
   Map writeMap = ObservedMap();
   var obsTime = benchmarkFunction(() => plainWrite(writeMap, writeCount), 'ObservadMap 1 warm up');
