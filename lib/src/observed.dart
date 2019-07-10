@@ -9,6 +9,13 @@ abstract class Observed<K, V> {
   ObservedListener _listener = ObservedListener();
 }
 
+/// The basic Map data structure that is listened by Floop when reading
+/// or setting values.
+///
+/// Any reads from an [ObservedMap] inside a Floop's Widget `buildWithFloop` method
+/// will be listened by a [FloopController] and will subscribe the widget to
+/// the read key. Whenever there is a different value set for the subscribed key,
+/// the widget will get updated.
 class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   Map<K, V> _keyToValue = Map();
 
@@ -29,7 +36,6 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   operator [](key) {
-    // print('Get $k while building ${controller.currentBuild}');
     _listener.valueRetrieved(key);
     return _keyToValue[key];
   }

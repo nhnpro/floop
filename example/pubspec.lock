@@ -8,13 +8,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.1.0"
-  benchmark_harness:
-    dependency: "direct dev"
-    description:
-      name: benchmark_harness
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.5"
   boolean_selector:
     dependency: transitive
     description:
@@ -36,6 +29,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.14.11"
+  floop:
+    dependency: "direct main"
+    description:
+      name: floop
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -47,7 +47,7 @@ packages:
     source: sdk
     version: "0.0.0"
   http:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: http
       url: "https://pub.dartlang.org"
@@ -75,7 +75,7 @@ packages:
     source: hosted
     version: "1.1.6"
   mockito:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: mockito
       url: "https://pub.dartlang.org"
@@ -89,7 +89,7 @@ packages:
     source: hosted
     version: "1.6.2"
   pedantic:
-    dependency: "direct dev"
+    dependency: transitive
     description:
       name: pedantic
       url: "https://pub.dartlang.org"

@@ -16,6 +16,12 @@ void unsubscribeElement(Element element) {
   }
 }
 
+/// Abstract class that implements basic functionality for listening and
+/// updating widgets. It defines the API of the controller required by Floop
+/// Widgets.
+/// 
+/// [FullController] is the default configured controller used by the library.
+/// [LightController] is an alternative faster but more limited controller.
 abstract class FloopController {
   /// Switches the global Floop state controller to [FullController].
   static useFullController() => floopController = fullController;

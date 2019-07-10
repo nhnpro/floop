@@ -1,0 +1,22 @@
+name: example
+description: Example usage for Floop library.
+version: 0.1.1
+author: Ignacio Catalán <icata2016@gmail.com>
+homepage: https://github.com/icatalud/floop
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  floop: any
+  http: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+
+# For information on the generic Dart part of this file, see the
+# following page: https://www.dartlang.org/tools/pub/pubspec
