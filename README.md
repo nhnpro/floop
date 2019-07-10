@@ -30,7 +30,7 @@ buildWithFloop
 
 The example above displays everything required to use the library, you may keep reading to learn more [details](#details)), but it's not really necessary. See the full example [here](../blob/master/examples/clicker.dart).
 
-Any kind of values can be kept in the global store `floop`. If you wish, you may create you own stores by doing `Map myStore = ObservedMap()` instead of using the built in store `floop`.
+Any kind of values can be kept in the global store `floop`. Own stores can be created by `Map myStore = ObservedMap()` instead of using the built in store `floop`.
 
 ## Install
 
@@ -51,20 +51,22 @@ Run `flutter pub get` in the root folder of your project.
 
 - There is no learning curve. It can be understood immediately, the example above is all there is.
 
-- It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated.
+- It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that cause a whole branch of the Widget tree to update.
 
-- Easily make simple animations. Animations can be completely decoupled from the component, allowing you to use the common basic stateless components and just make them read values that will be changing. Create oscillating values, put them in the store and read those values in the widgets you want to animate. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../blob/master/examples/animated_icons.dart).
+- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets that require animation. A convenient class [Repeating] is included in the library to repeatedly call a function with any given frequency. [Animation example](../blob/master/examples/animated_icons.dart).
 
 ## <a name="details">Details</a>
 
-`floop` is just an instance of [ObservedMap], which implements [Map]. create alternative 'stores' doing `Map myStore = ObservedMap()` ([Map<K, V>] also possible).
+`floop` is an instance of [ObservedMap], which implements [Map]. create alternative 'stores' doing `Map myStore = ObservedMap()` ([Map<K, V>] also possible).
 
 Widgets only subscribe to the keys **read during the last build**. This means that keys that were read in a previous build that for example are used inside conditions that didn't trigger, will not get "subscribed" to the widget.
 
-[Map] and [List] values will not be stored as they are, but rather they'll get deep copied (automatically). Every [Map] will be copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and Lists can be stored as they are using the method [ObservedMap.setValueRaw], however in those cases the values inside the Map or List will not update Widgets when they change.
+[Map] and [List] values will not be stored as they are, but rather they'll get deep copied (automatically). Every [Map] will be copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and Lists can be stored as they are using the method [ObservedMap.setValueRaw], however by doing so the values inside the Map or List will not update Widgets when they change.
 
 ## <a name="performance">Performance</a>
-As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with another Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time.
+As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with another Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that the widget build time is far from being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widget build time would likely be unnoticeable.
+
+The following performances impact exist in the Widget build time compared to StatefulWidgets that would call setState manually.
 
 In a small Widget, including Floop implies the following performance hit in build time:
 - x1.15 when Floop is included, but no value is read from the an ObservedMap.
@@ -83,5 +85,4 @@ If more values are read, the Map read operation starts becoming the bottleneck o
 Benchmarks have quite some variability, the numbers vary on each run, depending if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging around x7.
 
 ### Writing on an ObservedMap
-Writing on an ObservedMap has a rough permorfance hit of x3.2 in all circumstances.
-
+Writing on an ObservedMap has a rough permformance hit of x3.2 in all circumstances.
