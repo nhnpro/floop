@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.txt
 .DS_Store
 .atom/
 .buildlog/
@@ -70,3 +71,7 @@ build/
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 examples/dart_sandbox_example.dart
 examples/task_list.dart
+lib/src/widgets_.dart
+test/src/controller_test.dart
+test/src/observed_test.dart
+benchmark/misc_benchmarks_not_include.dart
