@@ -27,7 +27,7 @@ mixin Floop on StatelessWidget {
 /// StatelessWidget class that includes [Floop].
 ///
 /// `class MyWidget extends FloopWidget` is equivalent to
-/// `class MyWidget extends StatelessWidget with Floop`
+/// `class MyWidget extends StatelessWidget with Floop`.
 abstract class FloopStatelessWidget = StatelessWidget with Floop;
 
 /// Experimental lighter version of Floop. It only allows reading from one
@@ -97,5 +97,9 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
+/// State class that includes [FloopStateMixin].
+///
+/// `class MyState extends FloopState` is equivalent to
+/// `class MyWidget extends State with FloopStateMixin`.
 abstract class FloopState<T extends StatefulWidget> = State<T>
     with FloopStateMixin<T>;

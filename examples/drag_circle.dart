@@ -7,7 +7,7 @@ void main() {
   floop['animate'] = false;
   floop['scalePx'] = 2.0;
   runApp(MaterialApp(
-      title: 'Task Demo',
+      title: 'Drag Circle Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

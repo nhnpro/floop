@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lorem Picsum Images',
+      title: 'Lorem Picsum Images Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

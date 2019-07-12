@@ -9,7 +9,6 @@ Floop uses an observed 'global store' state management paradigm. Widgets will al
 ```diff
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-+// class ClickerState extends State with FloopStateMixin { 
 
   @override
 -Widget build(BuildContext context) {
@@ -30,7 +29,9 @@ buildWithFloop
 
 The example above displays everything required to use the library, keep reading to learn more [details](#details), but it's not necessary. Full example [here](../master/example/clicker.dart).
 
-Any kind of values can be kept in the [ObservedMap] `floop`, it implements [Map]. Own [ObservedMap]s can be created instead of using `floop`, like `Map myStore = ObservedMap()`. 
+Any kind of values can be kept in the [ObservedMap] `floop`, it implements [Map]. Own [ObservedMap]s can be created instead: `Map myStore = ObservedMap()`.
+
+On Stateful widgets: `...extends State with FloopStateMixin` (the Widget itself is left unchanged).
 
 ## Install
 
@@ -51,11 +52,11 @@ Run `flutter pub get` in the root folder of your project.
 
 - When data that is common to the whole app changes (for example user data), automatically all widgets that use that data get updated. One less problem to worry about.
 
-- Loading and displaying data asynchronously (like http requests) simplified. There is no need to use more complex objects like StreamBuilders to handle these cases. Store the async data on `floop` and conditionally check like `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`. [Example](../master/example/image_list.dart)
+- Loading and displaying data asynchronously (http requests) simplified. There is no need to use more complex objects like StreamBuilders to handle these cases. Store the async data on `floop` and conditionally check `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`. [Example](../master/example/image_list.dart)
 
 - It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that propagate data changes down the Widget tree, causing a whole branch of the tree to update.
 
-- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets `buildWithFloop`. A convenient class [Repeater] is included in the library to repeatedly call a function with any given frequency. [Animation example](../master/example/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
+- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets `buildWithFloop`. [Animation example](../master/example/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
 
 ## <a name="details">Details</a>
 
@@ -66,9 +67,9 @@ Widgets only subscribe to the keys **read during the last build**. This means th
 [Map] and [List] values will not be stored as they are, but rather they'll get deep copied (automatically). Every [Map] gets copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and Lists can be stored as they are using the method [ObservedMap.setValueRaw], however by doing so the values inside the Map or List will not update Widgets when they change.
 
 ## <a name="performance">Performance</a>
-As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with a small Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that the widget build time is far from being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widget build time would likely be unnoticeable.
+As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with a small Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that a Widget's build time is far from being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widgets build time might go unnoticed.
 
-The following performance impact exist on the Widget build time compared to StatefulWidgets that would call setState manually.
+The following performance impact exist on the Widget build time compared to building the same Widget without Floop but reading the same data from a LinkedHashMap (imagine StatefulWidgets that would call setState manually).
 
 In very small Widgets (less than 10 lines in the build method), including Floop implies the following performance hit in build time:
 - x1.15 when Floop is included, but no value is read from an ObservedMap. This implies that including Floop 'just in case' in every Widget is almost negligible.
@@ -78,7 +79,7 @@ In medium Widgets:
 - x1 or negligible performance hit when Floop is included, but no value is read from an ObservedMap.
 - x3 when up to 15 values are read.
 
-If more values are read, the Map read operation starts becoming the bottleneck of Widget build time even when reading from a regular Map. The more values are read from the Map, the more the performance hit approaches the difference between reading from a Map and an ObservedMap while listening. The performance hit when reading from an ObservedMap in comparison to a regular LinkedHashMap is the following:
+If more values are read, the Map read operation starts becoming the bottleneck of Widget's build time even when reading from a regular Map. The more values are read from the Map, the more the performance hit approaches the difference between reading from a Map and an ObservedMap while listening. The performance hit when reading from an ObservedMap in comparison to a regular LinkedHashMap is the following:
 
 - x1.25 using the map like a regular map.
 - x2.5 while Floop is on 'listening' mode (when a Widget is building).
@@ -86,7 +87,7 @@ If more values are read, the Map read operation starts becoming the bottleneck o
 
 Benchmarks have quite some variability on each run, it depends if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging at around x7 (for 100000 thousand values read).
 
-To reduce the impact in build time, there is an alternative [FloopLight] mixin that can be used, which has the limitation of being able to read from at most one ObservedMap (any number of values can be read) during `buildWithFloop`. FloopLight should satisfy most use cases, as normally just a few values (one or two) are read from only one [Map]. It's not the default mixin to make Floop safe in any use case and avoid users from having unexpected errors.
+To reduce the impact in build time, there is an alternative [FloopLight] mixin that can be used, which has the limitation of being able to read from at most one ObservedMap (any number of values can be read) during `buildWithFloop`. FloopLight should satisfy most use cases, as normally just a few values (one or two) are read from only one [ObservedMap]. It's not the default mixin to make Floop safe in any use case and avoid users from having unexpected errors.
 
 ### Writing performance
 Writing to an [ObservedMap] has a rough performance hit of x3.2 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.

@@ -4,7 +4,7 @@ import 'package:floop/floop.dart';
 void main() {
   floop['clicks'] = 0;
   runApp(MaterialApp(
-      title: 'Task Demo',
+      title: 'Clicker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -56,7 +56,7 @@ class ClickerState extends State<ClickerStateful> with FloopStateMixin {
 void mainSimple() {
   floop['clicks'] = 0;
   runApp(MaterialApp(
-      title: 'Task Demo',
+      title: 'Clicker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
