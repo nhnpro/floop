@@ -16,11 +16,14 @@ class Clicker extends StatelessWidget with Floop {
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(
       body: Center(
-          child: Text(floop['clicks'].toString(),
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 100,
-              ))),
+        child: Text(
+          floop['clicks'].toString(),
+          style: TextStyle(
+            color: Colors.red,
+            fontSize: 100,
+          ),
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add), onPressed: () => floop['clicks']++),
     );

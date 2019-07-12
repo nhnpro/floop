@@ -22,44 +22,40 @@ class MyApp extends StatelessWidget {
 }
 
 class DisplayImages extends StatelessWidget with Floop {
-
   @override
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Interactive Images List')),
-      body: floop['loading'] != true && floop['images'] == null ?
-        Center(
-          child: Container(
-            width: 300,
-            child: Text(
-              'Press the cloud to download the images list',
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w700,
+      body: floop['loading'] != true && floop['images'] == null
+          ? Center(
+              child: Container(
+              width: 300,
+              child: Text(
+                'Press the cloud to download the images list',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          )
-        ) :
-        floop['loading'] == true ?
-          Text(
-            'Loading...',
-            style: TextStyle(
-              fontSize: 50,
-              fontWeight: FontWeight.w700,
-            ),
-          ) :
-          ImagesList(floop['images'].cast<Map>()),
+            ))
+          : floop['loading'] == true
+              ? Text(
+                  'Loading...',
+                  style: TextStyle(
+                    fontSize: 50,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              : ImagesList(floop['images'].cast<Map>()),
       floatingActionButton: FloatingActionButton(
         child: Icon(
-          floop['images'] == null ? Icons.cloud_download : Icons.refresh
-        ),
+            floop['images'] == null ? Icons.cloud_download : Icons.refresh),
         onPressed: () async {
-          if(floop['images'] == null) {
+          if (floop['images'] == null) {
             floop['loading'] = true;
             var response = await http.get('https://picsum.photos/v2/list');
             floop['images'] = json.decode(response.body);
-          }
-          else {
+          } else {
             floop['images'] = null;
           }
           floop['loading'] = false;
@@ -69,9 +65,7 @@ class DisplayImages extends StatelessWidget with Floop {
   }
 }
 
-
 class ImagesList extends StatelessWidget {
-
   final List<Map> images;
 
   ImagesList(this.images);
@@ -87,7 +81,9 @@ class ImagesList extends StatelessWidget {
 class ImageItem extends StatelessWidget with Floop {
   final Map image;
 
-  ImageItem(this.image);
+  ImageItem(this.image) {
+    image['display'] = false;
+  }
 
   @override
   Widget buildWithFloop(BuildContext context) {
@@ -95,32 +91,33 @@ class ImageItem extends StatelessWidget with Floop {
       children: [
         Container(
           child: ListTile(
-            title: Text(image['author']),
-            subtitle: Text(image['url']),
-            leading: CircleAvatar(
-              child: Text(
-                image['id'],
+              title: Text(image['author']),
+              subtitle: Text(image['url']),
+              selected: image['display'],
+              leading: CircleAvatar(
+                child: Text(
+                  image['id'],
+                ),
               ),
-            ),
-            onTap: () {
-              if(image['display'] != null)
-                image['display'] = null;
-              else
-                image['display'] = true;
-            }
-          ),
+              onTap: () {
+                if (image['display']) {
+                  image['display'] = false;
+                } else {
+                  image['display'] = true;
+                }
+              }),
           decoration: BoxDecoration(
-            color: image['display'] == true ? Colors.red : Colors.white,
+            color: image['display'] ? Colors.red : Colors.white,
             shape: BoxShape.rectangle,
             borderRadius: BorderRadius.circular(1.0),
-            ),
-        ),
-        image['display'] != true ?
-          Container() :
-          Image.network(
-            image['download_url'],
-            height: 300,
           ),
+        ),
+        !image['display']
+            ? Container()
+            : Image.network(
+                image['download_url'],
+                height: 300,
+              ),
       ],
     );
   }
