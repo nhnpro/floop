@@ -1,6 +1,8 @@
 # floop_web
 
-Floop implementation for Flutter web. It's literally the same code as Floop, it just imports from package flutter_web instead of flutter.
+State management for Flutter. It's literally the same code as Floop, it just imports from package flutter_web instead of flutter.
+
+https://pub.dev/packages/floop
 
 ## Getting Started
 
@@ -34,3 +36,16 @@ buildWithFloop
 ```
 
 On StatefulWidgets: `...extends State with FloopStateMixin`.
+
+## Install
+
+Add floop dependency to your project's `pubspec.yaml`. Currently there are problems publishing flutter_web projects, because flutter_web does not exist on pub.dev. If adding the dependency like a regular pub.dev project does not work, try the following:
+
+```yaml
+depedencies:
+  floop:
+    git: https://github.com/icatalud/floop
+    path: packages/floop_web
+```
+
+Run `flutter pub get` in the root folder of your project.

@@ -237,7 +237,10 @@ class LightController extends FloopController {
   }
 }
 
-/// ObservedController class is a utility class used by
+/// This class connects [Observed] with [FloopController].
+///
+/// [Observed] instances use an ObservedListener to notify reads or writes on
+/// them.
 class ObservedListener {
   /// The map that associates keys with the Elements that should be updated when the
   /// value of the key is updated.
@@ -300,10 +303,11 @@ class ObservedListener {
   }
 
   void updateMutation(Element element) {
-    if (currentMutationRead)
+    if (currentMutationRead) {
       _mutations.add(element);
-    else
+    } else {
       _mutations.remove(element);
+    }
   }
 
   void commitCurrentReads(Element element) {
@@ -337,9 +341,11 @@ class ObservedListener {
   }
 
   void valueChanged(Object key) {
-    if (_keyToElements.containsKey(key))
+    if (_keyToElements.containsKey(key)) {
       floopController.markAsNeedBuild(_keyToElements[key]);
-    else if (_mutations.isNotEmpty) floopController.markAsNeedBuild(_mutations);
+    } else if (_mutations.isNotEmpty) {
+      floopController.markAsNeedBuild(_mutations);
+    }
   }
 
   void cleared() {

@@ -26,7 +26,7 @@ mixin Floop on StatelessWidget {
 
 /// StatelessWidget class that includes [Floop].
 ///
-/// `class MyWidget extends FloopWidget` is equivalent to
+/// `class MyWidget extends FloopStatelessWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`.
 abstract class FloopStatelessWidget = StatelessWidget with Floop;
 
@@ -66,8 +66,8 @@ class StatelessElementFloop extends StatelessElement {
   }
 }
 
-/// Mixin for StatefulWidgets. Use the FloopStateMixin in a State class to
-/// enable Floop listened reads during buildWithFloop calls.
+/// Mixin for StatefulWidgets. Use this mixin in a State class to enable
+/// widget builds to be observed by Floop.
 mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to [ObservedMaps].

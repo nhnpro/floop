@@ -1,3 +1,7 @@
+## [0.2.2] - 09/07/2019
+
+Minor update to docs.
+
 ## [0.2.1] - 09/07/2019
 
 Minor updates to docs and example, change mixin name.

@@ -1,6 +1,6 @@
 name: floop_web
 description: Simple state management for Flutter Web. Web version of Floop.
-version: 0.2.1
+version: 0.2.2
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
