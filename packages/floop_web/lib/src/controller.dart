@@ -1,5 +1,5 @@
-import './observed.dart';
 import './flutter_import.dart';
+import './observed.dart';
 
 final FullController fullController = FullController();
 final LightController lightController = LightController();

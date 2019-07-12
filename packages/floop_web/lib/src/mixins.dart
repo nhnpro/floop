@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
-import './controller.dart';
 import './flutter_import.dart';
+import './controller.dart';
 
 /// Mixin that causes the Widget be listened while building. Include this
 /// mixin in a StatelessWidget and override the buildWithFloop method.
@@ -28,7 +28,7 @@ mixin Floop on StatelessWidget {
 ///
 /// `class MyWidget extends FloopWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`
-abstract class FloopWidget = StatelessWidget with Floop;
+abstract class FloopStatelessWidget = StatelessWidget with Floop;
 
 /// Experimental lighter version of Floop. It only allows reading from one
 /// observed at each Widget build cycle. It has increased performance.
@@ -52,7 +52,10 @@ mixin FloopLight on StatelessWidget {
   }
 }
 
-/// Wrapper class of StatelessElement used to catch calls to unmount
+/// Wrapper class of StatelessElement used to catch calls to unmount/
+///
+/// When unmount is called the Element gets unsubscribed and by doing
+/// that, all references to the Element in Floop get cleaned.
 class StatelessElementFloop extends StatelessElement {
   StatelessElementFloop(StatelessWidget widget) : super(widget);
 
