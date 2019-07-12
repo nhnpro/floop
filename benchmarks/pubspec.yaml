@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  mockito: ^4.1.0
   floop: ^0.1.0
 
 dev_dependencies:

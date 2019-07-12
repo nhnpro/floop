@@ -103,7 +103,9 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
 double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';
   void buildManyTimes() {
-    for (int i = 0; i < 1000; i++) widget.build(mockEle);
+    for (int i = 0; i < 1000; i++) {
+      widget.build(mockEle);
+    }
   }
 
   return benchmarkFunction(
@@ -139,7 +141,6 @@ class MediumWidget extends StatelessWidget {
 
   MediumWidget(this.readOperation);
 
-  @override
   Widget buildWithFloop(BuildContext context) {
     readOperation();
     return Scaffold(

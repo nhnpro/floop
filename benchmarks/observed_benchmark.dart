@@ -193,5 +193,7 @@ runWriteBenchmark([
 }
 
 plainWrite(Map map, int n) {
-  for (var i = 0; i < n; i++) map[i] = i;
+  for (var i = 0; i < n; i++) {
+    map[i] = i;
+  }
 }
