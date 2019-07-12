@@ -18,9 +18,9 @@ dev_dependencies:
     sdk: flutter
   benchmark_harness: any
 
-dependency_overrides:
-  floop:
-    path: ../packages/floop/
+# dependency_overrides:
+#   floop:
+#     path: ../packages/floop/
 
 flutter:
 

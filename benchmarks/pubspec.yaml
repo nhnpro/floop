@@ -17,9 +17,9 @@ dev_dependencies:
   pedantic: ^1.0.0
   benchmark_harness: any
 
-dependency_overrides:
-  floop:
-    path: ../packages/floop/
+# dependency_overrides:
+#   floop:
+#     path: ../packages/floop/
   
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec
