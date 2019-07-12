@@ -33,16 +33,13 @@ Any kind of values can be kept in the [ObservedMap] `floop`, it implements [Map]
 
 On Stateful widgets: `...extends State with FloopStateMixin` (the Widget itself is left unchanged).
 
-## Install
+## More
 
-Add floop dependency to your project's `pubspec.yaml`
+Check the [Github repository](https://github.com/icatalud/floop) for up to date Readme, status of the project and for more examples.
 
-```yaml
-depedencies:
-  floop: any
-```
+https://github.com/icatalud/floop
 
-Run `flutter pub get` in the root folder of your project.
+Floop also exist for Flutter Web. Search for floop_web on pub.dev or check the Github repository.
 
 ## Advantages of using Floop
 
@@ -66,8 +63,6 @@ Widgets only subscribe to the keys **read during the last build**. This means th
 
 [Map] and [List] values will not be stored as they are, but rather they'll get deep copied (automatically). Every [Map] gets copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and Lists can be stored as they are using the method [ObservedMap.setValueRaw], however by doing so the values inside the Map or List will not update Widgets when they change.
 
-Performance hit by using [Floop] shouldn't be an issue. However, when attempting to optimize the app, switch from the [Floop] mixin to [FloopLight] mixin whenever possible. [FloopLight] only allows listening to one [ObservedMap] during each Widget build. This should satisfy most use cases.
-
 ## <a name="performance">Performance</a>
 As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with a small Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that a Widget's build time is far from being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widgets build time might go unnoticed.
 
@@ -87,9 +82,9 @@ If more values are read, the Map read operation starts becoming the bottleneck o
 - x2.5 while Floop is on 'listening' mode (when a Widget is building).
 - x5 - x8 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were 'observed' during the build of a widget.
 
-Benchmarks have quite some variability on each run, it depends if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging at about x7 for 100 values read, then it increases logarithmically (x8 for 100000 thousand).
+Benchmarks have quite some variability on each run, it depends if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging at around x7 (for 100000 values read).
 
-To reduce the impact in build time (note that widget build time is probably not what is causing an app to be slow), the alternative [FloopLight] mixin that can be used, which converges at about x4 build time increase. It has the limitation of being able to read from at most one ObservedMap (any number of values can be read) during `buildWithFloop`. FloopLight should satisfy most use cases, as normally just a few values (one or two) are read from only one [ObservedMap]. It's not the default mixin to make Floop safe in any use case and avoid users from having unexpected errors.
+To reduce the impact in build time, there is an alternative [FloopLight] mixin that can be used, which has the limitation of being able to read from at most one ObservedMap (any number of values can be read) during `buildWithFloop`. FloopLight should satisfy most use cases, as normally just a few values (one or two) are read from only one [ObservedMap]. It's not the default mixin to make Floop safe in any use case and avoid users from having unexpected errors.
 
 ### Writing performance
 Writing to an [ObservedMap] has a rough performance hit of x3.2 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.

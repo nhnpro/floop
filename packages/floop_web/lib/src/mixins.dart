@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
-import './controller.dart';
 import './flutter_import.dart';
+import './controller.dart';
 
 /// Mixin that causes the Widget be listened while building. Include this
 /// mixin in a StatelessWidget and override the buildWithFloop method.
@@ -26,9 +26,9 @@ mixin Floop on StatelessWidget {
 
 /// StatelessWidget class that includes [Floop].
 ///
-/// `class MyWidget extends FloopWidget` is equivalent to
-/// `class MyWidget extends StatelessWidget with Floop`
-abstract class FloopWidget = StatelessWidget with Floop;
+/// `class MyWidget extends FloopStatelessWidget` is equivalent to
+/// `class MyWidget extends StatelessWidget with Floop`.
+abstract class FloopStatelessWidget = StatelessWidget with Floop;
 
 /// Experimental lighter version of Floop. It only allows reading from one
 /// observed at each Widget build cycle. It has increased performance.
@@ -52,7 +52,10 @@ mixin FloopLight on StatelessWidget {
   }
 }
 
-/// Wrapper class of StatelessElement used to catch calls to unmount
+/// Wrapper class of StatelessElement used to catch calls to unmount/
+///
+/// When unmount is called the Element gets unsubscribed and by doing
+/// that, all references to the Element in Floop get cleaned.
 class StatelessElementFloop extends StatelessElement {
   StatelessElementFloop(StatelessWidget widget) : super(widget);
 
@@ -63,8 +66,8 @@ class StatelessElementFloop extends StatelessElement {
   }
 }
 
-/// Mixin for StatefulWidgets. Use the FloopStateMixin in a State class to
-/// enable Floop listened reads during buildWithFloop calls.
+/// Mixin for StatefulWidgets. Use this mixin in a State class to enable
+/// widget builds to be observed by Floop.
 mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to [ObservedMaps].
@@ -94,5 +97,9 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
+/// State class that includes [FloopStateMixin].
+///
+/// `class MyState extends FloopState` is equivalent to
+/// `class MyWidget extends State with FloopStateMixin`.
 abstract class FloopState<T extends StatefulWidget> = State<T>
     with FloopStateMixin<T>;

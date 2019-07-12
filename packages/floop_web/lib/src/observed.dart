@@ -1,5 +1,4 @@
 import 'dart:collection';
-import './flutter_import.dart';
 import './controller.dart';
 
 final ObservedMap<String, dynamic> floop = ObservedMap();

@@ -45,7 +45,7 @@ void warmUpController(int numberOfElements,
     floopController.stopListening();
   }
   assert(() {
-    if (floopController.length != numberOfElements && keys.length > 0) {
+    if (floopController.length != numberOfElements && keys.isNotEmpty) {
       print(
           'Inconsistency: ${floopController.runtimeType.toString()} elements is\n'
           '${floopController.length} but should be $numberOfElements.\n');
@@ -81,13 +81,17 @@ Iterable randomIntList(length) {
 }
 
 plainRead(Map data, Iterable keys) {
-  for (var k in keys) data[k];
+  for (var k in keys) {
+    data[k];
+  }
 }
 
 createValueReader(Map map, [int numberOfReads]) {
   numberOfReads = numberOfReads ?? map.length;
   var keys = map.keys.toList().sublist(0, numberOfReads);
   return () {
-    for (var k in keys) map[k];
+    for (var k in keys) {
+      map[k];
+    }
   };
 }

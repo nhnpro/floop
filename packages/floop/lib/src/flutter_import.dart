@@ -1,4 +1,4 @@
-export 'package:flutter_web/widgets.dart'
+export 'package:flutter/widgets.dart'
     show
         Element,
         BuildContext,

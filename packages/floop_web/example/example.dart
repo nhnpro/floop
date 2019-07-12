@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:floop/floop.dart';
+import 'package:flutter_web/material.dart';
+import 'package:floop_web/floop_web.dart';
+
+/// This example exists solely to satisfy dart publishing requirements.
+/// The real examples folder lies at the root of the project on Github.
+/// https://github.com/icatalud/floop
 
 void main() {
   floop['clicks'] = 0;
@@ -30,7 +34,7 @@ class Clicker extends StatelessWidget with Floop {
   }
 }
 
-// The following are alternative implementations of the same Widget
+// The following are alternative implementations.
 
 class ClickerStateful extends StatefulWidget {
   @override
@@ -53,15 +57,7 @@ class ClickerState extends State<ClickerStateful> with FloopStateMixin {
   }
 }
 
-void mainSimple() {
-  floop['clicks'] = 0;
-  runApp(MaterialApp(
-      title: 'Clicker',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: SimpleClicker()));
-}
+// Simplest example.
 
 class SimpleClicker extends StatelessWidget with Floop {
   @override

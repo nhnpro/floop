@@ -58,7 +58,9 @@ shiftRight(List list, int shift) {
 
 startAnimations() {
   store['animate'] = true;
-  for (Repeater rep in repeaters) rep.start();
+  for (Repeater rep in repeaters) {
+    rep.start();
+  }
 }
 
 stopAnimations() {
@@ -72,7 +74,9 @@ rotateWidget(Widget widget, [speed = 1]) {
 
 class IconThumbnails extends StatelessWidget with Floop {
   reset() {
-    for (Repeater rep in repeaters) rep.reset();
+    for (Repeater rep in repeaters) {
+      rep.reset();
+    }
     (store['speedUp'] as Repeater).reset();
     (store['speedDown'] as Repeater).reset();
     initializeStoreValues();

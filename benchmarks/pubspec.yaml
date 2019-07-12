@@ -1,6 +1,5 @@
-name: example
-description: Example usage for Floop library.
-version: 0.1.1
+name: floop_benchmarks
+description: Benchmarks for Floop
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
@@ -10,25 +9,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  floop: any
-  http: any
+  floop: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  pedantic: ^1.0.0
   benchmark_harness: any
 
 # dependency_overrides:
 #   floop:
 #     path: ../packages/floop/
-
-flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
-  uses-material-design: true
   
-
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec

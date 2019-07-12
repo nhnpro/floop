@@ -1,24 +1,44 @@
 name: floop_web
 description: Simple state management for Flutter Web. Web version of Floop.
-version: 0.2.0
+version: 0.2.2
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.3.0 <3.0.0"
 
 dependencies:
   flutter_web: any
+    # git:
+    #   url: https://github.com/flutter/flutter_web
+    #   path: packages/flutter_web
   flutter_web_ui: any
+    # git:
+    #   url: https://github.com/flutter/flutter_web
+    #   path: packages/flutter_web_ui
 
 dev_dependencies:
-  flutter_web_test: any
+  # flutter_web:
+  #   git:
+  #     url: https://github.com/flutter/flutter_web
+  #     path: packages/flutter_web
+  # flutter_web_ui:
+  #   git:
+  #     url: https://github.com/flutter/flutter_web
+  #     path: packages/flutter_web_ui
+  flutter_web_test:
+    git:
+      url: https://github.com/flutter/flutter_web
+      path: packages/flutter_web_test
   build_runner: ^1.5.0
   build_web_compilers: ^2.1.0
   pedantic: ^1.7.0
   mockito:
 
 dependency_overrides:
+  # Must override these dependencies, but cannot publish to puv.dev
+  # when overriding.
+
   flutter_web:
     git:
       url: https://github.com/flutter/flutter_web
@@ -31,4 +51,3 @@ dependency_overrides:
     git:
       url: https://github.com/flutter/flutter_web
       path: packages/flutter_web_test
-
