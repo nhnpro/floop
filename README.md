@@ -9,7 +9,7 @@ Floop uses an observed 'global store' state management paradigm. Widgets will al
 ```diff
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-+// class ClickerState extends State with FloopState { 
++// class ClickerState extends State with FloopStateMixin { 
 
   @override
 -Widget build(BuildContext context) {
@@ -53,7 +53,7 @@ Run `flutter pub get` in the root folder of your project.
 
 - Loading and displaying data asynchronously (like http requests) simplified. There is no need to use more complex objects like StreamBuilders to handle these cases. Store the async data on `floop` and conditionally check like `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`. [Example](../master/example/image_list.dart)
 
-- It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that cause a whole branch of the Widget tree to update.
+- It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that propagate data changes down the Widget tree, causing a whole branch of the tree to update.
 
 - Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets `buildWithFloop`. A convenient class [Repeater] is included in the library to repeatedly call a function with any given frequency. [Animation example](../master/example/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
 
