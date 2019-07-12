@@ -11,6 +11,8 @@ https://github.com/icatalud/floop/
 ### Example - How to use
 
 ```diff
++import 'package:floop/floop.dart';
+
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
 
@@ -30,3 +32,5 @@ buildWithFloop
   }
 }
 ```
+
+On StatefulWidgets: `...extends State with FloopStateMixin`.

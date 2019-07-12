@@ -1,5 +1,5 @@
-import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
+import './flutter_import.dart';
 import './controller.dart';
 
 /// Mixin that causes the Widget be listened while building. Include this
@@ -28,7 +28,7 @@ mixin Floop on StatelessWidget {
 ///
 /// `class MyWidget extends FloopWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`
-abstract class FloopWidget = StatelessWidget with Floop;
+abstract class FloopStatelessWidget = StatelessWidget with Floop;
 
 /// Experimental lighter version of Floop. It only allows reading from one
 /// observed at each Widget build cycle. It has increased performance.

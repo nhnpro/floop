@@ -1,6 +1,6 @@
 ## [0.2.0] - 09/07/2019
 
-Update Docs and added floop_web to pub.
+Update Docs, readme, reworks file organization.
 
 ## [0.1.1] - 09/07/2019
 
