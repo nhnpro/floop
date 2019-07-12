@@ -1,6 +1,6 @@
-# floop_web
+# floop
 
-Floop implementation for Flutter web. It's literally the same code as Floop, it just imports from package flutter_web instead of flutter.
+Simple state management for Flutter. It automacally refreshes Widgets on data changes. Floop is meant to simplify dealing with UI interactions and asynchronous operations.
 
 ## Getting Started
 

@@ -8,8 +8,8 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
-  flutter_web: any
-  flutter_web_ui: any
+  flutter_web: ^1.5.0
+  flutter_web_ui: ^1.5.0
 
 dev_dependencies:
   flutter_web_test: any
@@ -18,17 +18,17 @@ dev_dependencies:
   pedantic: ^1.7.0
   mockito:
 
-dependency_overrides:
-  flutter_web:
-    git:
-      url: https://github.com/flutter/flutter_web
-      path: packages/flutter_web
-  flutter_web_ui:
-    git:
-      url: https://github.com/flutter/flutter_web
-      path: packages/flutter_web_ui
-  flutter_web_test:
-    git:
-      url: https://github.com/flutter/flutter_web
-      path: packages/flutter_web_test
+# dependency_overrides:
+#   flutter_web:
+#     git:
+#       url: https://github.com/flutter/flutter_web
+#       path: packages/flutter_web
+#   flutter_web_ui:
+#     git:
+#       url: https://github.com/flutter/flutter_web
+#       path: packages/flutter_web_ui
+#   flutter_web_test:
+#     git:
+#       url: https://github.com/flutter/flutter_web
+#       path: packages/flutter_web_test
 
