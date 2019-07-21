@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
 
-/// This example exists solely to satisfy dart publishing requirements.
-/// The real examples folder lies at the root of the project on Github.
+/// This example exists to satisfy dart publishing requirements.
+/// More complete examples are available at the root of the project on Github.
 /// https://github.com/icatalud/floop
 
 void main() {
