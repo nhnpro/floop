@@ -5,58 +5,82 @@ import 'package:flutter/material.dart';
 
 import '../floop.dart';
 
-int transitionId = 0;
+int _lastId = 0;
 
 Map<BuildContext, Map<int, int>> _contextIds = Map();
-ObservedMap<int, double> _idToFraction = ObservedMap();
+ObservedMap<int, double> _idToFraction = ObservedMap.of({-1: 1});
 Map<int, Repeater> _idToRepeater = Map();
 
 typedef TransitionValueCalculator<V> = V Function(
-    double runningTimeToFullDurationRatio);
+    double elapsedToDurationRatio);
 
-typedef TransitionCallback = Function(double runningTimeToFullDurationRatio);
-
-// TransitionValueCalculator<V> calculateValue,
+typedef TransitionCallback = Function(double elapsedToDurationRatio);
 
 double transition(int durationMillis,
     {int refreshRateMillis = 20, TransitionCallback callback}) {
+  double result = 1;
   int id;
-  bool hasChild = false;
-  BuildContext context = floopController.currentBuild;
+  bool shouldCreateTransition = true;
+  Map<int, int> durationToId;
 
+  BuildContext context = floopController.currentBuild;
   if (context != null) {
+    bool firstBuild = true;
     // If the context has a child, it means it was built at least once.
-    // If the context was built at least once, the transition is not created.
-    context.visitChildElements((_) => hasChild = true);
-    id = _contextIds[context][durationMillis];
+    // If the context was built at least once, a new transition will not
+    // be created.
+    context.visitChildElements((_) => firstBuild = false);
+    durationToId = _contextIds[context];
+    if (firstBuild) {
+      // Creates a duration to id map for context if it is the first build.
+      durationToId = Map();
+      _contextIds[context] = durationToId;
+    } else if (durationToId != null) {
+      id = _contextIds[context][durationMillis];
+    }
+    shouldCreateTransition = firstBuild;
   }
 
-  if (!hasChild && id == null) {
+  _cleanMaps(id) {
+    // Cleans maps when the transition finishes.
+    _idToFraction.remove(id, false);
+    if (durationToId != null) {
+      durationToId.remove(durationMillis);
+      if (durationToId.isEmpty) {
+        _contextIds.remove(context);
+      }
+    }
+  }
+
+  if (shouldCreateTransition) {
     id = _startTransition(
         durationMillis,
         callback ??
             (double fraction) {
+              // Default callback that sets the value of an ObservedMap.
+              // This will cause a Elements to rebuild when the value
+              // changes if a Floop Widget is currently building.
               _idToFraction[id] = fraction;
+              if (fraction >= 1) {
+                _cleanMaps(id);
+              }
             },
         refreshRateMillis: refreshRateMillis);
+    assert(id != null);
     _idToFraction.setValue(id, 0, false);
-  }
-  double value = _idToFraction[id];
-
-  // Cleans maps in case the transition finished.
-  if (!_idToRepeater.containsKey(id)) {
-    _idToFraction.remove(id, false);
-    _contextIds.remove(context);
-    if (_contextIds[context].isEmpty) {
-      _contextIds.remove(context);
+    if (durationToId != null) {
+      durationToId[durationMillis] = id;
     }
   }
-  return value;
+  if (id != null) {
+    result = _idToFraction[id] ?? 1;
+  }
+  return result;
 }
 
 int _startTransition(int durationMillis, TransitionCallback callback,
     {int refreshRateMillis}) {
-  int id = transitionId++;
+  int id = _lastId++;
 
   updater(Repeater repeater) {
     double fraction = min(1, repeater.elapsedMilliseconds / durationMillis);
@@ -74,8 +98,9 @@ int _startTransition(int durationMillis, TransitionCallback callback,
 
 num transitionNum(num start, num end, int durationMillis,
     [refreshRateMillis = 20]) {
-  num r = transition(durationMillis, refreshRateMillis: refreshRateMillis);
-  return start + (end - start) * r;
+  num elapsedRatio =
+      transition(durationMillis, refreshRateMillis: refreshRateMillis);
+  return start + (end - start) * elapsedRatio;
 }
 
 /// Transitions the `map[key]` value using `calculateValue` on each update.
