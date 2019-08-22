@@ -12,9 +12,10 @@ class Repeater extends Stopwatch {
   /// The function gets called with this repeater as parameter.
   PeriodicFunction f;
 
-  /// The frequency of the function calls when method `start` is called. A frequency can
-  /// optionally be provided when calling the start method, so it's not necessary to set
-  /// this value.
+  /// The frequency of the function calls when method `start` is called.
+  ///
+  /// A frequency can optionally be provided when calling the start method,
+  /// so it's not necessary to set this value.
   int frequencyMilliseconds;
 
   Repeater(this.f, [this.frequencyMilliseconds = 50]);
@@ -26,16 +27,18 @@ class Repeater extends Stopwatch {
   }
 
   /// Stops and resets all values of this repeater to it's starting values. It makes a
-  /// single call to `this.f` at the end.
+  /// single call to `this.f` at the end if `callF` is true (defaults to true).
   reset([bool callF = true]) {
     stop();
     super.reset();
-    !callF ?? f(this);
+    if (callF) {
+      f(this);
+    }
   }
 
-  /// Starts this stopwatch making recurrent calls to `this.f` with the given `frequency`.
+  /// Starts making recurrent calls to `this.f` with the given `frequency`.
   /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
-  start([int frequency]) {
+  start([int frequencyMillis]) {
     if (!_stop) {
       print('The repeater is already running');
       return;
@@ -45,7 +48,7 @@ class Repeater extends Stopwatch {
     }
     _stop = false;
     _executionLock = true;
-    frequency = frequency ?? frequencyMilliseconds;
+    frequencyMillis = frequencyMillis ?? frequencyMilliseconds;
     super.start();
     run() {
       Future.delayed(Duration(milliseconds: frequency), () {

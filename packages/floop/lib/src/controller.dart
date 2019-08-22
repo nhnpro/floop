@@ -35,7 +35,7 @@ abstract class FloopController {
   Element get currentBuild => _currentBuild;
 
   /// Returns true if this controller is on listening mode.
-  bool get listening => _currentBuild != null;
+  bool get isListening => _currentBuild != null;
 
   /// The count of Elements (Widgets) subscribed to this controller.
   int get length;
@@ -44,7 +44,7 @@ abstract class FloopController {
   void startListening(covariant Element element) {
     floopController = this;
     assert(() {
-      if (listening) {
+      if (isListening) {
         stopListening();
         return false;
       }
@@ -83,7 +83,7 @@ abstract class FloopController {
 
   @mustCallSuper
   void markAsNeedBuild(Set<Element> elements) {
-    if (listening) {
+    if (isListening) {
       print('ERROR: A Floop widget is building ([Floop.buildWithFloop]) while\n'
           'setting a value in an ObservedMap. Update to widgets will not be\n'
           'made, because it could produce an infinite build recursion.\n'
@@ -152,7 +152,7 @@ class FullController extends FloopController {
   }
 
   registerPeekedListener(ObservedListener listener) {
-    assert(listening);
+    assert(isListening);
     _currentObservedListeners.add(listener);
   }
 
@@ -193,7 +193,7 @@ class LightController extends FloopController {
 
   @override
   void registerPeekedListener(ObservedListener listener) {
-    assert(listening);
+    assert(isListening);
     if (_currentListener == null) {
       _currentListener = listener;
     } else if (_currentListener != listener) {
@@ -328,14 +328,14 @@ class ObservedListener {
   }
 
   void valueRetrieved(Object key) {
-    if (floopController.listening) {
+    if (floopController.isListening) {
       currentKeyReads.add(key);
       floopController.registerPeekedListener(this);
     }
   }
 
   void mutationRead() {
-    if (floopController.listening) {
+    if (floopController.isListening) {
       floopController.registerPeekedListener(this);
     }
   }

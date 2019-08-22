@@ -73,8 +73,10 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   /// Sets the `value` of the `key`.
   /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
-  setValueRaw(Object key, V value) {
-    _notifyListenerIfChange(key, value);
+  setValue(Object key, V value, [bool triggerUpdates = true]) {
+    if (triggerUpdates) {
+      _notifyListenerIfChange(key, value);
+    }
     _keyToValue[key] = value;
   }
 
@@ -98,8 +100,8 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   @override
-  V remove(Object key) {
-    if (_keyToValue.containsKey(key)) {
+  V remove(Object key, [bool triggerUpdates = true]) {
+    if (triggerUpdates && _keyToValue.containsKey(key)) {
       _listener.valueChanged(key);
     }
     return _keyToValue.remove(key);
