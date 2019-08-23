@@ -47,10 +47,14 @@ initializeRepeaters() {
             store['iconsShift'] = per.proportionInt(icons.length, 1000 * 1000),
         200),
   ];
-  store['speedUp'] = Repeater((_) => store['rotationSpeed'] =
-      min(0.4, (store['rotationSpeed'] as double) + 0.01));
-  store['speedDown'] = Repeater((_) => store['rotationSpeed'] =
-      max(-0.4, (store['rotationSpeed'] as double) - 0.01));
+  store['speedUp'] = Repeater(
+      (_) => store['rotationSpeed'] =
+          min(0.4, (store['rotationSpeed'] as double) + 0.01),
+      100);
+  store['speedDown'] = Repeater(
+      (_) => store['rotationSpeed'] =
+          max(-0.4, (store['rotationSpeed'] as double) - 0.01),
+      100);
 }
 
 shiftRight(List list, int shift) {
@@ -120,7 +124,7 @@ class IconThumbnails extends StatelessWidget with Floop {
                       : Colors.indigoAccent),
               onTap: () => store['rotationSpeed'] -= 0.1,
               onLongPress: () {
-                (store['speedDown'] as Repeater).start(100);
+                (store['speedDown'] as Repeater).start();
                 store['speedDownPressed'] = true;
               },
               onLongPressUp: () {
@@ -139,7 +143,7 @@ class IconThumbnails extends StatelessWidget with Floop {
               ),
               onTap: () => store['rotationSpeed'] += 0.1,
               onLongPress: () {
-                (store['speedUp'] as Repeater).start(100);
+                (store['speedUp'] as Repeater).start();
                 store['speedUpPressed'] = true;
               },
               onLongPressUp: () {

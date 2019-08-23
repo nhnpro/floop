@@ -1,4 +1,6 @@
-typedef PeriodicFunction = Function(Repeater);
+import 'dart:math';
+
+typedef RepeaterCallback = Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
 class Repeater extends Stopwatch {
@@ -6,57 +8,66 @@ class Repeater extends Stopwatch {
   bool _stop = true;
 
   /// Used to ensure only one asynchrnous repeating call in ongoing on this repeater.
-  bool _executionLock = false;
+  bool _executionLocked = false;
 
-  /// The function that will be called when method `start` is called on this repeater.
-  /// The function gets called with this repeater as parameter.
-  PeriodicFunction f;
+  /// The callback that gets recurrently called by this repeater.
+  /// I gets called with this repeater as parameter.
+  final RepeaterCallback callback;
+
+  /// A convenient variable that can be used for storing arbitrary values.
+  /// Useful for transmitting information between callbacks.
+  dynamic storage;
 
   /// The frequency of the function calls when method `start` is called.
   ///
-  /// A frequency can optionally be provided when calling the start method,
-  /// so it's not necessary to set this value.
+  /// If the optional `frequencyMillis` is provided when calling the start method
+  /// this value is not used.
   int frequencyMilliseconds;
 
-  Repeater(this.f, [this.frequencyMilliseconds = 50]);
+  Repeater(this.callback, [this.frequencyMilliseconds = 50]);
 
-  /// Stops this stopwatch and the recurrent executions to `this.f`.
+  /// Stops the recurrent executions to `callback`.
   stop() {
     super.stop();
     _stop = true;
   }
 
-  /// Stops and resets all values of this repeater to it's starting values. It makes a
-  /// single call to `this.f` at the end if `callF` is true (defaults to true).
-  reset([bool callF = true]) {
+  /// Stops and resets all values of this repeater to it's starting values.
+  /// It makes a single call to `callback` at the end if `callOnce` is true
+  /// (defaults to true).
+  reset([bool callOnce = true]) {
     stop();
     super.reset();
-    if (callF) {
-      f(this);
+    if (callOnce) {
+      callback(this);
     }
   }
 
-  /// Starts making recurrent calls to `this.f` with the given `frequency`.
-  /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
-  start([int frequencyMillis]) {
+  /// Starts making recurrent calls to `this.callback` with
+  /// `this.frequencyMilliseconds` for a duration of `durationMilliseconds`
+  /// or indefinetely if `durationMilliseconds` is not specified.
+  start([int durationMilliseconds]) {
     if (!_stop) {
       print('The repeater is already running');
       return;
-    } else if (_executionLock) {
+    } else if (_executionLocked) {
       print('Another asynchronous instance is already running');
       return;
     }
     _stop = false;
-    _executionLock = true;
-    frequencyMillis = frequencyMillis ?? frequencyMilliseconds;
+    _executionLocked = true;
+    // frequencyMillis ??= frequencyMilliseconds;
     super.start();
     run() {
-      Future.delayed(Duration(milliseconds: frequency), () {
+      Future.delayed(Duration(milliseconds: frequencyMilliseconds), () {
         if (_stop) {
-          _executionLock = false;
+          _executionLocked = false;
         } else {
-          f(this);
-          run();
+          callback(this);
+          if (durationMilliseconds == null ||
+              elapsedMilliseconds < durationMilliseconds) {
+            run();
+          }
         }
       });
     }

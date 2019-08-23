@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:floop/src/controller.dart';
+import 'package:floop/src/mixins.dart';
 import 'package:flutter/material.dart';
 
 import '../floop.dart';
@@ -8,40 +9,83 @@ import '../floop.dart';
 int _lastId = 0;
 
 Map<BuildContext, Map<int, int>> _contextIds = Map();
-ObservedMap<int, double> _idToFraction = ObservedMap.of({-1: 1});
+ObservedMap<int, double> _idToFraction = ObservedMap();
 Map<int, Repeater> _idToRepeater = Map();
 
-typedef TransitionValueCalculator<V> = V Function(
-    double elapsedToDurationRatio);
-
+typedef ValueUpdater<V> = V Function(double elapsedToDurationRatio);
 typedef TransitionCallback = Function(double elapsedToDurationRatio);
+typedef TransitionGenericCallback<V> = Function(V currentValue);
 
-double transition(int durationMillis,
-    {int refreshRateMillis = 20, TransitionCallback callback}) {
-  double result = 1;
-  int id;
-  bool shouldCreateTransition = true;
-  Map<int, int> durationToId;
+resetTransitions(FloopElement context) {
+  context.didRebuild = false;
+}
 
-  BuildContext context = floopController.currentBuild;
-  if (context != null) {
-    bool firstBuild = true;
-    // If the context has a child, it means it was built at least once.
-    // If the context was built at least once, a new transition will not
-    // be created.
-    context.visitChildElements((_) => firstBuild = false);
-    durationToId = _contextIds[context];
-    if (firstBuild) {
-      // Creates a duration to id map for context if it is the first build.
-      durationToId = Map();
-      _contextIds[context] = durationToId;
-    } else if (durationToId != null) {
-      id = _contextIds[context][durationMillis];
+Repeater createTransitionObject(int durationMillis, TransitionCallback callback,
+    {int refreshRateMillis = 20}) {
+  updater(Repeater repeater) {
+    double ratio = min(1, repeater.elapsedMilliseconds / durationMillis);
+    callback(ratio);
+    if (ratio == 1) {
+      repeater.stop();
     }
-    shouldCreateTransition = firstBuild;
   }
 
-  _cleanMaps(id) {
+  return Repeater(updater, refreshRateMillis);
+}
+
+Repeater startTransition(int durationMillis, TransitionCallback callback,
+    {int refreshRateMillis = 20}) {
+  return createTransitionObject(durationMillis, callback)..start();
+}
+
+/// Returns the the ratio between the transition's elapsed time and
+/// transition's total duration (`durationMillis`). A new transition is
+/// created if none existed for given `durationMillis` or
+///
+/// Starts a transition of duration  and
+///
+///
+/// When called outside a widget's [buildWithFloop] a `callback` must be
+/// provided. Will always create a new transition and return 0.
+///
+/// When called within a widget's [buildWithFloop] method this method will
+/// return the transition's elapsed time to `durationMillis` ratio.
+/// When the transition finished, it always returns 1.
+double transition(
+  int durationMillis, {
+  TransitionCallback callback,
+  int refreshRateMillis = 20,
+}) {
+  assert(() {
+    if (callback == null && floopController.currentBuild == null) {
+      print('Error: should not call transition without a callback unless\n'
+          'it\'s called within a widget\'s buildWithFloop method, otherwise\n'
+          'the transition will have no effect outside of itself.');
+      return false;
+    } else if (callback != null && floopController.currentBuild != null) {
+      print('Error: should not provide a callback when calling transition\n'
+          'while a widget is building, in those cases transition creates\n'
+          'it\'s own custom callback.');
+      return false;
+    }
+    return true;
+  }());
+  if (callback == null) {
+    return _transitionOnBuild(durationMillis, refreshRateMillis);
+  } else {
+    _startTransition(durationMillis, callback, refreshRateMillis);
+    return 0;
+  }
+}
+
+double _transitionOnBuild(int durationMillis, int refreshRateMillis) {
+  assert(floopController.currentBuild != null);
+  FloopElement context = floopController.currentBuild;
+  double result = 1;
+  int id;
+  Map<int, int> durationToId = _contextIds[context];
+
+  _cleanMaps() {
     // Cleans maps when the transition finishes.
     _idToFraction.remove(id, false);
     if (durationToId != null) {
@@ -52,34 +96,45 @@ double transition(int durationMillis,
     }
   }
 
-  if (shouldCreateTransition) {
-    id = _startTransition(
-        durationMillis,
-        callback ??
-            (double fraction) {
-              // Default callback that sets the value of an ObservedMap.
-              // This will cause a Elements to rebuild when the value
-              // changes if a Floop Widget is currently building.
-              _idToFraction[id] = fraction;
-              if (fraction >= 1) {
-                _cleanMaps(id);
-              }
-            },
-        refreshRateMillis: refreshRateMillis);
-    assert(id != null);
-    _idToFraction.setValue(id, 0, false);
-    if (durationToId != null) {
-      durationToId[durationMillis] = id;
+  // If the context has a child, it means it was built at least once.
+  // If the context was built at least once, a new transition will not
+  // be created.
+  bool firstBuild = !context.didRebuild;
+
+  if (firstBuild) {
+    if (durationToId == null) {
+      durationToId = Map();
+      _contextIds[context] = durationToId;
     }
+
+    id = _startTransition(durationMillis, (double fraction) {
+      // The callback sets the value of an ObservedMap, causing the
+      // Element to rebuild as the transition progresses.]
+      print('id $id to fraction $fraction');
+      _idToFraction[id] = fraction;
+      if (fraction >= 1) {
+        _cleanMaps();
+      }
+    }, refreshRateMillis);
+    assert(id != null);
+    durationToId[durationMillis] = id;
+    _idToFraction.setValue(id, 0, false);
+    print('First build $context: $id');
+  } else if (durationToId != null) {
+    id = durationToId[durationMillis];
   }
+  // If the id is null, it means the transition finished and the observedMap
+  // should not subscribe to the Widget.
   if (id != null) {
-    result = _idToFraction[id] ?? 1;
+    assert(_idToFraction.containsKey(id));
+    result = _idToFraction[id];
   }
+
   return result;
 }
 
-int _startTransition(int durationMillis, TransitionCallback callback,
-    {int refreshRateMillis}) {
+int _startTransition(
+    int durationMillis, TransitionCallback callback, int refreshRateMillis) {
   int id = _lastId++;
 
   updater(Repeater repeater) {
@@ -96,23 +151,32 @@ int _startTransition(int durationMillis, TransitionCallback callback,
   return id;
 }
 
-num transitionNum(num start, num end, int durationMillis,
-    [refreshRateMillis = 20]) {
+int transitionInt(int start, int end, int durationMillis,
+    {refreshRateMillis = 20, TransitionGenericCallback<int> callback}) {
+  return transitionNumber(start, end, durationMillis,
+          refreshRateMillis: refreshRateMillis, callback: callback)
+      .toInt();
+}
+
+num transitionNumber(num start, num end, int durationMillis,
+    {refreshRateMillis = 20, TransitionGenericCallback<num> callback}) {
   num elapsedRatio =
       transition(durationMillis, refreshRateMillis: refreshRateMillis);
   return start + (end - start) * elapsedRatio;
 }
 
-/// Transitions the `map[key]` value using `calculateValue` on each update.
+/// Returns the input value.
+_identity(v) => v;
+
+/// Transitions the `map[key]` value using `update` on each update.
 ///
-/// `calculateValue` receives as parameter a number between 0 and 1 that
-/// is the ratio between the transition's running time and the transition's
-/// duration.
-transitionKeyValue<V>(Map<dynamic, V> map, key,
-    TransitionValueCalculator<V> calculateValue, int durationMillis,
-    {int refreshRateMillis = 20}) {
-  return _startTransition(durationMillis, (double fraction) {
-    map[key] = calculateValue(fraction);
+/// `update` receives as parameter a number between 0 and 1 that corresponds
+/// to the ratio between the transition's elapsed time and the transition's
+/// total duration.
+transitionKeyValue(Map map, Object key, int durationMillis,
+    {ValueUpdater update = _identity, int refreshRateMillis = 20}) {
+  return transition(durationMillis, callback: (double fraction) {
+    map[key] = update(fraction);
   }, refreshRateMillis: refreshRateMillis);
 }
 
@@ -354,4 +418,91 @@ transitionKeyValue<V>(Map<dynamic, V> map, key,
 
 // class MultiHash {
 //   MultiHash();
+// }
+
+// WIP
+// double transition(int durationMillis,
+//     {TransitionCallback callback, int refreshRateMillis = 20,
+//     int delayedMillis=0,
+//     TransitionCallback onFinish,
+//     Object key}) {
+//   assert(() {
+//     if (callback == null && floopController.currentBuild == null) {
+//       print('Error: should not call transition without a callback unless\n'
+//           'it\'s called within a widget\'s buildWithFloop method, otherwise\n'
+//           'the transition will have no effect outside of itself.');
+//       return false;
+//     } else if (callback != null && floopController.currentBuild != null) {
+//       print('Error: should not provide a callback when calling transition\n'
+//           'while a widget is building, in those cases transition creates\n'
+//           'it\'s own custom callback.');
+//       return false;
+//     }
+//     return true;
+//   }());
+//   if (callback == null) {
+//     double correctionFactor = durationMillis/(durationMillis+delayedMillis);
+//     double ratio = _transitionOnBuild(durationMillis+delayedMillis, refreshRateMillis);
+//     // Adjusts ratio according to delay
+//     return max(0,(ratio+correctionFactor-1)/correctionFactor);
+//   } else {
+//     Future.delayed(Duration(milliseconds: delayedMillis),
+//     () => _startTransition(durationMillis, callback, refreshRateMillis));
+//     return 0;
+//   }
+// }
+
+// double _transitionOnBuild(int durationMillis, int refreshRateMillis) {
+//   assert(floopController.currentBuild != null);
+//   FloopElement context = floopController.currentBuild;
+//   double result = 1;
+//   int id;
+//   Map<int, int> durationToId = _contextIds[context];
+
+//   _cleanMaps() {
+//     // Cleans maps when the transition finishes.
+//     _idToFraction.remove(id, false);
+//     if (durationToId != null) {
+//       durationToId.remove(durationMillis);
+//       if (durationToId.isEmpty) {
+//         _contextIds.remove(context);
+//       }
+//     }
+//   }
+
+//   // If the context has a child, it means it was built at least once.
+//   // If the context was built at least once, a new transition will not
+//   // be created.
+//   bool firstBuild = !context.didRebuild;
+
+//   if (firstBuild) {
+//     if (durationToId == null) {
+//       durationToId = Map();
+//       _contextIds[context] = durationToId;
+//     }
+
+//     id = _startTransition(durationMillis, (double fraction) {
+//       // The callback sets the value of an ObservedMap, causing the
+//       // Element to rebuild as the transition progresses.]
+//       print('id $id to fraction $fraction');
+//       _idToFraction[id] = fraction;
+//       if (fraction >= 1) {
+//         _cleanMaps();
+//       }
+//     }, refreshRateMillis);
+//     assert(id != null);
+//     durationToId[durationMillis] = id;
+//     _idToFraction.setValue(id, 0, false);
+//     print('First build $context: $id');
+//   } else if (durationToId != null) {
+//     id = durationToId[durationMillis];
+//   }
+//   // If the id is null, it means the transition finished and the observedMap
+//   // should not subscribe to the Widget.
+//   if (id != null) {
+//     assert(_idToFraction.containsKey(id));
+//     result = _idToFraction[id];
+//   }
+
+//   return result;
 // }

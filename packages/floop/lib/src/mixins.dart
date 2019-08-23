@@ -52,11 +52,23 @@ mixin FloopLight on StatelessWidget {
   }
 }
 
+mixin FloopElement on Element {
+  Element child;
+  bool didRebuild = false;
+  bool get hasChild => child != null;
+
+  @override
+  void rebuild() {
+    super.rebuild();
+    didRebuild = true;
+  }
+}
+
 /// Wrapper class of StatelessElement used to catch calls to unmount/
 ///
 /// When unmount is called the Element gets unsubscribed and by doing
 /// that, all references to the Element in Floop get cleaned.
-class StatelessElementFloop extends StatelessElement {
+class StatelessElementFloop extends StatelessElement with FloopElement {
   StatelessElementFloop(StatelessWidget widget) : super(widget);
 
   @override
