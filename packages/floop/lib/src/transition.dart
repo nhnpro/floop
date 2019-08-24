@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:floop/internals.dart';
 import 'package:floop/src/controller.dart';
 import 'package:floop/src/mixins.dart';
 import 'package:flutter/material.dart';
@@ -8,22 +9,57 @@ import '../floop.dart';
 
 int _lastId = 0;
 
+// Transition class for internal use.
+// class _Transition {
+//   Repeater repeater;
+//   final int id;
+//   final Object key;
+//   final FloopElement context;
+
+//   _Transition(this.id, [this.context, this.key]);
+// }
+
 Map<BuildContext, Map<int, int>> _contextIds = Map();
-ObservedMap<int, double> _idToFraction = ObservedMap();
+ObservedMap<int, double> _idToRatio = ObservedMap();
 Map<int, Repeater> _idToRepeater = Map();
 
 typedef ValueUpdater<V> = V Function(double elapsedToDurationRatio);
 typedef TransitionCallback = Function(double elapsedToDurationRatio);
 typedef TransitionGenericCallback<V> = Function(V currentValue);
 
-void resetTransitions(FloopElement context) {
-  _elementUnmountCallback(context);
+void restartAllTransitions() {
+  for (Repeater repeater in _idToRepeater.values) {
+    repeater
+      ..reset()
+      ..start();
+  }
+}
+
+void clearAllTransitions() {
+  // for (BuildContext context in _contextIds.keys) {
+  //   resetContextTransitions(context);
+  // }
+  for (int id in _idToRepeater.keys.toList()) {
+    _stopAndforgetTransition(id);
+  }
+  _contextIds.clear();
+}
+
+void resetContextTransitions(FloopElement context) {
+  var ids = _contextIds[context]?.values;
+  if (ids != null) {
+    for (int id in ids) {
+      _idToRepeater[id]
+        ..reset()
+        ..start();
+    }
+  }
+  // _elementUnmountCallback(context);
 }
 
 void _stopAndforgetTransition(id) {
-  _idToRepeater[id]?.stop();
-  _idToRepeater.remove(id);
-  _idToFraction.remove(id);
+  _idToRepeater.remove(id)?.stop();
+  _idToRatio.remove(id);
 }
 
 void _elementUnmountCallback(Element element) {
@@ -34,22 +70,29 @@ void _elementUnmountCallback(Element element) {
 }
 
 Repeater createTransitionObject(int durationMillis, TransitionCallback callback,
-    {int refreshRateMillis = 20}) {
+    {int refreshRateMillis = 20, RepeaterCallback onFinish}) {
   updater(Repeater repeater) {
     double ratio = min(1, repeater.elapsedMilliseconds / durationMillis);
     callback(ratio);
-    if (ratio == 1) {
-      repeater.stop();
+    if (onFinish != null && ratio == 1) {
+      onFinish(repeater);
     }
   }
 
-  return Repeater(updater, refreshRateMillis);
+  return Repeater(updater, refreshRateMillis, durationMillis);
 }
 
 Repeater startTransition(int durationMillis, TransitionCallback callback,
-    {int refreshRateMillis = 20}) {
-  return createTransitionObject(durationMillis, callback)..start();
+    {int refreshRateMillis = 20, RepeaterCallback onFinish = _noOperation}) {
+  int id = _startTransition(durationMillis, callback, refreshRateMillis,
+      onFinish: (_) {
+    _stopAndforgetTransition(_lastId);
+    onFinish(_);
+  });
+  return _idToRepeater[id];
 }
+
+_noOperation(x) {}
 
 /// Returns the the ratio between the transition's elapsed time and
 /// transition's total duration (`durationMillis`). A new transition is
@@ -68,6 +111,7 @@ double transition(
   int durationMillis, {
   TransitionCallback callback,
   int refreshRateMillis = 20,
+  RepeaterCallback onFinish = _noOperation,
 }) {
   FloopElement context = floopController.currentBuild;
   assert(() {
@@ -85,53 +129,59 @@ double transition(
     return true;
   }());
   if (context != null) {
-    return _transitionOnBuild(context, durationMillis, refreshRateMillis);
+    return _transitionOnBuild(
+        context, durationMillis, refreshRateMillis, onFinish);
   } else {
-    _startTransition(durationMillis, callback, refreshRateMillis);
+    startTransition(durationMillis, callback,
+        refreshRateMillis: refreshRateMillis, onFinish: onFinish);
     return 0;
   }
 }
 
 double _transitionOnBuild(
-    FloopElement context, int durationMillis, int refreshRateMillis) {
+    FloopElement context, int durationMillis, int refreshRateMillis,
+    [RepeaterCallback onFinish]) {
   assert(context != null);
   Map<int, int> durationToId = _contextIds.putIfAbsent(context, () => Map());
   int id = durationToId[durationMillis];
 
   // If id is null, it means the transition has not been created yet.
   if (id == null) {
-    id = _startTransition(durationMillis, (double fraction) {
-      // The callback sets the value of the ObservedMap _idToFraction, causing
+    id = _startTransition(durationMillis, (double ratio) {
+      // The callback sets the value of the ObservedMap _idToRatio, causing
       // the Element to rebuild as the transition progresses.
       // print('id $id to fraction $fraction');
-      _idToFraction[id] = fraction;
-    }, refreshRateMillis);
+      _idToRatio[id] = ratio;
+    }, refreshRateMillis, onFinish: onFinish);
 
     durationToId[durationMillis] = id;
-    _idToFraction.setValue(id, 0, false);
+    _idToRatio.setValue(id, 0, false);
     context.addUnmountCallback(_elementUnmountCallback);
-    print('First build $context: $id');
+    print('First build $context: $id  -  number of ids: ${_idToRatio.length} ');
   }
   assert(id != null);
-  assert(_idToFraction.containsKey(id));
-  return _idToFraction[id];
+  assert(_idToRatio.containsKey(id));
+  return _idToRatio[id];
 }
 
 int _startTransition(
-    int durationMillis, TransitionCallback callback, int refreshRateMillis) {
+    int durationMillis, TransitionCallback callback, int refreshRateMillis,
+    {RepeaterCallback onFinish}) {
   int id = _lastId++;
 
-  updater(Repeater repeater) {
-    double fraction = min(1, repeater.elapsedMilliseconds / durationMillis);
-    callback(fraction);
-    if (fraction == 1) {
-      // stops the Repeater and cleans internal references to it
-      repeater.stop();
-      _idToRepeater.remove(id);
-    }
-  }
+  // updater(Repeater repeater) {
+  //   double ratio = min(1, repeater.elapsedMilliseconds / durationMillis);
+  //   callback(ratio);
+  //   if (onFinish != null && ratio == 1) {
+  //     onFinish(repeater);
+  //   }
+  // }
+  // _idToRepeater[id] = Repeater(updater, refreshRateMillis, durationMillis)
+  //   ..start();
 
-  _idToRepeater[id] = Repeater(updater, refreshRateMillis)..start();
+  _idToRepeater[id] =
+      createTransitionObject(durationMillis, callback, onFinish: onFinish)
+        ..start();
   return id;
 }
 
@@ -489,4 +539,44 @@ transitionKeyValue(Map map, Object key, int durationMillis,
 //   }
 
 //   return result;
+// }
+
+// Transition class with extra parameters for internal use.
+// class _Transition extends Transition {
+//   Repeater repeater;
+//   final int id;
+//   final FloopElement context;
+
+//   _Transition(this.id, [this.context]): super(id, context);
+
+//   _Transition.ofCallback(int durationMillis, TransitionCallback callback,
+//     {int refreshRateMillis = 20, this.context}): id = _lastId++,
+//     super(durationMillis, callback, refreshRateMillis:refreshRateMillis);
+// }
+
+// class Transition<V> extends Repeater {
+//   // Repeater repeater;
+//   // final int id;
+//   // final FloopElement context;
+
+//   int durationMillis;
+
+//   static _createCallback(Transition t, TransitionCallback callback) {
+//     return (Repeater repeater) {
+//       double ratio = min(1, repeater.elapsedMilliseconds / durationMillis);
+//       callback(ratio);
+//       if (ratio == 1) {
+//         // stops the Repeater and cleans internal references to it
+//         repeater.stop();
+//       }
+//     };
+//   }
+
+//   Transition(int durationMillis, TransitionCallback callback,
+//     {int refreshRateMillis = 20}): super(_createCallback(callback), refreshRateMillis);
+//   // Transition(this.id, [this.context]);
+
+//   start([freq]) {
+//     repeater.start();
+//   }
 // }

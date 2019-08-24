@@ -16,39 +16,23 @@ void main() {
       home: const Clicker()));
 }
 
-class PositionedFloop extends StatelessWidget with Floop {
-  const PositionedFloop({Key key});
+class BouncingNumber extends StatelessWidget with Floop {
+  BouncingNumber({Key key});
 
   @override
   Widget buildWithFloop(BuildContext context) {
-    // var x = transitionNumber(-1, 0, 6000);
-    // var y = transitionNumber(-1, 0, 3000);
-    // print('Alignments: $x, $y');
-    return Align(
-      alignment: Alignment(transitionNumber(-1, 0, 10000),
-          (1 - transition(8000)) * 0.5 * sin(transition(8000) * 20 * pi)),
-      child: Text(
-        floop['clicks'].toString(),
-        style: TextStyle(
-          color: Colors.red,
-          fontSize: 100,
+    return Stack(
+      children: [
+        Align(
+          alignment: Alignment(2 * min(0.5, transition(8000)) - 1,
+              2 * max(0.5, transition(8000)) - 2),
+          child: Container(
+            height: 150,
+            width: 180,
+            color: Colors.yellow,
+          ),
         ),
-      ),
-    );
-    // ]);
-  }
-}
-
-class Clicker extends StatelessWidget with Floop {
-  const Clicker();
-
-  @override
-  Widget buildWithFloop(BuildContext context) {
-    // return LayoutBuilder(
-    //     builder: (BuildContext context, BoxConstraints constraints) {
-    // bool reset = floop['clicks'] % 2 == 0;
-    return Scaffold(
-        body: Align(
+        Align(
           alignment: Alignment(transitionNumber(-1, 0, 10000),
               (1 - transition(8000)) * 0.5 * sin(transition(8000) * 20 * pi)),
           child: Text(
@@ -59,27 +43,47 @@ class Clicker extends StatelessWidget with Floop {
             ),
           ),
         ),
-        // backgroundColor: reset
-        //     ? Colors.white
+      ],
+    );
+  }
+}
+
+class Clicker extends StatelessWidget with Floop {
+  const Clicker();
+
+  @override
+  Widget buildWithFloop(BuildContext context) {
+    return Scaffold(
+        body: BouncingNumber(),
+        // body: Stack(
+        //   children: [
+        //     Align(
+        //       alignment: Alignment(2 * min(0.5, transition(8000)) - 1,
+        //           2 * max(0.5, transition(8000)) - 2),
+        //       child: Container(
+        //         height: 150,
+        //         width: 180,
+        //         color: Colors.yellow,
+        //       ),
+        //     ),
+        //     BouncingNumber(),
+        //   ],
+        // ),
         backgroundColor: Color.fromRGBO(
-            transitionNumber(100, 50, 2000).toInt(),
-            transitionNumber(0, 100, 2000).toInt(),
-            transitionNumber(20, 255, 2000).toInt(),
-            0.3 + 0.2 * transition(4000)),
+            transitionNumber(100, 50, 500).toInt(),
+            transitionNumber(0, 100, 500).toInt(),
+            transitionNumber(20, 255, 1000).toInt(),
+            0.3 + 0.2 * transition(1000)),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
           onPressed: () {
             floop['clicks']++;
-            resetTransitions(context);
-            // transition(3000, callback: (double fraction) {
-            //   floop['left'] = constraints.maxWidth * fraction / 2;
-            // });
-            // transition(3000, callback: (double fraction) {
-            //   floop['top'] = constraints.maxWidth * fraction / 2;
-            // });
+            resetContextTransitions(context);
+            if (floop['clicks'] % 5 == 0) {
+              clearAllTransitions();
+            }
           },
         ));
-    // });
   }
 }
 

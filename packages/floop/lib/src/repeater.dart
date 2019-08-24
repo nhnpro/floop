@@ -7,7 +7,7 @@ class Repeater extends Stopwatch {
   /// Stops the repeating execution.
   bool _stop = true;
 
-  /// Used to ensure only one asynchrnous repeating call in ongoing on this repeater.
+  /// Used to ensure only one asynchrnous instance is executing.
   bool _executionLocked = false;
 
   /// The callback that gets recurrently called by this repeater.
@@ -19,34 +19,33 @@ class Repeater extends Stopwatch {
   dynamic storage;
 
   /// The frequency of the function calls when method `start` is called.
-  ///
-  /// If the optional `frequencyMillis` is provided when calling the start method
-  /// this value is not used.
   int frequencyMilliseconds;
 
-  Repeater(this.callback, [this.frequencyMilliseconds = 50]);
+  Repeater(this.callback,
+      [this.frequencyMilliseconds = 50, this.durationMilliseconds]);
 
-  /// Stops the recurrent executions to `callback`.
+  /// Stops the repeater.
   stop() {
     super.stop();
     _stop = true;
   }
 
-  /// Stops this repeater and resets all values of this repeater to it's.
+  /// Stops this repeater and resets all values of this repeater to it's
   /// starting values. It makes a single call to `callback` at the end if
   /// `callOnce` is true (defaults to true).
   reset([bool callOnce = true]) {
-    stop();
     super.reset();
-    if (callOnce) {
-      callback(this);
-    }
+    // if (callOnce) {
+    //   callback(this);
+    // }
   }
+
+  int durationMilliseconds;
 
   /// Starts making recurrent calls to `this.callback` with
   /// `this.frequencyMilliseconds` for a duration of `durationMilliseconds`
   /// or indefinetely if `durationMilliseconds` is not specified.
-  start([int durationMilliseconds]) {
+  start() {
     if (!_stop) {
       print('The repeater is already running');
       return;
