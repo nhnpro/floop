@@ -46,27 +46,26 @@ class Clicker extends StatelessWidget with Floop {
   Widget buildWithFloop(BuildContext context) {
     // return LayoutBuilder(
     //     builder: (BuildContext context, BoxConstraints constraints) {
-    bool reset = floop['clicks'] % 2 == 0;
+    // bool reset = floop['clicks'] % 2 == 0;
     return Scaffold(
-        body: reset ? Container() : const PositionedFloop(),
-        // : Align(
-        //     alignment: Alignment(transitionNumber(-1, 0, 6000),
-        //         transitionNumber(-1, 0, 3000)),
-        //     child: Text(
-        //       floop['clicks'].toString(),
-        //       style: TextStyle(
-        //         color: Colors.red,
-        //         fontSize: 100,
-        //       ),
-        //     ),
-        //   ),
-        backgroundColor: reset
-            ? Colors.white
-            : Color.fromRGBO(
-                transitionNumber(100, 50, 2000).toInt(),
-                transitionNumber(0, 100, 2000).toInt(),
-                transitionNumber(20, 255, 2000).toInt(),
-                0.3 + 0.2 * transition(4000)),
+        body: Align(
+          alignment: Alignment(transitionNumber(-1, 0, 10000),
+              (1 - transition(8000)) * 0.5 * sin(transition(8000) * 20 * pi)),
+          child: Text(
+            floop['clicks'].toString(),
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 100,
+            ),
+          ),
+        ),
+        // backgroundColor: reset
+        //     ? Colors.white
+        backgroundColor: Color.fromRGBO(
+            transitionNumber(100, 50, 2000).toInt(),
+            transitionNumber(0, 100, 2000).toInt(),
+            transitionNumber(20, 255, 2000).toInt(),
+            0.3 + 0.2 * transition(4000)),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
           onPressed: () {
@@ -86,12 +85,12 @@ class Clicker extends StatelessWidget with Floop {
 
 // The following are alternative implementations of the same Widget
 
-class ClickerStateful extends StatefulWidget {
+class ClickerStateful extends FloopStatefulWidget {
   @override
-  State<StatefulWidget> createState() => ClickerState();
+  FloopState<FloopStatefulWidget> createState() => ClickerState();
 }
 
-class ClickerState extends State<ClickerStateful> with FloopStateMixin {
+class ClickerState extends FloopState<ClickerStateful> {
   @override
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(

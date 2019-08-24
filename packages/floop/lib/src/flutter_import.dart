@@ -6,6 +6,7 @@ export 'package:flutter/widgets.dart'
         StatelessWidget,
         StatelessElement,
         StatefulWidget,
+        StatefulElement,
         State,
         // annotations
         mustCallSuper,

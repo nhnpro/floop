@@ -52,35 +52,19 @@ mixin FloopLight on StatelessWidget {
   }
 }
 
-mixin FloopElement on Element {
-  Element child;
-  bool didRebuild = false;
-  bool get hasChild => child != null;
+abstract class FloopStatefulWidget extends StatefulWidget {
+  @override
+  StatefulElement createElement() {
+    return StatefulElementFloop(this);
+  }
 
   @override
-  void rebuild() {
-    super.rebuild();
-    didRebuild = true;
-  }
-}
-
-/// Wrapper class of StatelessElement used to catch calls to unmount/
-///
-/// When unmount is called the Element gets unsubscribed and by doing
-/// that, all references to the Element in Floop get cleaned.
-class StatelessElementFloop extends StatelessElement with FloopElement {
-  StatelessElementFloop(StatelessWidget widget) : super(widget);
-
-  @override
-  void unmount() {
-    unsubscribeElement(this);
-    super.unmount();
-  }
+  FloopState<FloopStatefulWidget> createState();
 }
 
 /// Mixin for StatefulWidgets. Use this mixin in a State class to enable
 /// widget builds to be observed by Floop.
-mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
+mixin FloopStateMixin<T extends FloopStatefulWidget> on State<T> {
   /// Override this method as you would normally override the [build] method.
   /// Do NOT override [build] or floop will fail to listen reads to [ObservedMaps].
   Widget buildWithFloop(BuildContext context);
@@ -93,25 +77,43 @@ mixin FloopStateMixin<T extends StatefulWidget> on State<T> {
     fullController.stopListening();
     return widget;
   }
-
-  @override
-  @mustCallSuper
-  deactivate() {
-    unsubscribeElement(this.context);
-    super.deactivate();
-  }
-
-  @override
-  @mustCallSuper
-  dispose() {
-    unsubscribeElement(this.context);
-    super.dispose();
-  }
 }
 
 /// State class that includes [FloopStateMixin].
 ///
 /// `class MyState extends FloopState` is equivalent to
 /// `class MyWidget extends State with FloopStateMixin`.
-abstract class FloopState<T extends StatefulWidget> = State<T>
+abstract class FloopState<T extends FloopStatefulWidget> = State<T>
     with FloopStateMixin<T>;
+
+typedef UnmountCallback = Function(FloopElement element);
+
+mixin FloopElement on Element {
+  List<UnmountCallback> _unmountCallbacks;
+
+  addUnmountCallback(UnmountCallback callback) {
+    assert(callback != null);
+    _unmountCallbacks ??= List();
+    if (!_unmountCallbacks.contains(callback)) {
+      _unmountCallbacks.add(callback);
+    }
+  }
+
+  @override
+  void unmount() {
+    unsubscribeElement(this);
+    super.unmount();
+    if (_unmountCallbacks != null) {
+      for (var cb in _unmountCallbacks) {
+        cb(this);
+      }
+    }
+  }
+}
+
+// Wrappers of Element classes required to catch calls to unmount.
+//
+// When unmount is called the Element gets unsubscribed and by doing
+// that, all references to the Element in Floop get cleaned.
+class StatelessElementFloop = StatelessElement with FloopElement;
+class StatefulElementFloop = StatefulElement with FloopElement;

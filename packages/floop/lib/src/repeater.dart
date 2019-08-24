@@ -32,9 +32,9 @@ class Repeater extends Stopwatch {
     _stop = true;
   }
 
-  /// Stops and resets all values of this repeater to it's starting values.
-  /// It makes a single call to `callback` at the end if `callOnce` is true
-  /// (defaults to true).
+  /// Stops this repeater and resets all values of this repeater to it's.
+  /// starting values. It makes a single call to `callback` at the end if
+  /// `callOnce` is true (defaults to true).
   reset([bool callOnce = true]) {
     stop();
     super.reset();
