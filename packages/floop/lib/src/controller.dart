@@ -7,7 +7,7 @@ final LightController lightController = LightController();
 FloopController floopController = fullController;
 
 typedef UnsubscribeCallback = Function(Element element);
-Map<Element, List<UnsubscribeCallback>> _unsubscribeCallbacks = Map();
+Map<Element, Set<UnsubscribeCallback>> _unsubscribeCallbacks = Map();
 
 void unsubscribeElement(Element element) {
   if (fullController.contains(element)) {
@@ -21,10 +21,7 @@ void unsubscribeElement(Element element) {
 
 void addUnsubscribeCallback(Element element, UnsubscribeCallback callback) {
   assert(callback != null);
-  var unsubCallbacks = _unsubscribeCallbacks.putIfAbsent(element, () => List());
-  if (!unsubCallbacks.contains(callback)) {
-    unsubCallbacks.add(callback);
-  }
+  _unsubscribeCallbacks.putIfAbsent(element, () => Set()).add(callback);
 }
 
 /// Abstract class that implements basic functionality for listening and
