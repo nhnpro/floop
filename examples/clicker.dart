@@ -1,4 +1,3 @@
-import 'package:floop/internals.dart';
 import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
 
@@ -33,12 +32,12 @@ class Clicker extends StatelessWidget with Floop {
 
 // The following are alternative implementations of the same Widget
 
-class ClickerStateful extends FloopStatefulWidget {
+class ClickerStateful extends StatefulWidget {
   @override
-  FloopState<ClickerStateful> createState() => ClickerState();
+  State<StatefulWidget> createState() => ClickerState();
 }
 
-class ClickerState extends FloopState<ClickerStateful> {
+class ClickerState extends State<ClickerStateful> with FloopStateMixin {
   @override
   Widget buildWithFloop(BuildContext context) {
     return Scaffold(

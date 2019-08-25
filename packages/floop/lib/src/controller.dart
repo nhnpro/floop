@@ -6,12 +6,24 @@ final LightController lightController = LightController();
 
 FloopController floopController = fullController;
 
+typedef UnsubscribeCallback = Function(Element element);
+Map<Element, List<UnsubscribeCallback>> _unsubscribeCallbacks = Map();
+
 void unsubscribeElement(Element element) {
   if (fullController.contains(element)) {
     fullController.unsubscribeFromAll(element);
     assert(!lightController.contains(element));
   } else if (lightController.contains(element)) {
     lightController.unsubscribeFromAll(element);
+  }
+  _unsubscribeCallbacks[element]?.forEach((cb) => cb(element));
+}
+
+void addUnsubscribeCallback(Element element, UnsubscribeCallback callback) {
+  assert(callback != null);
+  var unsubCallbacks = _unsubscribeCallbacks.putIfAbsent(element, () => List());
+  if (!unsubCallbacks.contains(callback)) {
+    unsubCallbacks.add(callback);
   }
 }
 

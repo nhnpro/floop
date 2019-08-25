@@ -41,10 +41,10 @@ initializeRepeaters() {
   repeaters = [
     Repeater((Repeater per) => store['angle'] += store['rotationSpeed']),
     Repeater(
-        (Repeater per) => store['colorOffset'] = per.proportionInt(256, 5000)),
+        (Repeater per) => store['colorOffset'] = per.periodicInt(5000, 256)),
     Repeater(
         (Repeater per) =>
-            store['iconsShift'] = per.proportionInt(icons.length, 1000 * 1000),
+            store['iconsShift'] = per.periodicInt(1000 * 1000, icons.length),
         200),
   ];
   store['speedUp'] = Repeater(
