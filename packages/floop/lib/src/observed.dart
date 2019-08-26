@@ -86,9 +86,10 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     }
   }
 
-  /// Updates all widgets subscribed to they key. Avoid using this method unless strictly necessary.
-  /// The `operator []=` already updates subscribed widgets to the `key` when a value changes,
-  /// which is the only case when a widget should get updated.
+  /// Updates all widgets subscribed to they key.
+  ///
+  /// It should be rare to use this method, `operator []=` automatically
+  /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
     _listener.valueChanged(key);
   }

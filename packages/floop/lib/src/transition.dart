@@ -1,20 +1,21 @@
-import 'dart:math';
-
 import 'package:floop/src/controller.dart';
-import 'package:floop/src/utils.dart';
 import 'package:flutter/material.dart';
 
 import '../floop.dart';
+import './repeater.dart';
+
+_doNothing([x]) {}
+T _doubleAsType<T, V>(V x) => x as T;
 
 ObservedMap<Key, double> _keyToRatio = ObservedMap();
 Map<Element, Set<Key>> _contextToKeys = Map();
 Map<Key, Repeater> _keyToRepeater = Map();
 
 class _MultiKey extends LocalKey {
-  final a, b, c;
+  final a, b, c, d;
   final _hash;
 
-  _MultiKey([this.a, this.b, this.c]) : _hash = hashValues(a, b, c);
+  _MultiKey([this.a, this.b, this.c, this.d]) : _hash = hashValues(a, b, c, d);
 
   @override
   bool operator ==(Object other) {
@@ -24,7 +25,8 @@ class _MultiKey extends LocalKey {
     return other is _MultiKey &&
         this.a == other.a &&
         this.b == other.b &&
-        this.c == other.c;
+        this.c == other.c &&
+        this.d == other.d;
   }
 
   @override
@@ -32,36 +34,161 @@ class _MultiKey extends LocalKey {
 }
 
 typedef TransitionCallback = Function(double elapsedToDurationRatio);
-typedef RatioEvaluator<V> = V Function(double elapsedToDurationRatio);
 typedef ValueCallback<V> = V Function(V transitionValue);
 
-Key _getTransitionKey([context, durationMillis, delayMillis]) {
+Key _createKey([context, durationMillis, delayMillis, evaluate]) {
   if (context != null) {
-    return _MultiKey(context, durationMillis, delayMillis);
+    Key key = _MultiKey(context, durationMillis, delayMillis, evaluate);
+    Set<Key> contextKeys = _contextToKeys[context];
+    if (contextKeys == null) {
+      contextKeys = Set();
+      _contextToKeys[context] = contextKeys;
+      addUnsubscribeCallback(context, _clearContextTransitions);
+    }
+    contextKeys.add(key);
+    return key;
   } else {
     return UniqueKey();
   }
+}
+
+/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds.
+///
+/// Specially designed for being called from within [Floop.buildWithFloop], by
+/// causing the widget to rebuild as the transition's progresses.
+///
+/// When called from within a [buildWithFloop] method, `evaluate` must be null,
+/// otherwise `evaluate` is invoked with the transition value as parameter on
+/// every transition update.
+///
+/// `refreshRateMillis` is the frequency in milliseconds at which the
+/// transition should update it's value.
+///
+/// The transition can be delayed by `delayMillis` milliseconds.
+///
+/// If `key` is non null, the value of an ongoing transition registered with the
+/// same `key` will be returned. Otherwise a new transition will be created.
+/// The `key` parameter is useful for refering to the transition with the
+/// methods [clearTransitions], [restartTransitions] or [getTransitionObject].
+///
+/// Note that created transitions references get cleared once they finish,
+/// unless they are created from within a [buildWithFloop] method, where they
+/// get cleared once the corresponding BuildContext gets unmounted.
+///
+/// See also [Repeater.transition], the base construct used by this function.
+double transition(
+  int durationMillis, {
+  int refreshRateMillis = 20,
+  int delayMillis = 0,
+  TransitionCallback evaluate = _doNothing,
+  Object key,
+}) {
+  Element context = floopController.currentBuild;
+  assert(() {
+    if (context == null && key == null && evaluate == _doNothing) {
+      print(
+          'Error: should not invoke transition without `evaluate` and without a\n'
+          'key unless it\'s called within a widget\'s buildWithFloop method. The\n'
+          'transition would have no effect outside of itself.');
+      return false;
+    } else if (evaluate != _doNothing && context != null) {
+      print('Error: should not provide `evaluate` when calling transition\n'
+          'while a widget is building as it won\'t be used');
+      return false;
+    }
+    return true;
+  }());
+  key ??= _createKey(context, durationMillis, delayMillis);
+  if (!_keyToRatio.containsKey(key)) {
+    assert(!_keyToRepeater.containsKey(key));
+    _keyToRatio.setValue(key, 0, false);
+
+    // If within a BuildContext, the transitions will get cleared once the
+    // element unmounts.
+    var onFinish =
+        context == null ? (_) => _stopAndforgetTransition(key) : null;
+    _keyToRepeater[key] = Repeater.transition(durationMillis, (double ratio) {
+      evaluate(ratio);
+      // The callback sets the value of the ObservedMap _idToRatio, causing
+      // the context (element) to rebuild as the transition progresses.
+      _keyToRatio[key] = ratio;
+    },
+        refreshRateMillis: refreshRateMillis,
+        delayMillis: delayMillis,
+        onFinish: onFinish)
+      ..start();
+  }
+  return _keyToRatio[key];
+}
+
+int transitionInt(int start, int end, int durationMillis,
+    {refreshRateMillis = 20}) {
+  return transitionNumber(start, end, durationMillis,
+          refreshRateMillis: refreshRateMillis)
+      .toInt();
+}
+
+num transitionNumber(num start, num end, int durationMillis,
+    {refreshRateMillis = 20}) {
+  return start +
+      (end - start) *
+          transition(durationMillis, refreshRateMillis: refreshRateMillis);
+}
+
+/// Transitions the value of `key` in the provided `map`.
+///
+/// The transition lasts for `durationMillis` and updates it's value
+/// with a rate of `refreshRateMillis`.
+///
+/// Useful for easily transitiong an [ObservedMap] key
+Repeater transitionKeyValue<V>(
+    Map<dynamic, V> map, Object key, int durationMillis,
+    {V update(double elapsedToDurationRatio), int refreshRateMillis = 20}) {
+  assert(update != null);
+  assert(() {
+    if (update == null && V != dynamic && V != double && V != num) {
+      print('Error: Must provide update function as parameter for type $V');
+      return false;
+    }
+    return true;
+  }());
+  update ??= _doubleAsType;
+  return Repeater.transition(durationMillis, (double ratio) {
+    var value = update(ratio);
+    map[key] = value;
+  }, refreshRateMillis: refreshRateMillis);
 }
 
 Repeater getTransitionObject(Object key) {
   return _keyToRepeater[key];
 }
 
+/// Clears all transitions if no `key` or `context` is provided.
+///
+/// Can provide optional `key` or `context`, but not both. If so, only the
+/// associated transitions will be cleared.
 clearTransitions({Key key, BuildContext context}) {
-  _applyToTransitions(_stopAndforgetTransition, key: key, context: context);
-}
-
-void restartTransitions({Key key, BuildContext context}) {
-  _applyToTransitions(_restartTransition, key: key, context: context);
-}
-
-_applyToTransitions(Function apply, {Key key, BuildContext context}) {
+  assert(key == null || context == null);
   if (key != null) {
-    apply(key);
+    _stopAndforgetTransition(key);
   } else if (context != null) {
-    _contextToKeys[context]?.forEach(apply);
+    _clearContextTransitions(context);
   } else {
-    _keyToRepeater.keys.toList().forEach(apply);
+    _keyToRepeater.keys.toList().forEach(_stopAndforgetTransition);
+  }
+}
+
+/// Restarts all transitions if no `key` or `context` is provided.
+///
+/// Can provide optional `key` or `context`, but not both. If so, only the
+/// associated transitions will get restarted.
+void restartTransitions({Key key, BuildContext context}) {
+  if (key != null) {
+    _restartTransition(key);
+  } else if (context != null) {
+    _contextToKeys[context]?.forEach(_restartTransition);
+  } else {
+    _keyToRepeater.keys.forEach(_restartTransition);
   }
 }
 
@@ -78,168 +205,6 @@ void _stopAndforgetTransition(key) {
   _keyToRatio.remove(key);
 }
 
-void _elementUnsubscribeCallback(Element element) {
+void _clearContextTransitions(Element element) {
   _contextToKeys.remove(element)?.forEach(_stopAndforgetTransition);
-}
-
-Repeater createTransitionObject(int durationMillis, TransitionCallback callback,
-    {int refreshRateMillis = 20,
-    int delayMillis = 0,
-    RepeaterCallback onFinish}) {
-  updater(Repeater repeater) {
-    double ratio = min(
-        1, max(0, repeater.elapsedMilliseconds - delayMillis) / durationMillis);
-    callback(ratio);
-    if (onFinish != null && ratio == 1) {
-      onFinish(repeater);
-    }
-  }
-
-  return Repeater(updater, refreshRateMillis, durationMillis + delayMillis);
-}
-
-Key startTransition(
-  int durationMillis,
-  TransitionCallback callback, {
-  int refreshRateMillis = 20,
-  int delayMillis = 0,
-  Key key,
-}) {
-  if (key != null) {
-    _stopAndforgetTransition(key);
-  }
-  return _startTransition(durationMillis, callback, refreshRateMillis,
-      delayMillis: delayMillis, key: key);
-}
-
-/// Returns the ratio between the transition's elapsed time transition's total
-/// duration `durationMillis`. The ratio will always start at 0 at finish at 1.
-///
-///
-///
-/// Starts a transition of duration  and
-///
-///
-/// When called outside a widget's [buildWithFloop] a `callback` must be
-/// provided. Will always create a new transition and return 0.
-///
-/// Use [startTransition] to start a transition outside a widget's
-/// [buildWithFloop] method.
-///
-/// When called within a widget's [buildWithFloop] method this method will
-/// return the transition's elapsed time to `durationMillis` ratio.
-/// When the transition finished, it always returns 1.
-double transition(
-  int durationMillis, {
-  int refreshRateMillis = 20,
-  int delayMillis = 0,
-  Object key,
-  RatioEvaluator<double> evaluate,
-}) {
-  Element context = floopController.currentBuild;
-  assert(() {
-    if (evaluate == null && context == null) {
-      print(
-          'Error: should not call transition without evaluate callback unless\n'
-          'it\'s called within a widget\'s buildWithFloop method, otherwise\n'
-          'the transition will have no effect outside of itself.');
-      return false;
-    }
-    return true;
-  }());
-  if (context != null) {
-    return _transitionOnBuild(
-        context, durationMillis, refreshRateMillis, delayMillis, key, evaluate);
-  } else {
-    startTransition(durationMillis, evaluate,
-        refreshRateMillis: refreshRateMillis,
-        delayMillis: delayMillis,
-        key: key);
-    return 0;
-  }
-}
-
-double _transitionOnBuild(
-    Element context, int durationMillis, int refreshRateMillis,
-    [int delayMillis = 0, Object key, ValueCallback<double> evaluate]) {
-  assert(context != null);
-  key ??= _getTransitionKey(context, durationMillis, delayMillis);
-  Set<Key> contextKeys = _contextToKeys[context];
-
-  if (contextKeys == null) {
-    addUnsubscribeCallback(context, _elementUnsubscribeCallback);
-    contextKeys = Set();
-    _contextToKeys[context] = contextKeys;
-  }
-
-  double currentRatio = _keyToRatio[key];
-
-  if (currentRatio == null) {
-    _startTransition(durationMillis, (double ratio) {
-      // The callback sets the value of the ObservedMap _idToRatio, causing
-      // the Element to rebuild as the transition progresses.
-      _keyToRatio[key] = ratio;
-    }, refreshRateMillis, delayMillis: delayMillis, key: key);
-
-    contextKeys.add(key);
-    _keyToRatio.setValue(key, 0, false);
-    currentRatio = 0;
-    // print(
-    //     'First build $context: $key  -  number of ids: ${_keyToRatio.length} ');
-  }
-  assert(currentRatio != null);
-  assert(_keyToRatio.containsKey(key));
-  if (evaluate != null) {
-    return evaluate(currentRatio);
-  }
-  return currentRatio;
-}
-
-Key _startTransition(
-    int durationMillis, TransitionCallback callback, int refreshRateMillis,
-    {RepeaterCallback onFinish, int delayMillis = 0, Key key}) {
-  if (key == null) {
-    key = _getTransitionKey();
-    onFinish = (repeater) {
-      if (onFinish != null) {
-        onFinish(repeater);
-      }
-      _stopAndforgetTransition(key);
-    };
-  }
-  _keyToRepeater[key] = createTransitionObject(durationMillis, callback,
-      delayMillis: delayMillis, onFinish: onFinish)
-    ..start();
-  return key;
-}
-
-int transitionInt(int start, int end, int durationMillis,
-    {refreshRateMillis = 20, ValueCallback<int> callback}) {
-  return transitionNumber(start, end, durationMillis,
-      refreshRateMillis: refreshRateMillis,
-      callback: (num ratio) => callback(ratio.toInt())).toInt();
-}
-
-num transitionNumber(num start, num end, int durationMillis,
-    {refreshRateMillis = 20, ValueCallback<num> callback = identity}) {
-  return transition(durationMillis,
-      refreshRateMillis: refreshRateMillis,
-      evaluate: (double fraction) =>
-          callback(start + (end - start) * fraction));
-}
-
-/// Transitions the `map[key]` value using `evaluate` on the elapsed  on each update.
-///
-/// `evaluate` receives as parameter a number between 0 and 1 that corresponds
-/// to the ratio between the transition's elapsed time and the transition's
-/// total duration.
-transitionKeyValue<V>(Map<dynamic, V> map, Object key, int durationMillis,
-    {RatioEvaluator<V> update, int refreshRateMillis = 20}) {
-  assert(update != null || V is double);
-  update ??= identityCast; // for type check passing
-  return startTransition(durationMillis, (double ratio) {
-    var value = update(ratio);
-    map[key] = value;
-    return value;
-  }, refreshRateMillis: refreshRateMillis);
 }

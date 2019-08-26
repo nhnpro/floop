@@ -4,18 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
 import 'package:floop/internals.dart';
 
-const speed = 4;
+const speed = 7;
 
 void main() {
   floop['clicks'] = 0;
   floop['left'] = 0.0;
   floop['top'] = 0.0;
+  floop['rotate'] = Matrix4.identity();
+  floop['offset'] = Offset.zero;
   runApp(MaterialApp(
       title: 'Clicker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const Clicker()));
+      home: Clicker()));
 }
 
 class Clicker extends StatelessWidget with Floop {
@@ -23,6 +25,27 @@ class Clicker extends StatelessWidget with Floop {
 
   @override
   Widget buildWithFloop(BuildContext context) {
+    return Transform(
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001) // perspective
+          ..rotateX(0.01 * floop['offset'].dy) // changed
+          ..rotateY(-0.01 * floop['offset'].dx), // changed,
+        alignment: FractionalOffset.center,
+        child: GestureDetector(
+          onPanStart: (_) => clearTransitions(key: Key('resetOffset')),
+          onPanUpdate: (details) => floop['offset'] += details.delta,
+          onDoubleTap: () {
+            var oldOffset = floop['offset'];
+            transition(3000,
+                key: Key('resetOffset'),
+                evaluate: (ratio) => floop['offset'] =
+                    Offset.lerp(oldOffset, Offset.zero, ratio));
+          },
+          child: _base(context),
+        ));
+  }
+
+  Widget _base(BuildContext context) {
     return Scaffold(
       body: BouncingNumber(),
       backgroundColor: Color.lerp(
@@ -35,6 +58,12 @@ class Clicker extends StatelessWidget with Floop {
         onPressed: () {
           floop['clicks']++;
           clearTransitions();
+          transition(3000,
+              key: Key('rotate'),
+              evaluate: (x) => floop['rotate'] = Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateX(x * 2 * pi)
+                ..rotateY(x * 2 * pi));
         },
       ),
     );

@@ -40,11 +40,11 @@ initializeRepeaters() {
   // an app where the window can change.
   repeaters = [
     Repeater((Repeater per) => store['angle'] += store['rotationSpeed']),
+    Repeater((Repeater per) =>
+        store['colorOffset'] = per.periodicLinearInt(5000, 256)),
     Repeater(
-        (Repeater per) => store['colorOffset'] = per.periodicInt(5000, 256)),
-    Repeater(
-        (Repeater per) =>
-            store['iconsShift'] = per.periodicInt(1000 * 1000, icons.length),
+        (Repeater per) => store['iconsShift'] =
+            per.periodicLinearInt(1000 * 1000, icons.length),
         200),
   ];
   store['speedUp'] = Repeater(

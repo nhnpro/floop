@@ -1,3 +1,5 @@
+import 'dart:math';
+
 typedef RepeaterCallback = Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
@@ -24,6 +26,36 @@ class Repeater extends Stopwatch {
 
   Repeater(this.callback,
       [this.frequencyMilliseconds = 50, this.durationMilliseconds]);
+
+  /// Creates a repeater that transitions a number from 0 to 1 inclusive,
+  /// passing it as parameter to the function `update` as the transition
+  /// progresses.
+  ///
+  /// The transition lasts `durationMillis` milliseconds and updates with a
+  /// frequency of `refreshRateMillis` milliseconds.
+  ///
+  /// The number starts transitioning after `delayMillis` milliseconds, but
+  /// the recurrent calls to `update` start immediately (passing 0 until
+  /// `delayMillis` have elapsed).
+  ///
+  /// `onFinish` is a convenient callback that gets invoked one time when the
+  /// transition finishes with the created repeater instance as parameter.
+  factory Repeater.transition(
+      int durationMillis, update(double elapsedToDurationRatio),
+      {int refreshRateMillis = 20,
+      int delayMillis = 0,
+      RepeaterCallback onFinish}) {
+    callback(Repeater repeater) {
+      double ratio = min(1,
+          max(0, repeater.elapsedMilliseconds - delayMillis) / durationMillis);
+      update(ratio);
+      if (onFinish != null && ratio == 1) {
+        onFinish(repeater);
+      }
+    }
+
+    return Repeater(callback, refreshRateMillis, durationMillis + delayMillis);
+  }
 
   /// Stops the repeater.
   stop() {
@@ -87,25 +119,25 @@ class Repeater extends Stopwatch {
   }
 
   /// Returns the equivalent value of a linear periodic function that goes
-  /// from [0, `maxNumber`) with period `periodMilliseconds` that has been
-  /// running for `this.elapsed.inMilliseconds`.
+  /// from 0 (inclusive) to `maxNumber` (exclusive) with period
+  /// `periodMilliseconds` running for `this.elapsed.inMilliseconds`.
   ///
-  /// For example if elapsed time is 23ms and period is 10ms, then the
-  /// "current cycle time" is 3ms or 30% of the cycle run. If `maxNumber` is
-  /// 100, the return value would be 30 (30% of 100).
-  int periodicInt(int periodMilliseconds, int maxNumber) {
+  /// Integer version of `[Repeater.periodicInt]`.
+  int periodicLinearInt(int periodMilliseconds, int maxNumber) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     var res = (maxNumber * current) ~/ periodMilliseconds;
     return res;
   }
 
   /// Returns the equivalent value of a linear periodic function that goes
-  /// from [0, `maxNumber`) with period `periodMilliseconds` that has been
-  /// running for `this.elapsed.inMilliseconds`.
+  /// from 0 (inclusive) to `maxNumber` (exclusive) with period
+  /// `periodMilliseconds` running for `this.elapsed.inMilliseconds`.
   ///
-  /// Floating point precision version of method `[Repeater.periodicInt]`.
-  double periodic(int periodMilliseconds, [double scale = 1]) {
+  /// For example if elapsed time is 23ms and period is 10ms, then the
+  /// "current cycle time" is 3ms (30% of the cycle run). If `maxNumber`
+  /// is 6, the return value would be 1.8 (30% of 6).
+  double periodicLinear(int periodMilliseconds, [double maxNumber = 1]) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
-    return scale * current / periodMilliseconds;
+    return maxNumber * current / periodMilliseconds;
   }
 }
