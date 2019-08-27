@@ -38,8 +38,8 @@ class Repeater extends Stopwatch {
   /// the recurrent calls to `update` start immediately (passing 0 until
   /// `delayMillis` have elapsed).
   ///
-  /// `onFinish` is a convenient callback that gets invoked one time when the
-  /// transition finishes with the created repeater instance as parameter.
+  /// `onFinish` is a callback that gets invoked one time when the transition
+  /// finishes, passing the created repeater instance as parameter.
   factory Repeater.transition(
       int durationMillis, update(double elapsedToDurationRatio),
       {int refreshRateMillis = 20,
@@ -69,8 +69,6 @@ class Repeater extends Stopwatch {
   /// potentially reseting some values that the callback is setting.
   reset([bool callOnce = true]) {
     super.reset();
-    print(
-        'elapsed: $elapsedMilliseconds duration: $durationMilliseconds - stop=$_stop');
     if (callOnce) {
       callback(this);
     }

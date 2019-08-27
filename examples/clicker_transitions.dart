@@ -36,10 +36,12 @@ class Clicker extends StatelessWidget with Floop {
           onPanUpdate: (details) => floop['offset'] += details.delta,
           onDoubleTap: () {
             var oldOffset = floop['offset'];
-            transition(3000,
-                key: Key('resetOffset'),
-                evaluate: (ratio) => floop['offset'] =
-                    Offset.lerp(oldOffset, Offset.zero, ratio));
+            transitionEval(
+              3000,
+              (ratio) =>
+                  floop['offset'] = Offset.lerp(oldOffset, Offset.zero, ratio),
+              key: Key('resetOffset'),
+            );
           },
           child: _base(context),
         ));
@@ -58,12 +60,14 @@ class Clicker extends StatelessWidget with Floop {
         onPressed: () {
           floop['clicks']++;
           clearTransitions();
-          transition(3000,
-              key: Key('rotate'),
-              evaluate: (x) => floop['rotate'] = Matrix4.identity()
-                ..setEntry(3, 2, 0.001)
-                ..rotateX(x * 2 * pi)
-                ..rotateY(x * 2 * pi));
+          transitionEval(
+            3000,
+            (x) => floop['rotate'] = Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateX(x * 2 * pi)
+              ..rotateY(x * 2 * pi),
+            key: Key('rotate'),
+          );
         },
       ),
     );

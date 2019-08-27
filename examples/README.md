@@ -7,5 +7,7 @@ From simplest to more sophisticated, the order is the following:
 - cliker.dart  (most basic)
 - icon_thumbnails.dart  (creates own store)
 - image_list.dart  (asynchronous data fetch)
+- text_replay.dart  (animated using transition)
 - drag_circle.dart  (animated)
+- cliker_transitions.dart (animated using transition)
 - animated_icons.dart  (animated using Repeater)

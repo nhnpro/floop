@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../floop.dart';
 import './repeater.dart';
 
-_doNothing([x]) {}
 T _doubleAsType<T, V>(V x) => x as T;
 
 ObservedMap<Key, double> _keyToRatio = ObservedMap();
@@ -52,74 +51,155 @@ Key _createKey([context, durationMillis, delayMillis, evaluate]) {
   }
 }
 
-/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds.
+/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds
+/// when invoked from inside a [Floop.buildWithFloop] method, automatically
+/// rebuilding the widget as the transition progresses.
 ///
-/// Specially designed for being called from within [Floop.buildWithFloop], by
-/// causing the widget to rebuild as the transition's progresses.
-///
-/// When called from within a [buildWithFloop] method, `evaluate` must be null,
-/// otherwise `evaluate` is invoked with the transition value as parameter on
-/// every transition update.
+/// See [transitionEval] to create transitions from outside build methods.
 ///
 /// `refreshRateMillis` is the frequency in milliseconds at which the
-/// transition should update it's value.
+/// transition updates it's value.
 ///
 /// The transition can be delayed by `delayMillis` milliseconds.
 ///
-/// If `key` is non null, the value of an ongoing transition registered with the
-/// same `key` will be returned. Otherwise a new transition will be created.
-/// The `key` parameter is useful for refering to the transition with the
-/// methods [clearTransitions], [restartTransitions] or [getTransitionObject].
+/// Returns null if `durationMillis` is null and there is no transition for
+/// given `key`. If `key` is non null and a transition registered to `key`
+/// exists, it's current value is returned.
 ///
-/// Note that created transitions references get cleared once they finish,
-/// unless they are created from within a [buildWithFloop] method, where they
-/// get cleared once the corresponding BuildContext gets unmounted.
+/// When invoked from outside [buildWithFloop] methods, new transitions are
+/// not created, therefore `key` parameter should always be provided in those
+/// cases.
 ///
-/// See also [Repeater.transition], the base construct used by this function.
+/// Keys are useful to reference transitions somewhere else or to manipulate
+/// transitions with [clearTransitions] and [restartTransitions].
+///
+/// Note that this method does not work inside builders, like [StreamBuilder],
+/// as builders build outside of the encompassing widget's build method.
+/// One workaround is to define a transition with a `key` within the
+/// encompassing [Floop] widget's build method: `transition(ms, key: myKey)`.
+/// Reference it from inside the builder: `transition(null, key: myKey)`.
+///
+/// In the following example `x` transitions from 0 to 1 in one second and
+/// `floop['y']` transitions from 0 to 1 in three seconds when there is a click
+/// event somewhere in the widget. The `Text` widget will always display the
+/// updated values.
+///
+/// ```dart
+/// class MyWidget extends StatelessWidget with Floop {
+///   ...
+///
+///   @override
+///   Widget buildWithFloop(BuildContext context, MyButtonState state) {
+///     double x = transition(1000);
+///     return ...
+///         Text('X is at $x and Y is at: ${floop['y']}'),
+///         ...
+///         ...onPressed: () => transitionEval(3000, evaluate: (x) => floop['y'] = x),
+///         ...
+///     ...
+///   }
+/// }
+/// ```
+///
+/// Created transitions references get cleared when the corresponding
+/// context gets unmounted.
 double transition(
   int durationMillis, {
   int refreshRateMillis = 20,
   int delayMillis = 0,
-  TransitionCallback evaluate = _doNothing,
   Object key,
 }) {
   Element context = floopController.currentBuild;
+  final bool _canCreate = durationMillis != null && context != null;
   assert(() {
-    if (context == null && key == null && evaluate == _doNothing) {
+    if (!(_canCreate || key != null)) {
       print(
-          'Error: should not invoke transition without `evaluate` and without a\n'
-          'key unless it\'s called within a widget\'s buildWithFloop method. The\n'
-          'transition would have no effect outside of itself.');
-      return false;
-    } else if (evaluate != _doNothing && context != null) {
-      print('Error: should not provide `evaluate` when calling transition\n'
-          'while a widget is building as it won\'t be used');
+          'Error: When invoking [transition] outside a widget\'s buildWithFloop\n'
+          'method, the `key` parameter must be provided, as it can only be used\n'
+          'to reference transitions. See [transitionEval] to create transitions\n'
+          'outside build methods.'
+          'If this is getting invoked from within a [Builder], check\n'
+          '[transition]\'s docs to handle that case.');
       return false;
     }
     return true;
   }());
+  final bool _exists = key != null && _keyToRatio.containsKey(key);
+  if (!(_canCreate || _exists)) {
+    return null;
+  }
+  assert(context != null || _keyToRatio.containsKey(key));
   key ??= _createKey(context, durationMillis, delayMillis);
+  _contextToKeys.putIfAbsent(context, () => Set()..add(key));
   if (!_keyToRatio.containsKey(key)) {
     assert(!_keyToRepeater.containsKey(key));
+    assert(_contextToKeys[context].contains(key));
     _keyToRatio.setValue(key, 0, false);
-
-    // If within a BuildContext, the transitions will get cleared once the
-    // element unmounts.
-    var onFinish =
-        context == null ? (_) => _stopAndforgetTransition(key) : null;
     _keyToRepeater[key] = Repeater.transition(durationMillis, (double ratio) {
-      evaluate(ratio);
       // The callback sets the value of the ObservedMap _idToRatio, causing
       // the context (element) to rebuild as the transition progresses.
       _keyToRatio[key] = ratio;
-    },
-        refreshRateMillis: refreshRateMillis,
-        delayMillis: delayMillis,
-        onFinish: onFinish)
+    }, refreshRateMillis: refreshRateMillis, delayMillis: delayMillis)
       ..start();
   }
   return _keyToRatio[key];
 }
+
+/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds,
+/// invoking `evaluate` with the number as parameter on every update.
+///
+/// `refreshRateMillis` is the frequency in milliseconds at which the
+/// transition updates it's value.
+///
+/// The transition can be delayed by `delayMillis` milliseconds.
+///
+/// If `key` is null or no transition is registered to `key`, a new transition
+/// is created. Otherwise no operation is done. The key of the created or
+/// existing transition is always returned. A new key is created in case `key`
+/// is null.
+/// Once the transition finishes, all references to it get cleared.
+///
+/// This function cannot be invoked from within a widget's [buildWithFloop].
+/// Refer to [transition] for that use case.
+///
+/// `durationMillis` and `evaluate` must not be null.
+///
+/// This function cannot be used from within a widget's [buildWithFloop] method.
+/// Use [transition] instead.
+///
+/// See also [Repeater.transition], the base construct used by this function.
+Key transitionEval(
+  int durationMillis,
+  TransitionCallback evaluate, {
+  int refreshRateMillis = 20,
+  int delayMillis = 0,
+  Key key,
+}) {
+  assert(() {
+    if (floopController.currentBuild != null) {
+      print('Error: should not invoke [transitionEval] while a Floop Widget\n'
+          'is building. Use [transition]` instead.');
+      return false;
+    }
+    return true;
+  }());
+  key ?? _createKey();
+  if (!_keyToRatio.containsKey(key)) {
+    _keyToRepeater[key] = Repeater.transition(durationMillis, (double ratio) {
+      evaluate(ratio);
+      _keyToRatio[key] = ratio;
+    },
+        refreshRateMillis: refreshRateMillis,
+        delayMillis: delayMillis,
+        onFinish: (_) => _stopAndforgetTransition(key))
+      ..start();
+  }
+  return key;
+}
+
+// abstract class Transitions {
+
+// }
 
 int transitionInt(int start, int end, int durationMillis,
     {refreshRateMillis = 20}) {
@@ -140,14 +220,14 @@ num transitionNumber(num start, num end, int durationMillis,
 /// The transition lasts for `durationMillis` and updates it's value
 /// with a rate of `refreshRateMillis`.
 ///
-/// Useful for easily transitiong an [ObservedMap] key
+/// Useful for easily transitiong an [ObservedMap] key-value and use
 Repeater transitionKeyValue<V>(
     Map<dynamic, V> map, Object key, int durationMillis,
     {V update(double elapsedToDurationRatio), int refreshRateMillis = 20}) {
   assert(update != null);
   assert(() {
     if (update == null && V != dynamic && V != double && V != num) {
-      print('Error: Must provide update function as parameter for type $V');
+      print('Error: Must provide update function as parameter for type $V.');
       return false;
     }
     return true;
@@ -159,9 +239,9 @@ Repeater transitionKeyValue<V>(
   }, refreshRateMillis: refreshRateMillis);
 }
 
-Repeater getTransitionObject(Object key) {
-  return _keyToRepeater[key];
-}
+// Repeater getTransitionObject(Object key) {
+//   return _keyToRepeater[key];
+// }
 
 /// Clears all transitions if no `key` or `context` is provided.
 ///
@@ -200,11 +280,34 @@ void _restartTransition(Key key) {
   }
 }
 
-void _stopAndforgetTransition(key) {
+void _stopAndforgetTransition(Key key) {
+  assert(_keyToRepeater.containsKey(key) == _keyToRatio.containsKey(key));
   _keyToRepeater.remove(key)?.stop();
   _keyToRatio.remove(key);
 }
 
 void _clearContextTransitions(Element element) {
   _contextToKeys.remove(element)?.forEach(_stopAndforgetTransition);
+}
+
+class _Transition {
+  final Key key;
+  final int id;
+  final Element context;
+  Repeater repeater;
+
+  _Transition(this.key, this.id, [this.context, this.repeater]) {
+    _keyToRatio.setValue(id, 0, false);
+  }
+
+  double get ratio => _keyToRatio[id];
+  set ratio(double r) => _keyToRatio[id] = r;
+
+  stopAndRemove() {
+    assert(repeater != null);
+    repeater.stop();
+    _keyToRatio.remove(id);
+    _contextToKeys[context]?.remove(id);
+    // _keyToTransition.remove(key);
+  }
 }
