@@ -26,7 +26,9 @@ mixin Floop on StatelessWidget {
 
 /// `class MyWidget extends FloopStatelessWidget` is equivalent to
 /// `class MyWidget extends StatelessWidget with Floop`.
-abstract class FloopStatelessWidget = StatelessWidget with Floop;
+abstract class FloopStatelessWidget extends StatelessWidget with Floop {
+  const FloopStatelessWidget({Key key}) : super(key: key);
+}
 
 /// Experimental lighter version of Floop. It only allows reading from one
 /// observed at each Widget build cycle. It has increased performance.

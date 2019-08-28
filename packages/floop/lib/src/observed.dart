@@ -41,11 +41,12 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// Returns the keys of this [ObservedMap], retrieved from an internal
   /// [LinkedHashMap] instance.
   ///
-  /// Retrieving `keys` during a [Widget] or [State] `buildWithFloop` cycle will subscribe
+  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle will subscribe
   /// the correspnding widget to any insertions or removals of keys in this Map, regardless
   /// of the keys being iterated over or not. It does not make the widget subscription
-  /// sensitive to a key's corresponding value though (unless the value is also retrieved
-  /// during the build cycle), so setting a key to a different value will not trigger rebuilds.
+  /// sensitive to the keys corresponding values (unless the value is also retrieved
+  /// during the build cycle), so later setting a key to a different value will
+  /// not trigger rebuilds.
   @override
   Iterable<K> get keys {
     // if(_prepareAndCheckIfListening()) _subscribeMutation();
@@ -73,8 +74,8 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   /// Sets the `value` of the `key` exactly as it is given.
   ///
-  /// If `triggerUpdates` is false, elements subscribed to the key are not
-  /// marked as need build.
+  /// Potential [Element] updates can be avoided by passing `triggerUpdates`
+  /// as false.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
     if (triggerUpdates) {
       _notifyListenerIfChange(key, value);

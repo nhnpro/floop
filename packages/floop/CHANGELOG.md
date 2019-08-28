@@ -1,3 +1,11 @@
+## [0.2.3] - 20/07/2019
+
+Rolls back library dependency.
+
+## [0.2.2] - 20/07/2019
+
+Updates to latest version of meta library.
+
 ## [0.2.1] - 20/07/2019
 
 Exposes the internals of the library.

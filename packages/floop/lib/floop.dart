@@ -5,4 +5,4 @@ export 'package:floop/src/mixins.dart'
     show Floop, FloopStatelessWidget, FloopStateMixin, FloopState;
 export 'package:floop/src/repeater.dart' show Repeater;
 export 'package:floop/src/transition.dart'
-    show transition, clearTransitions, restartTransitions;
+    show transition, clearTransitions, resetTransitions;

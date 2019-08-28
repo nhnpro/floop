@@ -4,9 +4,6 @@ typedef RepeaterCallback = Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
 class Repeater extends Stopwatch {
-  /// Stops the repeating execution.
-  bool _stop = true;
-
   /// Used to ensure only one asynchrnous instance is executing.
   bool _executionLocked = false;
 
@@ -60,7 +57,6 @@ class Repeater extends Stopwatch {
   /// Stops the repeater.
   stop() {
     super.stop();
-    _stop = true;
   }
 
   /// Resets this repeater's underlying stopwatch.
@@ -84,30 +80,30 @@ class Repeater extends Stopwatch {
   /// `frequencyMilliseconds` for a duration of `durationMilliseconds`
   /// or indefinetely if `durationMilliseconds` is null.
   start() {
-    if (!_stop) {
-      print('The repeater is already running');
-      return;
-    } else if (isLocked) {
-      print('Another asynchronous instance is already running');
+    if (isLocked) {
+      print('The repeater asynchronous instance is already running');
       return;
     }
-    _stop = false;
+    assert(!isRunning);
+    // else if (isRunning) {
+    //   print('The repeater is already running');
+    //   return;
+    // }
     _lock();
     super.start();
     run() {
       Future.delayed(Duration(milliseconds: frequencyMilliseconds), () {
-        if (!_stop) {
+        if (isRunning) {
           if (durationMilliseconds == null ||
               elapsedMilliseconds < durationMilliseconds) {
             callback(this);
             run();
           } else {
             stop();
-            // Make one last call
+            // Invoke callback for the last time once finished.
             callback(this);
           }
-        }
-        if (_stop) {
+        } else {
           _releaseLock();
         }
       });
