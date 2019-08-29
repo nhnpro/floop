@@ -1,4 +1,4 @@
-import 'package:meta/meta.dart';
+import 'package:meta/meta.dart' show visibleForOverriding;
 import './flutter_import.dart';
 import './controller.dart';
 

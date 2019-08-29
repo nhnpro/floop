@@ -96,9 +96,7 @@ abstract class FloopController {
       print('ERROR: A Floop widget is building ([Floop.buildWithFloop]) while\n'
           'setting a value in an ObservedMap. Update to widgets will not be\n'
           'made, because it could produce an infinite build recursion.\n'
-          'Avoid writing to an ObservedMap while bulding your Widgets. A map\n'
-          'write during a build can be safely done asynchronously. For example\n'
-          'Future.delayed can be used to achieve this.');
+          'Avoid writing to an [ObservedMap] while bulding your Widgets');
       assert(false);
     } else if (elements != null) {
       for (var ele in elements) {
@@ -207,14 +205,10 @@ class LightController extends FloopController {
       _currentListener = listener;
     } else if (_currentListener != listener) {
       print(
-          'ERROR: When using FloopLightController, there shouldn\'t be more than\n'
-          'one ObservedMap read during the build cycle of a widget, otherwise\n'
+          'ERROR: When using [FloopLight], there shouldn\'t be more than one\n'
+          '[ObservedMap] read during the build cycle of a widget, otherwise\n'
           'subscriptions will not correctly commit.\n'
-          'Switching to FullController will fix the issue.'
-          // ' Call\n'
-          // 'Floop.switchToStandardController at the beginning of the build or\n'
-          // 'call Floop.defaultToStandardController() at the beginning of the app.\n'
-          );
+          'Switching to regular [Floop] won\'t cause this issue.');
       assert(false);
     }
   }

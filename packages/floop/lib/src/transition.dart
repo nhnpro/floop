@@ -1,14 +1,13 @@
-import 'package:floop/src/controller.dart';
-import './flutter_import.dart';
+import 'dart:math';
 
-import '../floop.dart';
+import './flutter_import.dart';
+import 'package:floop/floop.dart';
+import './controller.dart';
 import './repeater.dart';
 
 T _doubleAsType<T, V>(V x) => x as T;
 
-final ObservedMap<Key, double> _keyToRatio = ObservedMap();
 final Map<Element, Set<Key>> _contextToKeys = Map();
-final Map<Key, Repeater> _keyToRepeater = Map();
 
 class _MultiKey extends LocalKey {
   final a, b, c, d;
@@ -35,9 +34,9 @@ class _MultiKey extends LocalKey {
 typedef TransitionCallback = Function(double elapsedToDurationRatio);
 typedef ValueCallback<V> = V Function(V transitionValue);
 
-Key _createKey([context, durationMillis, delayMillis, evaluate]) {
+Key _createKey([context, durationMillis, delayMillis]) {
   if (context != null) {
-    Key key = _MultiKey(context, durationMillis, delayMillis, evaluate);
+    Key key = _MultiKey(context, durationMillis, delayMillis);
     Set<Key> contextKeys = _contextToKeys[context];
     if (contextKeys == null) {
       contextKeys = Set();
@@ -71,7 +70,7 @@ Key _createKey([context, durationMillis, delayMillis, evaluate]) {
 /// cases.
 ///
 /// Keys are useful to reference transitions somewhere else or to manipulate
-/// transitions with [clearTransitions] and [resetTransitions].
+/// transitions with [Transitions].
 ///
 /// Note that this method does not work inside builders, like [StreamBuilder],
 /// as builders build outside of the encompassing widget's build method.
@@ -109,40 +108,35 @@ double transition(
   int delayMillis = 0,
   Object key,
 }) {
-  Element context = floopController.currentBuild;
-  final bool _canCreate = durationMillis != null && context != null;
+  BuildContext context = floopController.currentBuild;
+  final bool canCreate =
+      durationMillis != null && (context != null || key != null);
   assert(() {
-    if (!(_canCreate || key != null)) {
-      print(
-          'Error: When invoking [transition] outside a widget\'s buildWithFloop\n'
-          'method, the `key` parameter must be provided, as it can only be used\n'
-          'to reference transitions. See [transitionEval] to create transitions\n'
-          'outside build methods.'
+    if (!canCreate && key == null) {
+      print('Error: When invoking [transition] outside a Floop widget\'s\n'
+          'build method, the `key` parameter must be provided, otherwise the\n'
+          'transition can have no effect outside of itself.\n'
+          'See [transitionEval] to create transitions outside build methods.'
           'If this is getting invoked from within a [Builder], check\n'
           '[transition]\'s docs to handle that case.');
       return false;
     }
     return true;
   }());
-  final bool _exists = key != null && _keyToRatio.containsKey(key);
-  if (!(_canCreate || _exists)) {
+  if (canCreate && key == null) {
+    key = _createKey(context, durationMillis, delayMillis);
+  }
+  var transitionObject = _Transition.get(key);
+  if (!canCreate && transitionObject == null) {
     return null;
   }
-  assert(context != null || _keyToRatio.containsKey(key));
-  key ??= _createKey(context, durationMillis, delayMillis);
-  _contextToKeys.putIfAbsent(context, () => Set()..add(key));
-  if (!_keyToRatio.containsKey(key)) {
-    assert(!_keyToRepeater.containsKey(key));
-    assert(_contextToKeys[context].contains(key));
-    _keyToRatio.setValue(key, 0, false);
-    _keyToRepeater[key] = Repeater.transition(durationMillis, (double ratio) {
-      // The callback sets the value of the ObservedMap _idToRatio, causing
-      // the context (element) to rebuild as the transition progresses.
-      _keyToRatio[key] = ratio;
-    }, refreshRateMillis: refreshRateMillis, delayMillis: delayMillis)
+  assert(canCreate != null || transitionObject != null);
+  if (transitionObject == null) {
+    transitionObject = _Transition(
+        key, durationMillis, null, refreshRateMillis, delayMillis, false)
       ..start();
   }
-  return _keyToRatio[key];
+  return transitionObject.currentValue;
 }
 
 /// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds,
@@ -170,7 +164,7 @@ Key transitionEval(
   TransitionCallback evaluate, {
   int refreshRateMillis = 20,
   int delayMillis = 0,
-  Key key,
+  Object key,
 }) {
   assert(() {
     if (floopController.currentBuild != null) {
@@ -178,71 +172,90 @@ Key transitionEval(
           'is building. Use [transition]` instead.');
       return false;
     }
+    if (durationMillis == null || evaluate == null) {
+      print('Error: bad inputs for [transitionEval], durationMillis\n'
+          'and evaluate cannot be null.');
+      return false;
+    }
     return true;
   }());
-  key ?? _createKey();
-  if (!_keyToRatio.containsKey(key)) {
-    _keyToRepeater[key] = Repeater.transition(durationMillis, (double ratio) {
-      evaluate(ratio);
-      _keyToRatio[key] = ratio;
-    },
-        refreshRateMillis: refreshRateMillis,
-        delayMillis: delayMillis,
-        onFinish: (_) => _stopAndforgetTransition(key))
-      ..start();
+  _Transition transitionObj;
+  if (key != null) {
+    transitionObj = _Transition.get(key);
+  }
+  key ??= _createKey();
+  if (transitionObj == null) {
+    _Transition(
+      key,
+      durationMillis,
+      evaluate,
+      refreshRateMillis,
+      delayMillis,
+    )..start();
   }
   return key;
 }
 
-/// Transitions allow manipulating the transitions generated by this library.
+/// [Transitions] allow manipulating the transitions created by this library.
 ///
-/// For operations [pause], [resume], [reset] and [clear], parameters `key`
-/// or `context` can be provided, but not both. If none of them is specified,
-/// the operation is applied to all transitions.
+/// For operations [pause], [resume], [restart] and [clear], parameters `key`
+/// or `context` can be provided to apply the operation to the corresponding
+/// specific transition (`key`) or group of them (`context`). If none of them
+/// is specified, the operation is applied to all transitions. If both of them
+/// are provided, only `key` is used.
 ///
-/// If `key` is provided, the operation is applied to the corresponding
-/// transition if it exists, otherwise nothing is done.
-///
-/// If `context` is provided, the operation is applied to all the transitions
-/// created while the context was building.
+/// The transitions registered to `context` are the ones that were created
+/// while the context was building.
 abstract class Transitions {
   /// Pauses transitions.
   ///
   /// Be mindful that paused transitions that are not associated to any
-  /// [BuildContext] will be saved until they are resumed with [resume]
-  /// or get deleted with [clear].
-  static pause({Key key, BuildContext context}) {
-    _applyToTransitions(_resetTransition, key, context);
+  /// [BuildContext] will remain stored (taking memory) until they are resumed
+  /// with [resume] or get disposed with [clear].
+  static pause({Object key, BuildContext context}) {
+    _applyToTransitions(_pause, key, context);
   }
 
-  /// Resumes transitions.
-  static resume({Key key, BuildContext context}) {
-    _applyToTransitions(_startTransition, key, context);
+  static _pause(_Transition t) => t?.stop();
+
+  static resume({Object key, BuildContext context}) {
+    _applyToTransitions(_resume, key, context);
   }
 
-  /// Resets transitions to their starting state. If the transitions were
-  /// paused, they remain paused.
+  static _resume(_Transition t) => t?.start();
+
+  /// Restarts transitions as if they were just created.
   ///
-  /// For resetting context transitions, [clear] might be more suitable, since
+  /// For restarting context transitions, [clear] might be more suitable, since
   /// the transitions will be created again once the context rebuilds, while
-  /// resetting them would cause transitions that are created within
+  /// restarting them would cause transitions that are created within
   /// conditional statements to replay before the condition triggers.
-  static reset({Key key, BuildContext context}) {
-    _applyToTransitions(_resetTransition, key, context);
+  static restart({Object key, BuildContext context}) {
+    _applyToTransitions(_restart, key, context);
   }
+
+  static _restart(_Transition t) => t?.restart();
 
   /// Clear all transitions. Equivalent to invoking `Transitions.clear()`.
-  static clearAll() => clear();
+  static clearAll() =>
+      _Transition.all().toList().forEach((t) => t.stopAndDispose());
 
   /// Stops and removes references to transitions.
   ///
   /// Particularly useful for causing a context to rebuild as if it was being
   /// built for the first time.
-  static clear({Key key, BuildContext context}) {
-    clearTransitions(key: key, context: context);
+  static clear({Object key, BuildContext context}) {
+    if (key == null && context == null) {
+      clearAll();
+    } else {
+      _applyToTransitions(_clear, key, context);
+    }
   }
+
+  static _clear(_Transition t) => t?.stopAndDispose();
 }
 
+/// Equivalent to [transition] but scales the number between `start` and `end`.
 int transitionInt(int start, int end, int durationMillis,
     {refreshRateMillis = 20}) {
   return transitionNumber(start, end, durationMillis,
@@ -250,6 +263,7 @@ int transitionInt(int start, int end, int durationMillis,
       .toInt();
 }
 
+/// Equivalent to [transition] but scales the number between `start` and `end`.
 num transitionNumber(num start, num end, int durationMillis,
     {refreshRateMillis = 20}) {
   return start +
@@ -262,7 +276,8 @@ num transitionNumber(num start, num end, int durationMillis,
 /// The transition lasts for `durationMillis` and updates it's value
 /// with a rate of `refreshRateMillis`.
 ///
-/// Useful for easily transitiong an [ObservedMap] key-value and use
+/// Useful for easily transitiong an [ObservedMap] key-value and cause the
+/// subscribed widgets to auto rebuild while the transition lasts.
 Repeater transitionKeyValue<V>(
     Map<dynamic, V> map, Object key, int durationMillis,
     {V update(double elapsedToDurationRatio), int refreshRateMillis = 20}) {
@@ -276,195 +291,100 @@ Repeater transitionKeyValue<V>(
   }());
   update ??= _doubleAsType;
   return Repeater.transition(durationMillis, (double ratio) {
-    var value = update(ratio);
-    map[key] = value;
+    // var value = update(ratio);
+    map[key] = update(ratio);
   }, refreshRateMillis: refreshRateMillis);
 }
 
-// Repeater getTransitionObject(Object key) {
-//   return _keyToRepeater[key];
-// }
-
-/// Clears all transitions when no `key` or `context` are provided.
-///
-/// Receives optional `key` or `context` to clear only the associated
-/// transitions. If both of them are provided, `key` takes precedence and
-/// `context` is not used.
-clearTransitions({Key key, BuildContext context}) {
-  assert(key == null || context == null);
+void _applyToTransitions(
+    Function(_Transition) apply, Key key, BuildContext context) {
   if (key != null) {
-    _stopAndforgetTransition(key);
+    apply(_Transition.get(key));
   } else if (context != null) {
-    _clearContextTransitions(context);
+    _contextToKeys[context]?.forEach((key) => apply(_Transition.get(key)));
   } else {
-    _keyToRepeater.keys.toList().forEach(_stopAndforgetTransition);
+    _Transition.all().forEach(apply);
   }
 }
 
-/// Resets all transitions when no `key` or `context` are provided.
-///
-/// Can provide optional `key` or `context`, but not both. If so, only the
-/// associated transitions will get resetted.
-void resetTransitions({Key key, BuildContext context}) {
-  if (key != null) {
-    _resetTransition(key);
-  } else if (context != null) {
-    _contextToKeys[context]?.forEach(_resetTransition);
-  } else {
-    _keyToRepeater.keys.forEach(_resetTransition);
-  }
-}
-
-void _applyToTransitions(Function(Key) apply, Key key, BuildContext context) {
-  if (key != null) {
-    apply(key);
-  } else if (context != null) {
-    _contextToKeys[context]?.forEach(apply);
-  } else {
-    _keyToRepeater.keys.forEach(apply);
-  }
-}
-
-void _resetTransition(Key key) {
-  if (_keyToRepeater.containsKey(key)) {
-    _keyToRepeater[key]
-      ..reset()
-      ..start();
-  }
-}
-
-void _stopTransition(Key key) {
-  if (_keyToRepeater.containsKey(key)) {
-    _keyToRepeater[key]..stop();
-  }
-}
-
-void _startTransition(Key key) {
-  var repeater = _keyToRepeater[key];
-  if (repeater != null && !repeater.isRunning) {
-    _keyToRepeater[key]..start();
-  }
-}
-
-void _stopAndforgetTransition(Key key) {
-  assert(_keyToRepeater.containsKey(key) == _keyToRatio.containsKey(key));
-  _keyToRepeater.remove(key)?.stop();
-  _keyToRatio.remove(key);
+void _stopAndDispose(Object key) {
+  _Transition.get(key).stopAndDispose();
 }
 
 void _clearContextTransitions(Element element) {
-  _contextToKeys.remove(element)?.forEach(_stopAndforgetTransition);
+  _contextToKeys.remove(element)?.forEach(_stopAndDispose);
 }
 
-int _lastId = 0;
-final Map<Key, _Transition> _keyToTransition = Map();
-final ObservedMap<int, double> _idToRatio = Map();
+/// Returns the current value of the transition registered to `key` if it
+/// exists, `null` otherwise.
+double transitionOf(Object key) {
+  return _Transition.get(key)?.currentValue;
+}
 
-/// Utility class to contain all fields related to a transition.
-class _Transition {
-  final Key key;
+class _ObservedDouble {
+  static final ObservedMap<int, double> _idToValue = ObservedMap();
+  static int _lastId = 0;
+
   final int id;
-  final Element context;
-  Repeater repeater;
-
-  factory _Transition.fromKey(Key key) => _keyToTransition[key];
-
-  _Transition(this.key, [this.context, this.repeater]) : id = _lastId++ {
-    // _keyToRatio.setValue(id, 0, false);
-    _idToRatio.setValue(id, 0, false);
-    // repeater = Repeater.transition(durationMillis, (double progressRatio) {
-    //   // The callback sets the value of the ObservedMap _idToRatio, causing
-    //   // the context (element) to rebuild as the transition progresses.
-    //   currentValue = progressRatio;
-    // }, refreshRateMillis: refreshRateMillis, delayMillis: delayMillis)
+  _ObservedDouble() : id = _lastId++ {
+    _idToValue.setValue(id, 0, false);
   }
 
-  // double get ratio => _keyToRatio[id];
-  // set ratio(double r) => _keyToRatio[id] = r;
-  double get currentValue => _idToRatio[id];
-  set currentValue(double ratio) => _idToRatio[id] = ratio;
+  double get value => _idToValue[id];
+  set value(double value) => _idToValue[id] = value;
 
-  stopAndRemove() {
-    assert(repeater != null);
-    repeater.stop();
+  dispose() => _idToValue.remove(id);
+}
+
+class _Transition extends Repeater {
+  static final Map<Object, _Transition> _keyToTransition = Map();
+
+  static _Transition get(key) => _keyToTransition[key];
+
+  static Iterable<_Transition> all() => _keyToTransition.values;
+
+  final Object key;
+  final int durationMillis;
+  final int delayMillis;
+  final bool disposeOnFinish;
+  final TransitionCallback evaluate;
+
+  final _ObservedDouble observedRatio = _ObservedDouble();
+
+  _Transition(this.key, this.durationMillis,
+      [this.evaluate,
+      int refreshRateMillis = 20,
+      this.delayMillis = 0,
+      this.disposeOnFinish = true])
+      : super(null, refreshRateMillis, durationMillis + delayMillis) {
+    _keyToTransition[key] = this;
+  }
+
+  double get progressRatio =>
+      min(1, max(0, elapsedMilliseconds - delayMillis) / durationMillis);
+
+  double get currentValue => observedRatio.value;
+
+  stopAndDispose() {
+    super.stop();
     _keyToTransition.remove(key);
-    _idToRatio.remove(id);
-    // _keyToRatio.remove(id);
-    // _contextToKeys[context]?.remove(id);
-    // _keyToTransition.remove(key);
+    observedRatio.dispose();
   }
-}
 
-Key _createMultiKey(context, durationMillis, delayMillis) {
-  assert(durationMillis != null);
-  if (context != null) {
-    Key key = _MultiKey(context, durationMillis, delayMillis);
-    Set<Key> contextKeys = _contextToKeys[context];
-    if (contextKeys == null) {
-      contextKeys = Set();
-      _contextToKeys[context] = contextKeys;
-      addUnsubscribeCallback(context, _clearContextTransitions);
+  restart() {
+    super.reset();
+    super.start();
+  }
+
+  @override
+  update() {
+    double ratio = progressRatio;
+    observedRatio.value = ratio;
+    if (evaluate != null) {
+      evaluate(ratio);
     }
-    contextKeys.add(key);
-    return key;
-  } else {
-    return null;
-  }
-}
-
-double _transition(
-  int durationMillis, {
-  int refreshRateMillis = 20,
-  int delayMillis = 0,
-  Object key,
-}) {
-  Element context = floopController.currentBuild;
-  final bool canCreate = durationMillis != null && context != null;
-  assert(() {
-    if (!canCreate && key == null) {
-      print(
-          'Error: When invoking [transition] outside a widget\'s buildWithFloop\n'
-          'method, the `key` parameter must be provided, as it can only be used\n'
-          'to reference transitions. See [transitionEval] to create transitions\n'
-          'outside build methods.'
-          'If this is getting invoked from within a [Builder], check\n'
-          '[transition]\'s docs to handle that case.');
-      return false;
+    if (ratio == 1 && disposeOnFinish) {
+      stopAndDispose();
     }
-    return true;
-  }());
-  if (canCreate && key == null) {
-    key = _MultiKey(context, durationMillis, delayMillis);
-  }
-  var transitionObject =
-      _Transition.fromKey(key); //key != null && _keyToRatio.containsKey(key);
-  if (!canCreate && transitionObject == null) {
-    return null;
-  }
-  assert(canCreate != null || transitionObject != null);
-  // _contextToKeys.putIfAbsent(context, () => Set()..add(key));
-  if (transitionObject == null) {
-    transitionObject = _Transition(
-        key,
-        context,
-        Repeater.transition(durationMillis, (double ratio) {
-          // The callback sets the value of the ObservedMap _idToRatio, causing
-          // the context (element) to rebuild as the transition progresses.
-          _idToRatio[key] = ratio;
-        }, refreshRateMillis: refreshRateMillis, delayMillis: delayMillis)
-          ..start());
-    _addToContext(context, transitionObject);
-  }
-  return transitionObject.currentValue;
-}
-
-final Map<Element, Set<_Transition>> _contextToTransitions = Map();
-
-_addToContext(context, transitionObject) {
-  var contextKeys = _contextToTransitions[context];
-  if (contextKeys == null) {
-    contextKeys = Set()..add(transitionObject);
-    _contextToTransitions[context] = contextKeys;
-    addUnsubscribeCallback(context, _clearContextTransitions);
   }
 }

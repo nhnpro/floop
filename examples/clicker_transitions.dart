@@ -32,7 +32,7 @@ class Clicker extends StatelessWidget with Floop {
           ..rotateY(-0.01 * floop['offset'].dx), // changed,
         alignment: FractionalOffset.center,
         child: GestureDetector(
-          onPanStart: (_) => clearTransitions(key: Key('resetOffset')),
+          onPanStart: (_) => Transitions.clear(key: Key('resetOffset')),
           onPanUpdate: (details) => floop['offset'] += details.delta,
           onDoubleTap: () {
             var oldOffset = floop['offset'];
@@ -59,7 +59,7 @@ class Clicker extends StatelessWidget with Floop {
         child: Icon(Icons.add),
         onPressed: () {
           floop['clicks']++;
-          clearTransitions();
+          Transitions.clearAll();
           transitionEval(
             3000,
             (x) => floop['rotate'] = Matrix4.identity()

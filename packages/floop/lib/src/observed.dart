@@ -33,6 +33,9 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     }
   }
 
+  /// Retrieves the `value` of `key`. When invoked from within
+  /// [Floop.buildWithFloop], the context being built gets subscribed to
+  /// the key, causing the context to rebuild when the key value changes.
   operator [](key) {
     _listener.valueRetrieved(key);
     return _keyToValue[key];
@@ -41,15 +44,13 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// Returns the keys of this [ObservedMap], retrieved from an internal
   /// [LinkedHashMap] instance.
   ///
-  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle will subscribe
-  /// the correspnding widget to any insertions or removals of keys in this Map, regardless
-  /// of the keys being iterated over or not. It does not make the widget subscription
-  /// sensitive to the keys corresponding values (unless the value is also retrieved
-  /// during the build cycle), so later setting a key to a different value will
-  /// not trigger rebuilds.
+  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle
+  /// will subscribe the correspnding widget to any insertions or removals of
+  /// of keys in this Map, regardless of the keys being iterated over or not.
+  /// It does not make the widget subscription sensitive to the keys
+  /// corresponding values though.
   @override
   Iterable<K> get keys {
-    // if(_prepareAndCheckIfListening()) _subscribeMutation();
     _listener.mutationRead();
     return _keyToValue.keys;
   }
@@ -59,15 +60,14 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   ///
   /// Subscribed elements to the `key` will get updated if `this[key]!=value`.
   ///
-  /// Check [ObservadMap.setValue] to update a key with more options.
+  /// Use [setValue] to update a key without deep copying [Map] or [List] or
+  /// for setting values without triggering element updates.
   ///
-  /// [Map] and [List] values are recursively traversed saving copied versions of them.
-  /// Stored [Map] values can be modified while [List] values are unmodifiable.
-  ///
-  /// For each value of type [Map] it will create an [ObservedMap] copy of it.
-  /// For each value of type [List] it will create a copy using [List.unmodifiable].
+  /// [Map] and [List] values are recursively traversed saving copied versions
+  /// of them. For each value of type [Map] an [ObservedMap] copy of it is
+  /// saved. For each value of type [List] it will create an unmodifiable copy
+  /// using [List.unmodifiable].
   operator []=(Object key, V value) {
-    // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
     _notifyListenerIfChange(key, value);
     _keyToValue[key] = convert(value);
   }
