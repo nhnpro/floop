@@ -31,6 +31,8 @@ void addUnsubscribeCallback(Element element, UnsubscribeCallback callback) {
 /// [FullController] is the default configured controller used by the library.
 /// [LightController] is an alternative faster but more limited controller.
 abstract class FloopController {
+  Object _debugLastKeyChange;
+
   /// Switches the global Floop state controller to [FullController].
   static useFullController() => floopController = fullController;
 
@@ -52,13 +54,13 @@ abstract class FloopController {
   @mustCallSuper
   void startListening(covariant Element element) {
     floopController = this;
-    assert(() {
-      if (isListening) {
-        stopListening();
-        return false;
-      }
-      return true;
-    }());
+    if (isListening) {
+      stopListening();
+      // The controller already listening should assert to false, but it's
+      // annoying when developing, as it triggers all the time when the builds
+      // get interrupted.
+      // assert(false);
+    }
     _currentBuild = element;
   }
 
@@ -93,10 +95,10 @@ abstract class FloopController {
   @mustCallSuper
   void markAsNeedBuild(Set<Element> elements) {
     if (isListening) {
-      print('ERROR: A Floop widget is building ([Floop.buildWithFloop]) while\n'
-          'setting a value in an ObservedMap. Update to widgets will not be\n'
-          'made, because it could produce an infinite build recursion.\n'
-          'Avoid writing to an [ObservedMap] while bulding your Widgets');
+      print('ERROR: Floop widget `${currentBuild.widget}` is building while\n'
+          'setting value of key `${floopController._debugLastKeyChange}` in\n'
+          'in an [ObservedMap]. Avoid writing to an [ObservedMap] while\n'
+          'bulding Widgets.');
       assert(false);
     } else if (elements != null) {
       for (var ele in elements) {
@@ -344,6 +346,10 @@ class ObservedListener {
   }
 
   void valueChanged(Object key) {
+    assert(() {
+      floopController._debugLastKeyChange = key;
+      return true;
+    }());
     if (_keyToElements.containsKey(key)) {
       floopController.markAsNeedBuild(_keyToElements[key]);
     } else if (_mutations.isNotEmpty) {

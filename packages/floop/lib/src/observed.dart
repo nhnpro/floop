@@ -1,7 +1,7 @@
 import 'dart:collection';
 import './controller.dart';
 
-final ObservedMap<String, dynamic> floop = ObservedMap();
+final ObservedMap<Object, dynamic> floop = ObservedMap();
 
 abstract class Observed<K, V> {
   ObservedListener _listener = ObservedListener();

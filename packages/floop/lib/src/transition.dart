@@ -54,7 +54,8 @@ Key _createKey([context, durationMillis, delayMillis]) {
 /// when invoked from inside a [Floop.buildWithFloop] method, automatically
 /// rebuilding the widget as the transition progresses.
 ///
-/// See [transitionEval] to create transitions from outside build methods.
+/// See [transitionEval] to create transitions from outside build methods, or
+/// [transitionOf] to retrieve the value of a keyed transition.
 ///
 /// `refreshRateMillis` is the frequency in milliseconds at which the
 /// transition updates it's value.
@@ -112,9 +113,12 @@ double transition(
   final bool canCreate =
       durationMillis != null && (context != null || key != null);
   assert(() {
+    if (durationMillis == null) {
+      print('Error: [transition] was invoked with `durationMillis` as null.');
+    }
     if (!canCreate && key == null) {
       print('Error: When invoking [transition] outside a Floop widget\'s\n'
-          'build method, the `key` parameter must be provided, otherwise the\n'
+          'build method, the `key` parameter must be not null, otherwise the\n'
           'transition can have no effect outside of itself.\n'
           'See [transitionEval] to create transitions outside build methods.'
           'If this is getting invoked from within a [Builder], check\n'
@@ -142,6 +146,9 @@ double transition(
 /// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds,
 /// invoking `evaluate` with the number as parameter on every update.
 ///
+/// Returns the key of the existing or created transition. The key can be used
+/// to reference the transition from [transitionOf] or [Transitions].
+///
 /// `durationMillis` and `evaluate` must not be null.
 ///
 /// `refreshRateMillis` is the frequency in milliseconds at which the
@@ -159,7 +166,7 @@ double transition(
 /// Refer to [transition] for that use case.
 ///
 /// See also [Repeater.transition], the base construct used by this function.
-Key transitionEval(
+Object transitionEval(
   int durationMillis,
   TransitionCallback evaluate, {
   int refreshRateMillis = 20,
@@ -223,6 +230,18 @@ abstract class Transitions {
   }
 
   static _resume(_Transition t) => t?.start();
+
+  static resumeOrPause({Object key, BuildContext context}) {
+    _applyToTransitions(_resumeOrPause, key, context);
+  }
+
+  static _resumeOrPause(_Transition t) {
+    if (t?.isRunning == true) {
+      t.stop();
+    } else if (t != null) {
+      t.start();
+    }
+  }
 
   /// Restarts transitions as if they were just created.
   ///
@@ -297,7 +316,7 @@ Repeater transitionKeyValue<V>(
 }
 
 void _applyToTransitions(
-    Function(_Transition) apply, Key key, BuildContext context) {
+    Function(_Transition) apply, Object key, BuildContext context) {
   if (key != null) {
     apply(_Transition.get(key));
   } else if (context != null) {
@@ -371,9 +390,13 @@ class _Transition extends Repeater {
     observedRatio.dispose();
   }
 
+  reset([bool notUsed = true]) => super.reset(false);
+
   restart() {
-    super.reset();
-    super.start();
+    reset();
+    if (!isRunning) {
+      start();
+    }
   }
 
   @override

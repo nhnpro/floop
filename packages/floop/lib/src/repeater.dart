@@ -9,7 +9,7 @@ class Repeater extends Stopwatch {
   /// Used to ensure only one asynchronous instance is executing.
   bool _executionLocked = false;
 
-  /// The callback that gets recurrently called by the [Repeater].
+  /// The function that gets recurrently called by the [Repeater].
   /// It gets called with `this` as parameter.
   final RepeaterCallback fn;
 
@@ -61,7 +61,7 @@ class Repeater extends Stopwatch {
     super.stop();
   }
 
-  /// Wheter the [Repeater] is currently running
+  /// Whether the [Repeater] is currently running.
   bool get isRunning => super.isRunning;
 
   /// Resets this repeater's underlying stopwatch.
@@ -79,6 +79,10 @@ class Repeater extends Stopwatch {
 
   _lock() => _executionLocked = true;
 
+  /// Whether an asynchronous periodic instance is executing.
+  ///
+  /// A lock is necessary to ensure at most once asynchronous instance
+  /// is executing at any given time.
   bool get isLocked => _executionLocked;
 
   /// The function that gets recurrently invoked while the [Repeater] is running.
@@ -86,20 +90,18 @@ class Repeater extends Stopwatch {
     fn(this);
   }
 
-  /// Starts making recurrent calls to `this.fn` with `frequencyMilliseconds`
-  /// for a duration of `durationMilliseconds` or indefinetely if null.
+  /// Starts making recurrent calls to `this.fn` by invoking [update] with
+  /// `frequencyMilliseconds` for a duration of `durationMilliseconds` or
+  /// indefinetely if null.
   start() {
     if (isLocked) {
       print('The repeater asynchronous instance is already running');
       return;
     }
     assert(!isRunning);
-    // else if (isRunning) {
-    //   print('The repeater is already running');
-    //   return;
-    // }
     _lock();
     super.start();
+    assert(isRunning);
     _run();
   }
 
@@ -111,7 +113,7 @@ class Repeater extends Stopwatch {
           update();
           _run();
         } else {
-          super.stop();
+          stop();
           // Invoke callback for the last time once finished.
           update();
         }
