@@ -1,7 +1,3 @@
-import 'dart:math';
-
-import 'package:floop/src/flutter_import.dart';
-
 typedef RepeaterCallback = Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
@@ -45,8 +41,9 @@ class Repeater extends Stopwatch {
       int delayMillis = 0,
       RepeaterCallback onFinish}) {
     callback(Repeater repeater) {
-      double ratio = min(1,
-          max(0, repeater.elapsedMilliseconds - delayMillis) / durationMillis);
+      double ratio =
+          ((repeater.elapsedMilliseconds - delayMillis) / durationMillis)
+              .clamp(0, 1);
       update(ratio);
       if (ratio == 1 && onFinish != null) {
         onFinish(repeater);
@@ -95,7 +92,7 @@ class Repeater extends Stopwatch {
   /// indefinetely if null.
   start() {
     if (isLocked) {
-      print('The repeater asynchronous instance is already running');
+      // print('The repeater asynchronous instance is already running');
       return;
     }
     assert(!isRunning);

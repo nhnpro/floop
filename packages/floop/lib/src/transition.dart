@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import './flutter_import.dart';
 import 'package:floop/floop.dart';
 import './controller.dart';
@@ -7,7 +5,7 @@ import './repeater.dart';
 
 T _doubleAsType<T, V>(V x) => x as T;
 
-final Map<Element, Set<Key>> _contextToKeys = Map();
+final Map<Element, Set<Object>> _contextToKeys = Map();
 
 class _MultiKey extends LocalKey {
   final a, b, c, d;
@@ -36,18 +34,21 @@ typedef ValueCallback<V> = V Function(V transitionValue);
 
 Key _createKey([context, durationMillis, delayMillis]) {
   if (context != null) {
-    Key key = _MultiKey(context, durationMillis, delayMillis);
-    Set<Key> contextKeys = _contextToKeys[context];
-    if (contextKeys == null) {
-      contextKeys = Set();
-      _contextToKeys[context] = contextKeys;
-      addUnsubscribeCallback(context, _clearContextTransitions);
-    }
-    contextKeys.add(key);
-    return key;
+    return _MultiKey(context, durationMillis, delayMillis);
   } else {
     return UniqueKey();
   }
+}
+
+_addKeyToContext(key, context) {
+  assert(key != null && context != null);
+  var contextKeys = _contextToKeys[context];
+  if (contextKeys == null) {
+    contextKeys = Set();
+    _contextToKeys[context] = contextKeys;
+    addUnsubscribeCallback(context, _clearContextTransitions);
+  }
+  contextKeys.add(key);
 }
 
 /// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds
@@ -117,11 +118,11 @@ double transition(
       print('Error: [transition] was invoked with `durationMillis` as null.');
     }
     if (!canCreate && key == null) {
-      print('Error: When invoking [transition] outside a Floop widget\'s\n'
-          'build method, the `key` parameter must be not null, otherwise the\n'
+      print('Error: When invoking [transition] outside a Floop widget\'s '
+          'build method, the `key` parameter must be not null, otherwise the '
           'transition can have no effect outside of itself.\n'
-          'See [transitionEval] to create transitions outside build methods.'
-          'If this is getting invoked from within a [Builder], check\n'
+          'See [transitionEval] to create transitions outside build methods. '
+          'If this is getting invoked from within a [Builder], check '
           '[transition]\'s docs to handle that case.');
       return false;
     }
@@ -136,6 +137,7 @@ double transition(
   }
   assert(canCreate != null || transitionObject != null);
   if (transitionObject == null) {
+    _addKeyToContext(key, context);
     transitionObject = _Transition(
         key, durationMillis, null, refreshRateMillis, delayMillis, false)
       ..start();
@@ -175,12 +177,12 @@ Object transitionEval(
 }) {
   assert(() {
     if (floopController.currentBuild != null) {
-      print('Error: should not invoke [transitionEval] while a Floop Widget\n'
+      print('Error: should not invoke [transitionEval] while a Floop Widget '
           'is building. Use [transition]` instead.');
       return false;
     }
     if (durationMillis == null || evaluate == null) {
-      print('Error: bad inputs for [transitionEval], durationMillis\n'
+      print('Error: bad inputs for [transitionEval], durationMillis '
           'and evaluate cannot be null.');
       return false;
     }
@@ -327,7 +329,7 @@ void _applyToTransitions(
 }
 
 void _stopAndDispose(Object key) {
-  _Transition.get(key).stopAndDispose();
+  _Transition.get(key)?.stopAndDispose();
 }
 
 void _clearContextTransitions(Element element) {
@@ -377,10 +379,14 @@ class _Transition extends Repeater {
       this.disposeOnFinish = true])
       : super(null, refreshRateMillis, durationMillis + delayMillis) {
     _keyToTransition[key] = this;
+    // print('added transition key: $key, value: ${_keyToTransition[key]}');
   }
 
   double get progressRatio =>
-      min(1, max(0, elapsedMilliseconds - delayMillis) / durationMillis);
+      ((elapsedMilliseconds - delayMillis) / durationMillis)
+          .clamp(0, 1)
+          .toDouble();
+  // min(1, max(0, elapsedMilliseconds - delayMillis) / durationMillis);
 
   double get currentValue => observedRatio.value;
 
@@ -402,12 +408,14 @@ class _Transition extends Repeater {
   @override
   update() {
     double ratio = progressRatio;
+    // Disposing must go first, in case `evaluate` callback creates a new
+    // transition with the same key.
+    if (ratio == 1 && disposeOnFinish) {
+      stopAndDispose();
+    }
     observedRatio.value = ratio;
     if (evaluate != null) {
       evaluate(ratio);
-    }
-    if (ratio == 1 && disposeOnFinish) {
-      stopAndDispose();
     }
   }
 }

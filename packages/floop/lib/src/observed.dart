@@ -15,7 +15,7 @@ abstract class Observed<K, V> {
 /// Whenever a key value changes, any subscribed context will be rebuilt in
 /// the next frame.
 class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
-  Map<K, V> _keyToValue = Map();
+  final Map<K, V> _keyToValue = Map();
 
   ObservedMap();
 
@@ -35,7 +35,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   /// Retrieves the `value` of `key`. When invoked from within
   /// [Floop.buildWithFloop], the context being built gets subscribed to
-  /// the key, causing the context to rebuild when the key value changes.
+  /// the key in order to rebuild when the key value changes.
   operator [](key) {
     _listener.valueRetrieved(key);
     return _keyToValue[key];
@@ -84,7 +84,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   }
 
   _notifyListenerIfChange(Object key, V value) {
-    if (!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
+    if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
       _listener.valueChanged(key);
     }
   }

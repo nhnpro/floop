@@ -4,33 +4,102 @@ import 'package:floop/internals.dart';
 import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
 
-const timeFactor = 4;
+const timeFactor = 2;
+const diameter = 60.0;
+var paused = false;
 
-Map<String, Offset> startingPositions = {
-  'box1': Offset(200, 200),
-  'box2': Offset(240, 200),
-  'box3': Offset(200, 240),
-  'box4': Offset(240, 240),
-};
+List<InteractiveCircle> circleWidgets = List();
 
-// List<NumberGesture> boxes = List.from(['box1', 'box2', 'box3', 'box4']);
-List<NumberGesture> boxes = List();
-
-int _boxes = 0;
-
-placeLast(String name) {
-  int i = boxes.indexWhere((widget) => widget.name == name);
-  boxes.removeAt(i);
-  boxes.add(NumberGesture(name));
+placeCircleLast(String name) {
+  int i = circleWidgets.indexWhere((widget) => widget.props.name == name);
+  if (i < 0) {
+    print('Widget $name not found: ${circleWidgets.map((w) => w.props.name)}');
+  } else {
+    final circle = circleWidgets.removeAt(i);
+    circleWidgets.add(circle);
+  }
 }
 
-addBox(String name) {
-  floop[name + 'count'] = 0;
-  floop[name + 'pos'] = Offset(200, 200);
-  floop[name + 'color'] = randomColor();
-  floop[name + 'prevColor'] = Colors.white;
-  boxes.add(NumberGesture(name));
-  floop['boxes'] = boxes;
+removeCircle(String name) {
+  circleWidgets.removeWhere((widget) => widget.props.name == name);
+  floop['circleWidgets'] = circleWidgets;
+}
+
+int _ids = 0;
+
+class CircleProperties {
+  final int id;
+  final int delay = 300 * timeFactor;
+  final String name;
+  final String backKey;
+  final double _diameter;
+
+  // floop map keys
+  final String _count;
+  final String _pos;
+  final String _color;
+
+  Color baseColor;
+  Offset basePosition;
+  Offset targetPosition;
+
+  CircleProperties([double diameter = diameter])
+      : id = _ids,
+        name = 'circle$_ids',
+        backKey = 'circle${_ids}back0',
+        _count = 'circle${_ids}count',
+        _pos = 'circle${_ids}pos',
+        _color = 'circle${_ids}color',
+        _diameter = diameter {
+    _ids++;
+    floop['circleWidgets'] = circleWidgets
+      ..add(InteractiveCircle(
+        this,
+        key: ValueKey(id),
+      ));
+    count = 0;
+    color = Colors.white;
+  }
+
+  double get radius => _diameter / 2;
+
+  int get count => floop[_count];
+  set count(int val) => floop[_count] = val;
+
+  get position => floop[_pos];
+  set position(Offset newPos) => floop[_pos] = newPos;
+
+  // Color get prevColor => floop[_prevColor];
+  // set prevColor(Color newColor) => floop[_prevColor] = newColor;
+
+  Color get color => floop[_color];
+  set color(Color newColor) => floop[_color] = newColor;
+
+  dispose() {
+    floop.remove(_count);
+    floop.remove(_pos);
+    floop.remove(_color);
+  }
+}
+
+spawnCircle(Offset offset, Size maxSpace) {
+  var circle = CircleProperties();
+  // fields read from floop map
+  circle.count = 0;
+  circle.position = offset - Offset(circle.radius, circle.radius);
+  circle.color = randomColor();
+
+  // other fields
+  circle.basePosition = circle.position;
+  circle.targetPosition = randomPosition(maxSpace.width, maxSpace.height);
+  circle.baseColor = Colors.white;
+
+  transitionBack(circle, true);
+}
+
+Offset randomPosition(double x, double y) {
+  var r = Random();
+  return Offset(x * r.nextDouble(), y * r.nextDouble());
 }
 
 Color randomColor() {
@@ -39,124 +108,140 @@ Color randomColor() {
 }
 
 void main() {
-  floop['inputText'] = 'Type text here';
-  floop['text'] = 'Click me';
-  for (var box in startingPositions.keys) {
-    floop[box + 'pos'] = startingPositions[box];
-    floop[box + 'count'] = 0;
-  }
+  floop['circleWidgets'] = circleWidgets;
   runApp(MaterialApp(
-      title: 'Clicker',
+      title: 'Circle Spawner',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: NumbersMove()));
+      home: MovingCircles()));
 }
 
-class NumbersMove extends StatelessWidget with Floop {
+class MovingCircles extends StatelessWidget with Floop {
   @override
   Widget buildWithFloop(BuildContext context) {
-    int ms = 700;
-    int i = 0;
-    floop['boxes'];
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Replay Text'),
-      ),
-      body: GestureDetector(
-        child: Stack(
-          children: boxes.map(
-            (box) {
-              Offset pos = floop[box.name + 'pos'];
-              return Positioned(
-                  key: Key(box.name),
-                  left: pos.dx,
-                  top: pos.dy,
-                  child: Opacity(
-                      opacity: transition(
-                        ms,
-                      ), //delayMillis: ms * i++),
-                      child: box //NumberGesture(box),
-                      ));
-            },
-          ).toList(),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.add),
-          onPressed: () {
-            Transitions.resumeOrPause();
-            // addBox('box${_boxes++}');
-          }),
-    );
-  }
-}
-
-const diameter = 60.0;
-
-class NumberGesture extends FloopStatelessWidget {
-  final String name;
-  NumberGesture(this.name, {Key key}) : super(key: key) {
-    if (floop[name + 'count'] == null) {
-      // floop.setValue(name+'pos', Offset.zero, false);
-      floop.setValue(name + 'count', 0, false);
-    }
-    // floop[box + 'count'] = 0;
-  }
-
-  @override
-  Widget buildWithFloop(BuildContext context) {
-    int ms = min(5000, 500 * floop[name + 'count']);
-    var x = transition(ms, key: name, refreshRateMillis: 100);
+    // int ms = 500 * timeFactor;
+    List<Widget> widgets = floop['circleWidgets'].cast<Widget>();
+    print('build circles layout in $this. $widgets');
     return LayoutBuilder(builder: (context, constraints) {
-      return GestureDetector(
-        // return GestureDetector(
-        child: Container(
-          alignment: Alignment.center,
-          padding: EdgeInsets.all(5),
-          height: diameter,
-          width: diameter,
-          decoration: BoxDecoration(
-            color:
-                Color.lerp(floop[name + 'prevColor'], floop[name + 'color'], x),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            floop[name + 'count'].toString(), // (x * ).toInt().toString(),
-            style: TextStyle(
-              fontSize: 30,
-              color: Colors.white,
+      print('build circles in layoutBuilder. $widgets');
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Replay Text'),
+        ),
+        body: GestureDetector(
+          child: Container(
+            color: Colors.white,
+            child: Stack(
+              children: widgets,
             ),
           ),
+          onLongPressStart: (details) {
+            // print('spawning circle');
+            spawnCircle(details.localPosition, constraints.biggest);
+          },
+          // onTap: () => print('Tapped on the body'),
         ),
-        onTap: () {
-          placeLast(name);
-          floop[name + 'count'] = (floop[name + 'count'] + 1) % 100;
-          floop[name + 'prevColor'] = floop[name + 'color'];
-          floop[name + 'color'] = randomColor();
-          Transitions.clear(key: name);
-          Transitions.resumeOrPause(key: name + 'back');
-        },
-        onPanStart: (_) {
-          placeLast(name);
-          Transitions.pause(key: name + 'back');
-        },
-        // onPanCancel: () => Transitions.resume(key: name + 'back'),
-        onPanUpdate: (drag) {
-          // Transitions.pause(key: name + 'back');
-          floop[name + 'pos'] += drag.delta;
-        },
-        onPanEnd: (_) => transitionBack(name),
-        onLongPress: () => floop[name + 'count'] = 0,
+        floatingActionButton: FloatingActionButton(
+            child: Icon(Icons.repeat),
+            // child: Icon(paused == true ? Icons.play_arrow : Icons.repeat),
+            onPressed: () {
+              paused ^= paused;
+              Transitions.resumeOrPause();
+            }),
       );
     });
   }
 }
 
-transitionBack(String name) {
-  Transitions.clear(key: name + 'back');
-  Offset pos = floop[name + 'pos'];
-  transitionEval(2000, (ratio) {
-    floop[name + 'pos'] = Offset.lerp(pos, startingPositions[name], ratio);
-  }, key: name + 'back');
+class InteractiveCircle extends FloopWidget {
+  final String name;
+  final CircleProperties props;
+  InteractiveCircle(this.props, {Key key})
+      : name = props.name,
+        super(key: Key(props.name));
+
+  onContextUnmount(Element element) {
+    props.dispose();
+  }
+
+  @override
+  Widget buildWithFloop(BuildContext context) {
+    // print('building circle $name');
+    int ms = min(5000, 500 * props.count);
+    var x = transition(ms, key: name, refreshRateMillis: 100);
+    var pos = props.position; // reads floop map
+    return Positioned(
+      left: pos.dx,
+      top: pos.dy,
+      child: Opacity(
+        opacity: transition(200 * timeFactor),
+        child: GestureDetector(
+            child: Container(
+              alignment: Alignment.center,
+              padding: EdgeInsets.all(5),
+              height: diameter,
+              width: diameter,
+              decoration: BoxDecoration(
+                color: Color.lerp(props.baseColor, props.color, x),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                // the transition uses a key to prevent new transitions from
+                // triggering when `ms` changes
+                (props.count * transition(ms, key: name + 'counter'))
+                    .toInt()
+                    .toString(),
+                style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            onTap: () {
+              placeCircleLast(name);
+              props.count = (props.count + 1).clamp(0, 99);
+              props.baseColor = props.color;
+              props.color = randomColor();
+              Transitions.clear(key: name);
+              Transitions.resumeOrPause(key: props.backKey);
+            },
+            onDoubleTap: () {
+              Transitions.clear(context: context);
+            },
+            onPanStart: (_) {
+              // Transitions.clear(context: context);
+              Transitions.clear(key: props.backKey);
+              props.targetPosition = props.position;
+              placeCircleLast(name);
+              // Transitions.pause(key: goBackKey);
+            },
+            onPanUpdate: (drag) {
+              // Transitions.pause(key: name + 'back');
+              props.position += drag.delta;
+            },
+            onPanEnd: (_) => transitionBack(props),
+            onLongPress: () {
+              removeCircle(name);
+              Transitions.clear(context: context);
+              Transitions.clear(key: props.backKey);
+            }),
+      ),
+    );
+  }
+}
+
+transitionBack(CircleProperties circle, [bool delayed = false]) {
+  Transitions.clear(key: circle.backKey);
+  int delay = delayed ? circle.delay : 0;
+  circle.basePosition = circle.position;
+  transitionEval(1000 * timeFactor, (ratio) {
+    circle.position =
+        Offset.lerp(circle.basePosition, circle.targetPosition, ratio);
+    if (ratio == 1) {
+      // print('transition back ${circle.name}');
+      circle.targetPosition = circle.basePosition;
+      transitionBack(circle);
+    }
+  }, key: circle.backKey, delayMillis: delay);
 }
