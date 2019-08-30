@@ -27,7 +27,7 @@ buildWithFloop
 }
 ```
 
-The example above displays everything required to use the library, keep reading to learn more [details](#details), but it's not necessary. Full example [here](../master/example/clicker.dart).
+The example above displays everything required to use the library, keep reading to learn more [details](#details), but it's not necessary. Full example [here](../master/examples/clicker.dart).
 
 Any kind of values can be kept in the [ObservedMap] `floop`, it implements [Map]. Own [ObservedMap]s can be created instead: `Map myStore = ObservedMap()`.
 
@@ -52,11 +52,11 @@ Run `flutter pub get` in the root folder of your project.
 
 - When data that is common to the whole app changes (for example user data), automatically all widgets that use that data get updated. One less problem to worry about.
 
-- Loading and displaying data asynchronously (http requests) simplified. There is no need to use more complex objects like StreamBuilders to handle these cases. Store the async data on `floop` and conditionally check `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`. [Example](../master/example/image_list.dart)
+- Loading and displaying data asynchronously (http requests) simplified. There is no need to use more complex objects like StreamBuilders to handle these cases. Store the async data on `floop` and conditionally check `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`. [Example](../master/examples/image_list.dart)
 
 - It's efficient and has good performance (see [performance](#performance)), it only updates the widgets that need to be updated, being an advantage over having few StatefulWidgets that propagate data changes down the Widget tree, causing a whole branch of the tree to update.
 
-- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets `buildWithFloop`. [Animation example](../master/example/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
+- Easily make simple animations. Animations can be completely decoupled from the component, allowing the common basic stateless components to be used by reading values that will be changing. For example create oscillating values (like colors, position, size), save them in the store and read those values in the widgets `buildWithFloop`. [Animation example](../master/examples/animated_icons.dart). In the [play store](https://play.google.com/store/apps/details?id=com.icatalud.animaticon).
 
 ## <a name="details">Details</a>
 
