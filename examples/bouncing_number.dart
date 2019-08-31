@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:floop/floop.dart';
-import 'package:floop/internals.dart';
 
 const speed = 7;
 
@@ -13,15 +12,15 @@ void main() {
   floop['rotate'] = Matrix4.identity();
   floop['offset'] = Offset.zero;
   runApp(MaterialApp(
-      title: 'Clicker',
+      title: 'Bouncing Number',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: Clicker()));
+      home: PerspectiveLayout()));
 }
 
-class Clicker extends StatelessWidget with Floop {
-  const Clicker();
+class PerspectiveLayout extends StatelessWidget with Floop {
+  const PerspectiveLayout();
 
   @override
   Widget buildWithFloop(BuildContext context) {
@@ -43,11 +42,11 @@ class Clicker extends StatelessWidget with Floop {
               key: Key('resetOffset'),
             );
           },
-          child: _base(context),
+          child: _scaffoldBase(context),
         ));
   }
 
-  Widget _base(BuildContext context) {
+  Widget _scaffoldBase(BuildContext context) {
     return Scaffold(
       body: BouncingNumber(),
       backgroundColor: Color.lerp(
@@ -75,7 +74,7 @@ class Clicker extends StatelessWidget with Floop {
 }
 
 class BouncingNumber extends StatelessWidget with Floop {
-  BouncingNumber({Key key});
+  const BouncingNumber({Key key});
 
   @override
   Widget buildWithFloop(BuildContext context) {
@@ -93,10 +92,10 @@ class BouncingNumber extends StatelessWidget with Floop {
         ),
         Align(
           alignment: Alignment(
-              transitionNumber(-1, 0, 1000 * speed),
-              (1 - transition(800 * speed)) *
-                  0.5 *
-                  sin(transition(800 * speed) * 20 * pi)),
+              transition(1000 * speed) - 1, // from left to the middle [-1, 0]
+              (1 - transition(800 * speed)) * // amortizes the amplitude
+                  0.5 * // scales the amplitude
+                  sin(transition(800 * speed) * 20 * pi)), // oscillates
           child: Text(
             floop['clicks'].toString(),
             style: TextStyle(

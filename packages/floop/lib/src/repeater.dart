@@ -63,12 +63,12 @@ class Repeater extends Stopwatch {
 
   /// Resets this repeater's underlying stopwatch.
   ///
-  /// If `callOnce` is true (default) a single call to `callback` is made
-  /// potentially reseting some values that the callback is setting.
+  /// If `callOnce` is true (default) a single call to `update` is made
+  /// potentially reseting some values.
   reset([bool callOnce = true]) {
     super.reset();
     if (callOnce) {
-      fn(this);
+      update();
     }
   }
 
@@ -104,40 +104,34 @@ class Repeater extends Stopwatch {
 
   _run() {
     Future.delayed(Duration(milliseconds: frequencyMilliseconds), () {
+      assert(isLocked);
       if (super.isRunning) {
-        if (durationMilliseconds == null ||
-            elapsedMilliseconds < durationMilliseconds) {
-          update();
-          _run();
-        } else {
+        if (durationMilliseconds != null &&
+            elapsedMilliseconds >= durationMilliseconds) {
           stop();
-          // Invoke callback for the last time once finished.
-          update();
         }
+        update();
+        _run();
       } else {
         _releaseLock();
       }
     });
   }
 
-  /// Returns the equivalent value of a linear periodic function (sawtooth wave)
-  /// that goes from 0 (inclusive) to `maxNumber` (exclusive) with period
-  /// `periodMilliseconds` running for this [Repeater] elapsed time.
-  ///
-  /// Integer version of `[Repeater.periodicInt]`.
+  /// Integer version of [Repeater.periodicLinear].
   int periodicLinearInt(int periodMilliseconds, int maxNumber) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     var res = (maxNumber * current) ~/ periodMilliseconds;
     return res;
   }
 
-  /// Returns the equivalent value of a linear periodic function (sawtooth wave)
-  /// that goes from 0 (inclusive) to `maxNumber` (exclusive) with period
-  /// `periodMilliseconds` running for this [Repeater] elapsed time.
+  /// Returns the equivalent value of a linear periodic function (sawtooth
+  /// wave) that goes from 0 (inclusive) to `maxNumber` (exclusive) with
+  /// period `periodMilliseconds` running for this Repeater's elapsed time.
   ///
-  /// For example if elapsed time is 23ms and period is 10ms, then the
-  /// "current cycle time" is 3ms (30% of the cycle run). If `maxNumber`
-  /// is 6, the return value would be 1.8 (30% of 6).
+  /// For example if elapsed time is 18ms and period is 8ms, then the
+  /// "current cycle time" is 2ms (25% of the cycle length). If `maxNumber`
+  /// is 6, the return value would be 1.5 (0.25*6).
   double periodicLinear(int periodMilliseconds, [double maxNumber = 1]) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     return maxNumber * current / periodMilliseconds;

@@ -31,8 +31,8 @@ void addUnsubscribeCallback(Element element, UnsubscribeCallback callback) {
 /// [FullController] is the default configured controller used by the library.
 /// [LightController] is an alternative faster but more limited controller.
 abstract class FloopController {
-  Object _debugLastKeyChange;
-  Element _debugUnmounting;
+  static Object _debugLastKeyChange;
+  static Element _debugUnmounting;
 
   /// Switches the global Floop state controller to [FullController].
   static useFullController() => floopController = fullController;
@@ -101,8 +101,8 @@ abstract class FloopController {
     assert(() {
       if (isListening) {
         print('Error: Floop widget `${currentBuild.widget}` is building while '
-            'setting value of key `${floopController._debugLastKeyChange}` in '
-            'in an [ObservedMap]. Avoid writing to an [ObservedMap] while '
+            'setting value of key `${_debugLastKeyChange}` in an '
+            '[ObservedMap]. Avoid writing to an [ObservedMap] while '
             'bulding Widgets.');
         assert(false);
       }
@@ -377,7 +377,7 @@ class ObservedListener {
 
   void valueChanged(Object key) {
     assert(() {
-      floopController._debugLastKeyChange = key;
+      FloopController._debugLastKeyChange = key;
       return true;
     }());
     if (_keyToElements.containsKey(key)) {

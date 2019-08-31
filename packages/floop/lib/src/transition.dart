@@ -55,35 +55,33 @@ _addKeyToContext(key, context) {
 /// when invoked from inside a [Floop.buildWithFloop] method, automatically
 /// rebuilding the widget as the transition progresses.
 ///
-/// See [transitionEval] to create transitions from outside build methods, or
-/// [transitionOf] to retrieve the value of a keyed transition.
+/// `durationMillis` must not be null.
 ///
 /// `refreshRateMillis` is the frequency in milliseconds at which the
 /// transition updates it's value.
 ///
 /// The transition can be delayed by `delayMillis` milliseconds.
 ///
-/// Returns null if `durationMillis` is null and there is no transition for
-/// given `key`. If `key` is non null and a transition registered to `key`
-/// exists, it's current value is returned.
+/// Use [transitionEval] to create transitions from outside build methods, or
+/// [transitionOf] to retrieve the value of a keyed transition.
 ///
-/// When invoked from outside [buildWithFloop] methods, new transitions are
-/// not created, therefore `key` parameter should always be provided in those
-/// cases.
+/// If `key` is non null and a transition registered to `key` exists, it's
+/// current value is returned. Keys can be used to reference and apply
+/// operations to transitions through [Transitions] static methods.
+/// When invoked from outside [buildWithFloop] methods, this function is
+/// equivalent to [transitionOf], the only used parameter is `key`.
 ///
-/// Keys are useful to reference transitions somewhere else or to manipulate
-/// transitions with [Transitions].
-///
-/// Note that this method does not work inside builders, like [StreamBuilder],
+/// Note that this method does not work inside builders, like [LayoutBuilder],
 /// as builders build outside of the encompassing widget's build method.
-/// One workaround is to define a transition with a `key` within the
-/// encompassing [Floop] widget's build method: `transition(ms, key: myKey)`.
-/// Reference it from inside the builder: `transition(null, key: myKey)`.
+/// The workaround is to use a `var t = transition(...)` in the body of the
+/// [buildWithFloop] function and then use the var within the builder body.
+/// Another alternative is to define the transition with a key and then
+/// reference it with [transitionOf].
 ///
-/// In the following example `x` transitions from 0 to 1 in one second and
-/// `floop['y']` transitions from 0 to 1 in three seconds when there is a click
-/// event somewhere in the widget. The `Text` widget will always display the
-/// updated values.
+/// In the following example `x` transitions from 0 to 1 in five seconds when
+/// it builds and `floop['y']` transitions from 0 to 1 in three seconds when
+/// there is a click event. The `Text` widget will always display the updated
+/// values.
 ///
 /// ```dart
 /// class MyWidget extends StatelessWidget with Floop {
@@ -91,9 +89,9 @@ _addKeyToContext(key, context) {
 ///
 ///   @override
 ///   Widget buildWithFloop(BuildContext context, MyButtonState state) {
-///     double x = transition(1000);
+///     double t = transition(5000);
 ///     return ...
-///         Text('X is at $x and Y is at: ${floop['y']}'),
+///         Text('T is at $t and Y is at: ${floop['y']}'),
 ///         ...
 ///         ...onPressed: () => transitionEval(3000, evaluate: (x) => floop['y'] = x),
 ///         ...
@@ -102,8 +100,8 @@ _addKeyToContext(key, context) {
 /// }
 /// ```
 ///
-/// Created transitions references get cleared when the corresponding
-/// context gets unmounted.
+/// Created transitions references get cleared automatically when the
+/// corresponding build context gets unmounted.
 double transition(
   int durationMillis, {
   int refreshRateMillis = 20,
@@ -162,12 +160,13 @@ double transition(
 /// is created. Otherwise no operation is done. The key of the created or
 /// existing transition is always returned. A new key is created in case `key`
 /// is null.
+///
 /// Once the transition finishes, all references to it get cleared.
 ///
 /// This function cannot be invoked from within a widget's [buildWithFloop].
 /// Refer to [transition] for that use case.
 ///
-/// See also [Repeater.transition], the base construct used by this function.
+/// See [Repeater.transition] to create more customized transitions.
 Object transitionEval(
   int durationMillis,
   TransitionCallback evaluate, {
@@ -218,7 +217,7 @@ Object transitionEval(
 abstract class Transitions {
   /// Pauses transitions.
   ///
-  /// Be mindful that paused transitions that are not associated to any
+  /// Note that paused transitions that are not associated to any
   /// [BuildContext] will remain stored (taking memory) until they are resumed
   /// with [resume] or get disposed with [clear].
   static pause({Object key, BuildContext context}) {
@@ -276,20 +275,36 @@ abstract class Transitions {
   static _clear(_Transition t) => t?.stopAndDispose();
 }
 
-/// Equivalent to [transition] but scales the number between `start` and `end`.
+/// Integer version of [transitionNumber].
 int transitionInt(int start, int end, int durationMillis,
     {refreshRateMillis = 20}) {
-  return transitionNumber(start, end, durationMillis,
-          refreshRateMillis: refreshRateMillis)
+  return (start +
+          (end - start) *
+              transition(durationMillis, refreshRateMillis: refreshRateMillis))
       .toInt();
 }
 
-/// Equivalent to [transition] but scales the number between `start` and `end`.
+/// Invokes [transition] and scales the return value between `start` and `end`.
+///
+/// Can only be invoked from within [Floop.buildWithFloop] methods. See
+/// [transition] for detailed documentation about transitions.
 num transitionNumber(num start, num end, int durationMillis,
     {refreshRateMillis = 20}) {
   return start +
       (end - start) *
           transition(durationMillis, refreshRateMillis: refreshRateMillis);
+}
+
+/// Transitions a string from length 0 to the full string.
+///
+/// Can only be invoked from within [Floop.buildWithFloop] methods. See
+/// [transition] for detailed documentation about transitions.
+String transitionString(String string, int durationMillis,
+    {refreshRateMillis = 20}) {
+  int length = (string.length *
+          transition(durationMillis, refreshRateMillis: refreshRateMillis))
+      .toInt();
+  return string.substring(0, length);
 }
 
 /// Transitions the value of `key` in the provided `map`.
@@ -378,15 +393,21 @@ class _Transition extends Repeater {
       this.delayMillis = 0,
       this.disposeOnFinish = true])
       : super(null, refreshRateMillis, durationMillis + delayMillis) {
+    if (_keyToTransition.containsKey(key)) {
+      assert(() {
+        print('Error: transition api error, attempting to create a '
+            'transition that already exists.');
+        return false;
+      }());
+      _keyToTransition[key].stopAndDispose();
+    }
     _keyToTransition[key] = this;
-    // print('added transition key: $key, value: ${_keyToTransition[key]}');
   }
 
   double get progressRatio =>
       ((elapsedMilliseconds - delayMillis) / durationMillis)
           .clamp(0, 1)
           .toDouble();
-  // min(1, max(0, elapsedMilliseconds - delayMillis) / durationMillis);
 
   double get currentValue => observedRatio.value;
 

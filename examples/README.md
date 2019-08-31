@@ -1,13 +1,12 @@
 # Floop Examples
 
-Floop is trivial to use, but some examples are provided to feature the simplicity and advantages of the library.
-
 From simplest to more sophisticated, the order is the following:
 
-- cliker.dart  (most basic)
+- clicker.dart  (most basic)
 - icon_thumbnails.dart  (creates own store)
 - image_list.dart  (asynchronous data fetch)
-- text_replay.dart  (animated using transition)
+- phrases.dart  (transition)
 - drag_circle.dart  (animated)
-- cliker_transitions.dart (animated using transition)
+- bouncing_number.dart (animated using transition)
 - animated_icons.dart  (animated using Repeater)
+- circle_spawner (using most of transition operations)
