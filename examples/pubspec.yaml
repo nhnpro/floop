@@ -1,6 +1,5 @@
 name: example
 description: Example usage for Floop library.
-version: 0.1.1
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
@@ -10,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  floop: any
+  floop: ^0.3.0
+    # path: ../packages/floop
   http: any
 
 dev_dependencies:

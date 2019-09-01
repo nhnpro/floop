@@ -4,7 +4,7 @@ Dynamic values for Flutter widgets. Inspired by [react-recollect](https://github
 
 ### Example - How to use
 
-```diff
+```dart
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
 
@@ -64,7 +64,7 @@ Example:
   }
 ```
 
-Disclaimer(to be updated when more knowledge is acquired): I have not digged in into the Flutter animations API, neither have I used it. I suspect animated widgets work directly on an internal layer of the framework that allows them to be far more efficient. Making a fully animated app with Floop is possible as it can be corroborated with the examples, however I cannot ensure this is a good idea, since there is an overhead that would be unnecesary with a specialized API. What I can ensure for now is that it is perfectly fine to use for simple sporadic animations, that's what it is designed for. The great advantage is that of being extremely flexible and easy to use.
+**Disclaimer** (to be updated when more knowledge is acquired): I have not digged into the Flutter animations API, neither have I used it. I suspect animated widgets work directly on an internal layer of the framework that allows them to be far more efficient. Making a fully animated app with Floop is possible as it can be corroborated with the examples, however I cannot ensure this is a good idea, since there is an overhead that would be unnecesary with a specialized API. What I can ensure for now is that it is perfectly fine to use it for simple sporadic animations, that's what it is designed for. The great advantage is that it is extremely flexible and easy to use.
 
 ## <a name="details">Details</a>
 
