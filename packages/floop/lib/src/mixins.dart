@@ -10,13 +10,10 @@ mixin FloopBuilder {
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
-    try {
-      fullController.startListening(context);
-      var widget = buildWithFloop(context);
-      return widget;
-    } finally {
-      fullController.stopListening();
-    }
+    fullController.startListening(context);
+    var widget = buildWithFloop(context);
+    fullController.stopListening();
+    return widget;
   }
 }
 
@@ -30,13 +27,10 @@ mixin Floop on StatelessWidget implements FloopBuilder {
   /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
   Widget build(BuildContext context) {
-    try {
-      fullController.startListening(context);
-      var widget = buildWithFloop(context);
-      return widget;
-    } finally {
-      fullController.stopListening();
-    }
+    fullController.startListening(context);
+    var widget = buildWithFloop(context);
+    fullController.stopListening();
+    return widget;
   }
 
   /// Invoked when an [Element] (context) that holds this widget gets unmounted.

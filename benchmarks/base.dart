@@ -22,7 +22,13 @@ class MockElement extends Object implements Element {
 void doNothing([v]) {}
 
 double benchmarkFunction(f, [messagePrefix = 'Function']) {
-  var avgTime = BenchmarkBase.measureFor(f, 2000);
+  f10() {
+    for (int i = 0; i < 10; i++) {
+      f();
+    }
+  }
+
+  var avgTime = BenchmarkBase.measureFor(f10, 2000);
   print('$messagePrefix average time: $avgTime us');
   return avgTime;
 }

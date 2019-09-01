@@ -1,3 +1,10 @@
+## [0.3.0] - 1/09/2019
+
+- Adds transition API with examples.
+- Changes to Repeater.
+- Mixin and classes name changes, add disposeContext methods to Floop stateless widgets.
+- Some API name changes and added functionality.
+
 ## [0.2.3] - 20/07/2019
 
 Rolls back library dependency.

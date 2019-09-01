@@ -103,7 +103,7 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
 double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';
   void buildManyTimes() {
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10; i++) {
       widget.build(mockEle);
     }
   }
