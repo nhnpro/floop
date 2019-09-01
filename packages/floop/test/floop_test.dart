@@ -61,7 +61,7 @@ void main() {
       var mockEle = MockElement();
       floopController.startListening(mockEle);
       expect(floopController.length, 0);
-      expect(floopController.listening, true);
+      expect(floopController.isListening, true);
 
       // Set value of 'boo'. Because there are no key subscriptions, this
       // is not a problem.

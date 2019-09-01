@@ -78,7 +78,7 @@ class ImagesList extends StatelessWidget {
   }
 }
 
-class ImageItem extends StatelessWidget with Floop {
+class ImageItem extends StatelessWidget with FloopLight {
   final Map image;
 
   ImageItem(this.image) {

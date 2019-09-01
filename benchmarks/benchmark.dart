@@ -9,7 +9,7 @@ import 'widget_benchmark.dart';
 ///
 /// Otherwise the benchmarks can be run by using:
 ///
-/// flutter test benchmark\benchmark.dart
+/// flutter test benchmark\benchmark.dart > benchmarks.txt
 
 void main() {
   print('Running app');

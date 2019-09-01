@@ -21,7 +21,7 @@ void main() {
 }
 
 initializeStoreValues() {
-  // following key-values update widgets
+  // The following map values will update widgets on change
   store['showBig'] = false;
   store['animate'] = false;
   store['iconsShift'] = 0;
@@ -30,25 +30,31 @@ initializeStoreValues() {
   store['speedUpPressed'] = false;
   store['speedDownPressed'] = false;
 
-  // the following used just for general storage purposes
+  // The following values are used for general storage purposes
   store['rotationSpeed'] = 0.1;
   store['iconWidgets'] = icons.map((ic) => AnimatedIconButton(ic)).toList();
 }
 
 initializeRepeaters() {
+  // Remember to have a dispose method to stop the Repeaters in the case of
+  // an app where the window can change.
   repeaters = [
     Repeater((Repeater per) => store['angle'] += store['rotationSpeed']),
+    Repeater((Repeater per) =>
+        store['colorOffset'] = per.periodicLinearInt(5000, 256)),
     Repeater(
-        (Repeater per) => store['colorOffset'] = per.proportionInt(256, 5000)),
-    Repeater(
-        (Repeater per) =>
-            store['iconsShift'] = per.proportionInt(icons.length, 1000 * 1000),
+        (Repeater per) => store['iconsShift'] =
+            per.periodicLinearInt(1000 * 1000, icons.length),
         200),
   ];
-  store['speedUp'] = Repeater((_) => store['rotationSpeed'] =
-      min(0.4, (store['rotationSpeed'] as double) + 0.01));
-  store['speedDown'] = Repeater((_) => store['rotationSpeed'] =
-      max(-0.4, (store['rotationSpeed'] as double) - 0.01));
+  store['speedUp'] = Repeater(
+      (_) => store['rotationSpeed'] =
+          min(0.4, (store['rotationSpeed'] as double) + 0.01),
+      100);
+  store['speedDown'] = Repeater(
+      (_) => store['rotationSpeed'] =
+          max(-0.4, (store['rotationSpeed'] as double) - 0.01),
+      100);
 }
 
 shiftRight(List list, int shift) {
@@ -118,7 +124,7 @@ class IconThumbnails extends StatelessWidget with Floop {
                       : Colors.indigoAccent),
               onTap: () => store['rotationSpeed'] -= 0.1,
               onLongPress: () {
-                (store['speedDown'] as Repeater).start(100);
+                (store['speedDown'] as Repeater).start();
                 store['speedDownPressed'] = true;
               },
               onLongPressUp: () {
@@ -137,7 +143,7 @@ class IconThumbnails extends StatelessWidget with Floop {
               ),
               onTap: () => store['rotationSpeed'] += 0.1,
               onLongPress: () {
-                (store['speedUp'] as Repeater).start(100);
+                (store['speedUp'] as Repeater).start();
                 store['speedUpPressed'] = true;
               },
               onLongPressUp: () {
@@ -177,7 +183,7 @@ class AnimatedIconButton extends StatelessWidget with Floop {
   final IconData iconData;
   final double size;
 
-  AnimatedIconButton(this.iconData, {this.size = 40.0});
+  const AnimatedIconButton(this.iconData, {this.size = 40.0});
 
   updateAnimations() {
     var sameIcon = store['selectedIcon'] == iconData;

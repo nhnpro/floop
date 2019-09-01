@@ -1,6 +1,6 @@
 name: floop
-description: Flutter state management library. Automatically refresh Widgets on data changes. Extremely easy to use.
-version: 0.2.0
+description: Dynamic values for widgets. Changes values from anywhere and affected widgets are updated.
+version: 0.3.0
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
@@ -10,14 +10,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  mockito: ^4.1.0
+  # meta: ^1.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   pedantic: ^1.0.0
-  benchmark_harness: any
-  http: any
+  mockito: ^4.1.0
   
 
 # For information on the generic Dart part of this file, see the

@@ -7,3 +7,4 @@ export 'package:floop/src/observed.dart';
 export 'package:floop/src/mixins.dart';
 export 'package:floop/src/controller.dart';
 export 'package:floop/src/repeater.dart';
+export 'package:floop/src/transition.dart';
