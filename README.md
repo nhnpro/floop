@@ -83,17 +83,17 @@ Maps and lists can be stored as they are using the method [ObservedMap.setValue]
 ## <a name="performance">Performance</a>
 As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with a small Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that a Widget's build time is most likely not being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widgets build time could have no perceivable impact.
 
-The following build time increase can be considered as reference when comparing reading data from an [ObservedMap] in Floop widgets, to reading the same data from a [LinkedHashMap]in widgets without Floop. These are rough numbers, the benchmarks had quite some variability and they depend on many factors.
+The following build time increase can be considered as a rough reference when comparing reading data from an [ObservedMap] in Floop widgets, to reading the same data from a [LinkedHashMap] in widgets without Floop. These are rough numbers, the benchmarks have quite some variability and they depend on many factors.
 
 On very small Widgets (less than 10 lines in the build method), including Floop implies the following performance hit in build time:
 - x1.3 when 0 values are read.
 - x2.3 when up to 5 values are read.
-- x3.2 when up to 20 values are read.
+- x3.3 when up to 20 values are read.
 
 On medium Widgets:
 - x1.3 when 0 values are read.
-- x1.4 when up to 5 values are read (x2.1 FloopLight).
-- x2.5 when up to 20 values are read (x2.8 FloopLight).
+- x1.4 when up to 5 values are read.
+- x2.6 when up to 20 values are read.
 
 If more values are read, the [Map] read operation starts becoming the bottleneck of the Widget's build time even when reading from a regular [Map] and so the performance hit starts approaching the difference between reading from a [Map] and an [ObservedMap] while listening. The performance hit when reading from an [ObservedMap] in comparison to a regular [LinkedHashMap] is the following:
 
@@ -101,10 +101,10 @@ If more values are read, the [Map] read operation starts becoming the bottleneck
 - x3 while Floop is on 'listening' mode (when a Widget is building).
 - x5 - x8 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were 'observed' during the build of a widget.
 
-Benchmarks have quite some variability on each run and they depends on many factors. Generally the performance hit is proportional to the amount of data read, about x6 for 100 values read and then it increases logarithmically (x8 for 100000 thousand).
+Generally the performance hit is proportional to the amount of data read, about x6 for 100 values read and increases logarithmically (x8 for 100000 thousand).
 
 ### Writing performance
 Writing to an [ObservedMap] has a rough performance hit of x2.4 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.
 
 ## Collaborate
-Feel free to collaborate, report bugs, give advice or ideas to improve the library.
+Write code, report bugs, give advice or ideas to improve the library.

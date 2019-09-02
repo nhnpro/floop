@@ -101,10 +101,10 @@ If more values are read, the [Map] read operation starts becoming the bottleneck
 - x3 while Floop is on 'listening' mode (when a Widget is building).
 - x5 - x8 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were 'observed' during the build of a widget.
 
-Generally the performance hit is proportional to the amount of data read, about x6 for 100 values read and then it increases logarithmically (x8 for 100000 thousand).
+Generally the performance hit is proportional to the amount of data read, about x6 for 100 values read and increases logarithmically (x8 for 100000 thousand).
 
 ### Writing performance
 Writing to an [ObservedMap] has a rough performance hit of x2.4 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.
 
 ## Collaborate
-Feel free to collaborate, report bugs, give advice or ideas to improve the library.
+Write code, report bugs, give advice or ideas to improve the library.

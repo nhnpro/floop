@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:benchmark_harness/benchmark_harness.dart';
 import 'package:flutter/material.dart';
 
 import 'package:floop/src/mixins.dart';
@@ -78,18 +79,21 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
       'FloopWidget with controller filled build overhead x${(floopTimeFilled / referenceTime).toStringAsFixed(2)}');
 }
 
+// class WidgetBenchmark extends BenchmarkBase {
+//   WidgetBenchmark(String name) : super(name);
+// }
+
 double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';
+  // This should be changed to use many elements. Requires some change to
+  // the benchmark harrness.
   void buildManyTimes() {
-    FloopController.reset();
     for (int i = 0; i < 20; i++) {
-      mockEle = MockElement();
-      for (int j = 0; j < 10; i++) {
-        widget.build(mockEle);
-      }
+      widget.build(mockEle);
     }
   }
 
+  FloopController.reset();
   return benchmarkFunction(
       buildManyTimes, '${widget.runtimeType.toString()}$messageAdd');
 }
