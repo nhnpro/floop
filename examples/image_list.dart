@@ -47,8 +47,10 @@ class DisplayImages extends StatelessWidget with Floop {
                   ),
                 )
               : ListView(
-                  children:
-                      floop['images'].map((im) => ImageItem(im)).toList()),
+                  children: floop['images']
+                      .map((im) => ImageItem(im))
+                      .toList()
+                      .cast<Widget>()),
       floatingActionButton: FloatingActionButton(
         child: Icon(
             floop['images'] == null ? Icons.cloud_download : Icons.refresh),
