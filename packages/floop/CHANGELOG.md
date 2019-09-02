@@ -1,3 +1,9 @@
+## [0.4.0] - 2/09/2019
+
+- Major refactor to core functionality. Listening is faster.
+- Eliminated [FloopLight], examples updated accordingly.
+- Changed the clicker example for a fetch image one.
+
 ## [0.3.0] - 1/09/2019
 
 - Adds transition API with examples.
