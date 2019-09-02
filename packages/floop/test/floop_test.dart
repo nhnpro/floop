@@ -18,17 +18,17 @@ class MockElement extends Mock implements Element {
 }
 
 void subscribeKeyToElement(ObservedMap observed, Object key, Element element) {
-  floopController.startListening(element);
+  FloopController.startListening(element);
   observed[key];
-  floopController.stopListening();
+  FloopController.stopListening();
 }
 
 void main() {
   ObservedMap observedMap;
 
   setUp(() {
-    floopController.reset();
-    assert(floopController.length == 0);
+    FloopController.reset();
+    assert(FloopController.length == 0);
     observedMap = ObservedMap();
     observedMap.addAll({'tasks': tasks});
   });
@@ -59,9 +59,9 @@ void main() {
   group('FloopController tests', () {
     test('listener key subscriptions, mutiple keys', () {
       var mockEle = MockElement();
-      floopController.startListening(mockEle);
-      expect(floopController.length, 0);
-      expect(floopController.isListening, true);
+      FloopController.startListening(mockEle);
+      expect(FloopController.length, 0);
+      expect(FloopController.isListening, true);
 
       // Set value of 'boo'. Because there are no key subscriptions, this
       // is not a problem.
@@ -75,29 +75,26 @@ void main() {
       // Only observedMap and observedMap['tasks'][0] are [Observed] datastructures
       // that are listened.
       observedMap['tasks'][0]['title'];
-      expect(floopController.length, 0);
-      expect(floopController.currentBuild, equals(mockEle));
+      expect(FloopController.length, 0);
+      expect(FloopController.currentBuild, equals(mockEle));
       // expect(observedMap['tasks'][0].keySubscriptions, hasLength(1));
 
-      floopController.stopListening();
-      expect(floopController.length, 1);
-      expect(floopController.contains(mockEle), true);
-      expect(
-          (floopController as FullController).subscriptions[mockEle].length, 2);
+      FloopController.stopListening();
+      expect(FloopController.length, 1);
+      expect(FloopController.contains(mockEle), true);
+      // expect((FloopController as FloopController).subscriptions[mockEle].length,
+      //     2);
     });
 
-    test('set value calls updates Element when key is not in ObservedMap', () {
+    test('`[]=` calls updates Element when key is not in the ObservedMap', () {
       var mockEle = MockElement();
       subscribeKeyToElement(observedMap, 'boo', mockEle);
-      expect(floopController.contains(mockEle), true);
-
-      // ObservedListener listener = (floopController as FullController).subscriptions[mockEle].first;
-      // expect(listener.keyToElements.containsKey('boo'), true);
+      expect(FloopController.contains(mockEle), true);
       observedMap['boo'] = [1, 2, 3];
-      verify(mockEle.markNeedsBuild()).called(1);
+      verify(mockEle.markNeedsBuild()).called(greaterThan(0));
     });
 
-    test('only read keys during the last listening cycle should be subscribed',
+    test('only keys read during the last listening cycle should be subscribed',
         () {
       var mockEle = MockElement();
       subscribeKeyToElement(observedMap, 'boo', mockEle);
@@ -106,20 +103,20 @@ void main() {
       verifyNever(mockEle.markNeedsBuild());
 
       observedMap['faz'] = 'salsa';
-      verify(mockEle.markNeedsBuild()).called(1);
+      verify(mockEle.markNeedsBuild()).called(greaterThan(0));
     });
 
-    test('set value when multiple elements subscribed', () {
+    test('set value when multiple elements are subscribed', () {
       var mockEle = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(floopController.length, 2);
+      expect(FloopController.length, 2);
 
       // set operation updates both elements
       observedMap['tennis'] = 'match point';
-      verify(mockEle.markNeedsBuild()).called(1);
-      verify(mockEle2.markNeedsBuild()).called(1);
+      verify(mockEle.markNeedsBuild()).called(greaterThan(0));
+      verify(mockEle2.markNeedsBuild()).called(greaterThan(0));
     });
 
     test('unsubscribing elements', () {
@@ -127,17 +124,17 @@ void main() {
       subscribeKeyToElement(observedMap, 'tennis', mockEle);
       var mockEle2 = MockElement();
       subscribeKeyToElement(observedMap, 'tennis', mockEle2);
-      expect(floopController.contains(mockEle), true);
-      expect(floopController.contains(mockEle2), true);
+      expect(FloopController.contains(mockEle), true);
+      expect(FloopController.contains(mockEle2), true);
       expect(observedMap.length, 1);
       // expect(observedMap.keySubscriptions['tennis'], unorderedEquals([mockEle, mockEle2]));
 
       unsubscribeElement(mockEle);
-      expect(floopController.contains(mockEle), false);
+      expect(FloopController.contains(mockEle), false);
       // expect(observedMap.keySubscriptions['tennis'], isNot(contains(mockEle)));
 
       unsubscribeElement(mockEle2);
-      expect(floopController.contains(mockEle2), false);
+      expect(FloopController.contains(mockEle2), false);
       // expect(observedMap.keySubscriptions, hasLength(0));
       // expect(observedMap.elementSubscriptions, hasLength(0));
     });

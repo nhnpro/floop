@@ -10,14 +10,14 @@ List<InteractiveCircle> circleWidgets = List();
 void main() {
   floop['circleWidgets'] = circleWidgets;
   runApp(MaterialApp(
-      title: 'Circle Spawner',
+      title: 'Bubbles',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MovingCircles()));
+      home: Bubbles()));
 }
 
-class MovingCircles extends StatelessWidget with Floop {
+class Bubbles extends StatelessWidget with Floop {
   @override
   Widget buildWithFloop(BuildContext context) {
     // int ms = 500 * timeFactor;
@@ -25,7 +25,7 @@ class MovingCircles extends StatelessWidget with Floop {
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Replay Text'),
+          title: Text('Bubbles - Long press to spawn a bubble'),
         ),
         body: GestureDetector(
           child: Container(

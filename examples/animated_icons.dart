@@ -81,7 +81,9 @@ rotateWidget(Widget widget, [speed = 1]) {
 class IconThumbnails extends StatelessWidget with Floop {
   reset() {
     for (Repeater rep in repeaters) {
-      rep.reset();
+      rep
+        ..stop()
+        ..reset();
     }
     (store['speedUp'] as Repeater).reset();
     (store['speedDown'] as Repeater).reset();

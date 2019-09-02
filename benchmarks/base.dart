@@ -42,19 +42,18 @@ addObservedSubscriptions(ObservedMap observed, [int numberOfKeys = 10]) {
 
 void warmUpController(int numberOfElements,
     [ObservedMap readMap, Iterable keys]) {
-  floopController.reset();
+  FloopController.reset();
   readMap = readMap != null ? readMap : ObservedMap.of(createMapWithValues(3));
   keys = keys != null ? keys : readMap.keys;
   for (int i = 0; i < numberOfElements; i++) {
-    floopController.startListening(MockElement());
+    FloopController.startListening(MockElement());
     plainRead(readMap, keys);
-    floopController.stopListening();
+    FloopController.stopListening();
   }
   assert(() {
-    if (floopController.length != numberOfElements && keys.isNotEmpty) {
-      print(
-          'Inconsistency: ${floopController.runtimeType.toString()} elements is\n'
-          '${floopController.length} but should be $numberOfElements.\n');
+    if (FloopController.length != numberOfElements && keys.isNotEmpty) {
+      print('Inconsistency: ${FloopController} elements is\n'
+          '${FloopController.length} but should be $numberOfElements.\n');
       return false;
     }
     return true;

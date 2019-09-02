@@ -3,10 +3,6 @@ import './controller.dart';
 
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-abstract class Observed<K, V> {
-  ObservedListener _listener = ObservedListener();
-}
-
 /// The basic Map data structure that is listened by Floop when reading
 /// or setting values.
 ///
@@ -14,7 +10,7 @@ abstract class Observed<K, V> {
 /// method, subscribes the read keys to the widget's [Element] (context).
 /// Whenever a key value changes, any subscribed context will be rebuilt in
 /// the next frame.
-class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
+class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   final Map<K, V> _keyToValue = Map();
 
   ObservedMap();
@@ -37,7 +33,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// [Floop.buildWithFloop], the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
   operator [](key) {
-    _listener.valueRetrieved(key);
+    valueRetrieved(key);
     return _keyToValue[key];
   }
 
@@ -51,7 +47,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// corresponding values though.
   @override
   Iterable<K> get keys {
-    _listener.mutationRead();
+    keysRetrieved();
     return _keyToValue.keys;
   }
 
@@ -85,7 +81,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   _notifyListenerIfChange(Object key, V value) {
     if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
-      _listener.valueChanged(key);
+      valueChanged(key);
     }
   }
 
@@ -94,19 +90,19 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    _listener.valueChanged(key);
+    valueChanged(key);
   }
 
   @override
   void clear() {
     _keyToValue.clear();
-    _listener.cleared();
+    cleared();
   }
 
   @override
   V remove(Object key, [bool triggerUpdates = true]) {
     if (triggerUpdates && _keyToValue.containsKey(key)) {
-      _listener.valueChanged(key);
+      valueChanged(key);
     }
     return _keyToValue.remove(key);
   }

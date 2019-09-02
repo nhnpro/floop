@@ -27,22 +27,19 @@ main() => runWidgetBenchmarks();
 runWidgetBenchmarks() {
   print(
       '\n-------------Light Widget Benchmarks------------------------------------\n');
-  benchmarkWidgets((f) => SmallWidget(f), (f) => SmallWidgetFloop(f),
-      (f) => SmallWidgetFloopLight(f));
+  benchmarkWidgets((f) => SmallWidget(f), (f) => SmallWidgetFloop(f));
 
   print(
       '\n-------------Medium Widget Benchmarks------------------------------------\n');
-  benchmarkWidgets((f) => MediumWidget(f), (f) => MediumWidgetFloop(f),
-      (f) => MediumWidgetFloopLight(f));
+  benchmarkWidgets((f) => MediumWidget(f), (f) => MediumWidgetFloop(f));
 
   print('-----------------------------------------------------');
   print('-------------End Widget Benchmarks--------------------------------');
   print('-----------------------------------------------------\n');
 }
 
-void benchmarkWidgets(
-    Function createRefWidget, createFloopWidget, createFloopLightWidget,
-    [String headLine = 'Widgets']) {
+void benchmarkWidgets(Function createRefWidget, createFloopWidget,
+    [createFloopLightWidget, String headLine = 'Widgets']) {
   // print('\n${headLine.toUpperCase()}\n');
   const numberKeys = [0, 1, 3, 5, 20, 100, 1000, 10000];
   for (int i in numberKeys) {
@@ -64,8 +61,7 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
   widget = createRefWidget(createValueReader(map, numberOfReads));
   var referenceTime = runBenchmarkFunction(widget);
 
-  FloopController.useFullController();
-  print('----Using ${floopController.runtimeType.toString()}----');
+  print('----Using ${FloopController}----');
 
   map = ObservedMap.of(map);
   widget = createFloopWidget(createValueReader(map, numberOfReads));
@@ -74,37 +70,23 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
   addObservedSubscriptions(map, numberOfReads);
   var floopTimeFilled = runBenchmarkFunction(widget, 'with controller filled');
 
-  floopController.reset();
-  FloopController.useLightController();
-  print('----Using ${floopController.runtimeType.toString()}----');
-
-  map = ObservedMap.of(map);
-  widget = createFloopLightWidget(createValueReader(map, numberOfReads));
-  var floopLightTime = runBenchmarkFunction(widget);
-
-  addObservedSubscriptions(map, numberOfReads);
-  var floopLightTimeFilled =
-      runBenchmarkFunction(widget, 'with controller filled');
-
-  floopController.reset();
-
   print(
       '\nWidget read map operation build overhead x${(referenceTime / referenceTimePureBuild).toStringAsFixed(2)}');
   print(
       '\nFloopWidget build overhead x${(floopTime / referenceTime).toStringAsFixed(2)}');
   print(
       'FloopWidget with controller filled build overhead x${(floopTimeFilled / referenceTime).toStringAsFixed(2)}');
-  print(
-      'Light FloopWidget build overhead x${(floopLightTime / referenceTime).toStringAsFixed(2)}');
-  print(
-      'Light FloopWidget with controller filled build overhead x${(floopLightTimeFilled / referenceTime).toStringAsFixed(2)}');
 }
 
 double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';
   void buildManyTimes() {
-    for (int i = 0; i < 10; i++) {
-      widget.build(mockEle);
+    FloopController.reset();
+    for (int i = 0; i < 20; i++) {
+      mockEle = MockElement();
+      for (int j = 0; j < 10; i++) {
+        widget.build(mockEle);
+      }
     }
   }
 
@@ -134,7 +116,7 @@ class SmallWidget extends StatelessWidget {
 
 class SmallWidgetFloop = SmallWidget with Floop;
 
-class SmallWidgetFloopLight = SmallWidget with FloopLight;
+// class SmallWidgetFloopLight = SmallWidget with FloopLight;
 
 class MediumWidget extends StatelessWidget {
   final Function readOperation;
@@ -186,4 +168,4 @@ class MediumWidget extends StatelessWidget {
 
 class MediumWidgetFloop = MediumWidget with Floop;
 
-class MediumWidgetFloopLight = MediumWidget with FloopLight;
+// class MediumWidgetFloopLight = MediumWidget with FloopLight;

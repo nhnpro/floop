@@ -29,9 +29,10 @@ Steps:
 
 - Add `with Floop` at the end of the widget class definition
 - Change the `build` to `builWithFloop`
-- Read any value from `floop` [ObservedMap] and the widget will reactively update on a change
+- Read any value from `floop` [ObservedMap] and the widget will reactively update on changes to the value
 
-It is also possible to use `transition(3000)` within the [buildWithFloop] method to have a value transition from 0 to 1 in 3000 milliseconds. See [transitions](#transitions) for more information.
+Extra step:
+- Use `transition(ms)` within the [buildWithFloop] method to have a value transition from 0 to 1 in `ms` milliseconds. See [transitions](#transitions) for more information.
 
 On Stateful widgets: `...extends FloopState` (the Widget itself is left unchanged).
 
@@ -68,7 +69,7 @@ All floop widgets can be easily animated using [transition]. Example:
   }
 ```
 
-**Disclaimer about animations** (to be updated when more knowledge is acquired): I have not digged into the Flutter animations API, neither have I used it. I suspect animated widgets work directly on an internal layer of the framework that makes them quite more efficient than regular widgets when updating. Making a fully animated app with Floop is possible as it can be corroborated with the examples, however I cannot ensure this is the best idea, since there is an overhead that would be unnecesary with a specialized API. What I can ensure for now is that it is perfectly fine to use [transition] for simple sporadic animations, that's what it is designed for. The great advantage is that it is extremely flexible and easy to use.
+**Disclaimer about animations** (to be updated when more knowledge is acquired): I have not digged into the Flutter animations API, neither have I used it. I suspect animated widgets work directly on an internal layer of the framework that makes them quite more efficient than regular widgets when updating. Making a fully animated app with Floop is possible as it can be corroborated with the examples, however I cannot ensure this is the best idea, since there is an overhead that would be unnecesary with a specialized API. What I can ensure for now is that it is perfectly fine to use [transition] for simple sporadic animations, that's what it is designed for. The great advantage is that it is flexible and easy to use.
 
 ## <a name="details">Details</a>
 
@@ -76,39 +77,34 @@ All floop widgets can be easily animated using [transition]. Example:
 
 Widgets only subscribe to the keys **read during the last build**. This is consistent, if a key is not read during the last build, a change on it's value has no impact on the widget's build output.
 
-[Map] and [List] values are not stored as they are, but rather they get deep copied (automatically). Every [Map] gets copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable]. Maps and lists can be stored as they are using the method [ObservedMap.setValue], however by doing so the values inside the map or list will not update Widgets when they change. [ObservedMap.setValue] also has the option to stop widgets from updating when setting the value.
-
-### Floop Light
-
-Performance hit by using [Floop] shouldn't be an issue in common use cases. However, when attempting to optimize the app, switch from the [Floop] mixin to [FloopLight] mixin whenever possible. [FloopLight] only allows listening to one [ObservedMap] during each Widget's build. This should satisfy most use cases, but it's uncompatible with transitions API when also reading from an [ObservedMap] while building the widget, since transitions use an internal [ObservedMap].
+[Map] and [List] values are not stored as they are, but rather they get deep copied when using `[]=` operator. Every [Map] gets copied as an [ObservedMap] instance, while lists get copied using [List.unmodifiable].
+Maps and lists can be stored as they are using the method [ObservedMap.setValue], but changes on them will not trigger updates on widgets. [ObservedMap.setValue] also has the option to stop widgets from updating when setting the value.
 
 ## <a name="performance">Performance</a>
 As a rule of thumb, including Floop in a Widget can be considered (being pessimistic) as wrapping the Widget with a small Widget. In practice it's better than that, because there is only one widget, so there is not impact that goes beyond the Widget's build time. It also has to be considered that a Widget's build time is most likely not being the bottleneck of the rendering process in Flutter. Even an order of magnitude of performance hit in the Widgets build time could have no perceivable impact.
 
 The following build time increase can be considered as reference when comparing reading data from an [ObservedMap] in Floop widgets, to reading the same data from a [LinkedHashMap]in widgets without Floop. These are rough numbers, the benchmarks had quite some variability and they depend on many factors.
 
-In very small Widgets (less than 10 lines in the build method), including Floop implies the following performance hit in build time:
-- x1.6 when 0 values are read (x1.1 FloopLight).
-- x4 when up to 5 values are read (x2.6 FloopLight).
-- x6 when up to 20 values are read (x3.3 FloopLight).
+On very small Widgets (less than 10 lines in the build method), including Floop implies the following performance hit in build time:
+- x1.3 when 0 values are read.
+- x2.3 when up to 5 values are read.
+- x3.2 when up to 20 values are read.
 
-In medium Widgets:
-- x1.4 when 0 values are read (x1.06 FloopLight).
-- x3 when up to 5 values are read (x2.1 FloopLight).
-- x4.5 when up to 20 values are read (x2.8 FloopLight).
+On medium Widgets:
+- x1.3 when 0 values are read.
+- x1.4 when up to 5 values are read (x2.1 FloopLight).
+- x2.5 when up to 20 values are read (x2.8 FloopLight).
 
 If more values are read, the [Map] read operation starts becoming the bottleneck of the Widget's build time even when reading from a regular [Map] and so the performance hit starts approaching the difference between reading from a [Map] and an [ObservedMap] while listening. The performance hit when reading from an [ObservedMap] in comparison to a regular [LinkedHashMap] is the following:
 
-- x1.25 using the map like a regular map.
-- x2.5 while Floop is on 'listening' mode (when a Widget is building).
+- x1.25 using the map like a regular map (outside build method).
+- x3 while Floop is on 'listening' mode (when a Widget is building).
 - x5 - x8 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were 'observed' during the build of a widget.
 
-Benchmarks have quite some variability on each run, it depends if debugging or not, the type of data being written or read, the amount of data, etc. Generally the performance hit is proportional to the amount of data read, converging at about x7 for 100 values read, then it increases logarithmically (x8 for 100000 thousand).
-
-For optimizing the app, the alternative [FloopLight] mixin can be used, which converges at about x4 build time increase (less than 3x for few values, 1.1x no values read). It has the limitation described in the details section.
+Benchmarks have quite some variability on each run and they depends on many factors. Generally the performance hit is proportional to the amount of data read, about x6 for 100 values read and then it increases logarithmically (x8 for 100000 thousand).
 
 ### Writing performance
-Writing to an [ObservedMap] has a rough performance hit of x3.2 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.
+Writing to an [ObservedMap] has a rough performance hit of x2.4 in all circumstances, unless there are widgets subscribed to the key, in which case there is the extra time that takes Flutter to run [Element.markNeedsBuild]. This time is not counted, since that method would be called anyways to update the Widget.
 
 ## Collaborate
 Feel free to collaborate, report bugs, give advice or ideas to improve the library.

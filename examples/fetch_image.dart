@@ -22,6 +22,7 @@ fetchImage([String url = 'https://picsum.photos/300/200']) async {
   _fetching = false;
 }
 
+// `extends FloopWidget` is equivalent to `StatelessWidget with Floop`.
 class TransitionImage extends FloopWidget {
   final Image image;
   const TransitionImage(this.image);

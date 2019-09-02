@@ -5,7 +5,7 @@ import './repeater.dart';
 
 T _doubleAsType<T, V>(V x) => x as T;
 
-final Map<Element, Set<Object>> _contextToKeys = Map();
+final Map<BuildContext, Set<Object>> _contextToKeys = Map();
 
 class _MultiKey extends LocalKey {
   final a, b, c, d;
@@ -108,7 +108,7 @@ double transition(
   int delayMillis = 0,
   Object key,
 }) {
-  BuildContext context = floopController.currentBuild;
+  BuildContext context = FloopController.currentBuild;
   final bool canCreate =
       durationMillis != null && (context != null || key != null);
   assert(() {
@@ -175,7 +175,7 @@ Object transitionEval(
   Object key,
 }) {
   assert(() {
-    if (floopController.currentBuild != null) {
+    if (FloopController.currentBuild != null) {
       print('Error: should not invoke [transitionEval] while a Floop Widget '
           'is building. Use [transition]` instead.');
       return false;
@@ -347,8 +347,8 @@ void _stopAndDispose(Object key) {
   _Transition.get(key)?.stopAndDispose();
 }
 
-void _clearContextTransitions(Element element) {
-  _contextToKeys.remove(element)?.forEach(_stopAndDispose);
+void _clearContextTransitions(BuildContext context) {
+  _contextToKeys.remove(context)?.forEach(_stopAndDispose);
 }
 
 /// Returns the current value of the transition registered to `key` if it

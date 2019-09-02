@@ -5,8 +5,8 @@ import 'base.dart';
 
 /// Benchmarks for the ObservedMap implementation.
 ///
-/// Run benchmarks by entering 'flutter test .\benchmark\observed_benchamark.dart' in
-/// console, in the root folder of the project.
+/// Enter 'flutter test .\benchmark\observed_benchamark.dart' in console
+/// from the root folder of the project to run the benchmarks.
 
 main() => runObservedBenchmarks();
 
@@ -46,8 +46,7 @@ runReadBenchmark(Map data, Iterable keys,
   print('\n${benchmarkHeadLine.toUpperCase()}\n');
   MockElement mockElement = MockElement();
 
-  FloopController.useFullController();
-  floopController.reset();
+  FloopController.reset();
 
   Map readMap = ObservedMap.of(data);
   var obsTime =
@@ -65,75 +64,76 @@ runReadBenchmark(Map data, Iterable keys,
   readMap = Map.of(data);
   refTime = benchmarkFunction(() => plainRead(readMap, keys), 'LinkedHashMap');
 
-  print('----Using ${floopController.runtimeType.toString()}----');
+  print('----Using ${FloopController}----');
 
   readMap = ObservedMap.of(data);
-  floopController.startListening(mockElement);
+  FloopController.startListening(mockElement);
   var obsTimeListening = benchmarkFunction(
       () => plainRead(readMap, keys), 'ObservadMap while listening');
-  floopController.stopListening();
+  FloopController.stopListening();
 
   readMap = ObservedMap.of(data);
   addObservedSubscriptions(readMap); // loads the controller with subscriptions
-  floopController.startListening(mockElement);
+  FloopController.startListening(mockElement);
   var obsTimeListening2 = benchmarkFunction(() => plainRead(readMap, keys),
       'ObservadMap while listening with filled controller');
-  floopController.stopListening();
-  floopController.reset();
+  FloopController.stopListening();
+  FloopController.reset();
 
   readMap = ObservedMap.of(data);
   var obsTimeListeningCycle = benchmarkFunction(() {
-    floopController.startListening(mockElement);
+    FloopController.startListening(mockElement);
     plainRead(readMap, keys);
-    floopController.stopListening();
+    FloopController.stopListening();
   }, 'ObservadMap complete listening cycle');
 
   readMap = ObservedMap.of(data);
   addObservedSubscriptions(readMap);
   var obsTimeListeningCycle2 = benchmarkFunction(() {
-    floopController.startListening(mockElement);
+    FloopController.startListening(mockElement);
     plainRead(readMap, keys);
-    floopController.stopListening();
+    FloopController.stopListening();
   }, 'ObservadMap complete listening cycle with filled controller');
 
-  floopController.reset();
+  FloopController.reset();
 
+  // For experimental comparison controller
   // Using Light controller
-  FloopController.useLightController();
-  floopController.reset();
-  print('----Using ${floopController.runtimeType.toString()}----');
+  // UnifiedController.useLightController();
+  // UnifiedController.reset();
+  // print('----Using ${UnifiedController}----');
 
-  readMap = ObservedMap.of(data);
-  floopController.startListening(mockElement);
-  var obsTimeLightListening = benchmarkFunction(() => plainRead(readMap, keys),
-      'ObservadMap while listening with Light controller');
-  floopController.stopListening();
+  // readMap = ObservedMap.of(data);
+  // UnifiedController.startListening(mockElement);
+  // var obsTimeLightListening = benchmarkFunction(() => plainRead(readMap, keys),
+  //     'ObservadMap while listening with Light controller');
+  // UnifiedController.stopListening();
 
-  readMap = ObservedMap.of(data);
-  addObservedSubscriptions(readMap); // loads the controller with subscriptions
-  floopController.startListening(mockElement);
-  var obsTimeLightListening2 = benchmarkFunction(() => plainRead(readMap, keys),
-      'ObservadMap while listening with filled Light controller');
-  floopController.stopListening();
+  // readMap = ObservedMap.of(data);
+  // addObservedSubscriptions(readMap); // loads the controller with subscriptions
+  // UnifiedController.startListening(mockElement);
+  // var obsTimeLightListening2 = benchmarkFunction(() => plainRead(readMap, keys),
+  //     'ObservadMap while listening with filled Light controller');
+  // UnifiedController.stopListening();
 
-  readMap = ObservedMap.of(data);
-  var obsTimeLightListeningCycle = benchmarkFunction(() {
-    floopController.startListening(mockElement);
-    plainRead(readMap, keys);
-    floopController.stopListening();
-  }, 'ObservadMap complete listening cycle');
+  // readMap = ObservedMap.of(data);
+  // var obsTimeLightListeningCycle = benchmarkFunction(() {
+  //   UnifiedController.startListening(mockElement);
+  //   plainRead(readMap, keys);
+  //   UnifiedController.stopListening();
+  // }, 'ObservadMap complete listening cycle');
 
-  floopController.reset();
-  readMap = ObservedMap.of(data);
-  addObservedSubscriptions(readMap);
-  var obsTimeLightListeningCycle2 = benchmarkFunction(() {
-    floopController.startListening(mockElement);
-    plainRead(readMap, keys);
-    floopController.stopListening();
-  }, 'ObservadMap complete listening cycle with filled controller');
+  // UnifiedController.reset();
+  // readMap = ObservedMap.of(data);
+  // addObservedSubscriptions(readMap);
+  // var obsTimeLightListeningCycle2 = benchmarkFunction(() {
+  //   UnifiedController.startListening(mockElement);
+  //   plainRead(readMap, keys);
+  //   UnifiedController.stopListening();
+  // }, 'ObservadMap complete listening cycle with filled controller');
 
-  floopController.reset();
-  FloopController.useFullController();
+  FloopController.reset();
+  // UnifiedController.useFullController();
 
   benchmarkFunction(() {
     for (var k in keys);
@@ -145,19 +145,19 @@ runReadBenchmark(Map data, Iterable keys,
       'Observed access time overhead while listening x${(obsTimeListening / refTime).toStringAsFixed(2)}');
   print(
       'Observed access time overhead while listening with controller Standard filled x${(obsTimeListening2 / refTime).toStringAsFixed(2)}');
-  print(
-      'Observed access time overhead while listening Light x${(obsTimeLightListening / refTime).toStringAsFixed(2)}');
-  print(
-      'Observed access time overhead while listening with controller Light filled x${(obsTimeLightListening2 / refTime).toStringAsFixed(2)}');
+  // print(
+  //     'Observed access time overhead while listening Light x${(obsTimeLightListening / refTime).toStringAsFixed(2)}');
+  // print(
+  //     'Observed access time overhead while listening with controller Light filled x${(obsTimeLightListening2 / refTime).toStringAsFixed(2)}');
   print('----Full cycle ratios----');
   print(
       'Complete listen cycle access time overhead x${(obsTimeListeningCycle / refTime).toStringAsFixed(2)}');
   print(
       'Complete listen cycle access time overhead with controller Standard filled x${(obsTimeListeningCycle2 / refTime).toStringAsFixed(2)}');
-  print(
-      'Complete listen cycle access time overhead Light x${(obsTimeLightListeningCycle / refTime).toStringAsFixed(2)}');
-  print(
-      'Complete listen cycle access time overhead with controller Light filled x${(obsTimeLightListeningCycle2 / refTime).toStringAsFixed(2)}');
+  // print(
+  //     'Complete listen cycle access time overhead Light x${(obsTimeLightListeningCycle / refTime).toStringAsFixed(2)}');
+  // print(
+  //     'Complete listen cycle access time overhead with controller Light filled x${(obsTimeLightListeningCycle2 / refTime).toStringAsFixed(2)}');
   print('');
 }
 
