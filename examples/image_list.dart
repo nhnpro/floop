@@ -46,7 +46,9 @@ class DisplayImages extends StatelessWidget with Floop {
                     fontWeight: FontWeight.w700,
                   ),
                 )
-              : ImagesList(floop['images'].cast<Map>()),
+              : ListView(
+                  children:
+                      floop['images'].map((im) => ImageItem(im)).toList()),
       floatingActionButton: FloatingActionButton(
         child: Icon(
             floop['images'] == null ? Icons.cloud_download : Icons.refresh),
@@ -61,19 +63,6 @@ class DisplayImages extends StatelessWidget with Floop {
           floop['loading'] = false;
         },
       ),
-    );
-  }
-}
-
-class ImagesList extends StatelessWidget {
-  final List<Map> images;
-
-  ImagesList(this.images);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: images.map((im) => ImageItem(im)).toList(),
     );
   }
 }

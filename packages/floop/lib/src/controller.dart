@@ -26,7 +26,7 @@ void addUnsubscribeCallback(Element element, UnsubscribeCallback callback) {
 
 /// Abstract class that implements basic functionality for listening and
 /// updating widgets. It defines the API of the controller required by Floop
-/// Widgets.
+/// widgets.
 ///
 /// [FullController] is the default configured controller used by the library.
 /// [LightController] is an alternative faster but more limited controller.
@@ -59,7 +59,7 @@ abstract class FloopController {
       stopListening();
       // The controller already listening should assert to false, but it's
       // annoying when developing, as it triggers all the time when the builds
-      // get interrupted.
+      // get interrupted by some error.
       // assert(false);
     }
     _currentBuild = element;
@@ -165,9 +165,8 @@ class FullController extends FloopController {
     assert(_currentObservedListeners != null);
     Set<ObservedListener> previousSubscriptions = _subscriptions[_currentBuild];
     // Unsubscribes from Observeds that were not read during the build.
-    // It should be uncommon, since widgets usually read the same
-    // field from a Map.
-    // Conditional reads or reading from a new Map could cause it.
+    // It should be uncommon, since widgets usually read the same ObservedMap.
+    // Conditional reads or reading from a new ObservedMap could cause it.
     if (previousSubscriptions != null &&
         (previousSubscriptions.length > _currentObservedListeners.length ||
             !previousSubscriptions.containsAll(_currentObservedListeners))) {
@@ -175,7 +174,7 @@ class FullController extends FloopController {
       unsubscribeFromObserveds(_currentBuild, previousSubscriptions);
     }
 
-    // updates subscriptions of Observed read during the current widget build.
+    // updates subscriptions of Observeds read during the current widget build.
     if (_currentObservedListeners.isNotEmpty) {
       for (var obs in _currentObservedListeners) {
         obs.commitCurrentReads(_currentBuild);
@@ -208,11 +207,13 @@ class FullController extends FloopController {
   }
 }
 
-/// Light weight controller that listens to at most one [Observed] per build cycle.
+/// Light weight controller that listens to at most one [ObservedListener] per
+/// build cycle.
 ///
-/// Because it holds at most one [Observed] per build cycle, widgets are
-/// also associated with at most one [Observed]. This allows a gain in performance.
-/// It's faster than the standard [FullController].
+/// Because it accepts at most one [ObservedListener] per build cycle, widgets
+/// are also associated with at most one [Observed]. This gives a significant
+/// gain in performance when compared to [FullController], by avoiding extra
+/// map reads and sets that the [FullController] does.
 class LightController extends FloopController {
   ObservedListener _currentListener;
   final Map<Element, ObservedListener> _subscriptions = {};
@@ -231,13 +232,17 @@ class LightController extends FloopController {
     assert(isListening);
     if (_currentListener == null) {
       _currentListener = listener;
-    } else if (_currentListener != listener) {
-      print('ERROR: When using [FloopLight], there shouldn\'t be more than one '
-          '[ObservedMap] read during the build cycle of a widget, otherwise '
-          'subscriptions will not correctly commit.\n'
-          'Switching to regular [Floop] won\'t cause this issue.');
-      assert(false);
     }
+    assert(() {
+      if (_currentListener != listener) {
+        print(
+            'ERROR: When using [FloopLight], there shouldn\'t be more than one '
+            '[ObservedMap] read during the build cycle of a widget, otherwise '
+            'subscriptions will not correctly commit.\n'
+            'Switching to regular [Floop] won\'t cause this issue.');
+        assert(false);
+      }
+    }());
   }
 
   @override
@@ -269,7 +274,7 @@ class LightController extends FloopController {
 
 /// This class connects [Observed] with [FloopController].
 ///
-/// [Observed] instances use an ObservedListener to notify reads or writes on
+/// [Observed] instances use an [ObservedListener] to notify reads or writes on
 /// them.
 class ObservedListener {
   /// The map that associates keys with the Elements that should be updated when the
