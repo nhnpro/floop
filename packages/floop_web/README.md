@@ -1,6 +1,6 @@
 # floop_web
 
-State management for Flutter. It's literally the same code as Floop, it just imports from package flutter_web instead of flutter.
+Dynamic values for Flutter Widgets. It's the same as floop library.
 
 https://pub.dev/packages/floop
 
@@ -39,7 +39,7 @@ On StatefulWidgets: `...extends State with FloopStateMixin`.
 
 ## Install
 
-Add floop dependency to your project's `pubspec.yaml`. Currently there are problems publishing flutter_web projects, because flutter_web does not exist on pub.dev. If adding the dependency like a regular pub.dev project does not work, try the following:
+Add floop dependency to the project's `pubspec.yaml`. Currently there are problems publishing flutter_web projects, because flutter_web does not exist on pub.dev. If adding the dependency like a regular pub.dev project does not work, try the following:
 
 ```yaml
 depedencies:

@@ -1,7 +1,8 @@
 library floop;
 
-export 'package:floop_web/src/observed.dart' show floop, ObservedMap;
-export 'package:floop_web/src/mixins.dart'
-    show Floop, FloopStatelessWidget, FloopStateMixin, FloopState;
-export 'package:floop_web/src/controller.dart' show FloopController;
-export 'package:floop_web/src/repeater.dart' show Repeater;
+export './src/observed.dart' show floop, ObservedMap;
+export './src/mixins.dart'
+    show Floop, FloopWidget, FloopStateMixin, FloopState;
+export './src/repeater.dart' show Repeater;
+export './src/transition.dart'
+    show transition, transitionEval, transitionOf, Transitions;

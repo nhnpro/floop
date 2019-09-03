@@ -1,3 +1,7 @@
+## [0.3.0] - 02/09/2019
+
+Update to match Floop 0.4.0.
+
 ## [0.2.2] - 09/07/2019
 
 Minor update to docs.

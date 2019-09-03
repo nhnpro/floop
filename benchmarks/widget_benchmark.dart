@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:benchmark_harness/benchmark_harness.dart';
 import 'package:flutter/material.dart';
 
 import 'package:floop/src/mixins.dart';
@@ -78,10 +77,6 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
   print(
       'FloopWidget with controller filled build overhead x${(floopTimeFilled / referenceTime).toStringAsFixed(2)}');
 }
-
-// class WidgetBenchmark extends BenchmarkBase {
-//   WidgetBenchmark(String name) : super(name);
-// }
 
 double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';

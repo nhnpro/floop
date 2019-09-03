@@ -2,7 +2,7 @@
 
 - Major refactor to core functionality. Listening is faster.
 - Eliminated [FloopLight], examples updated accordingly.
-- Changed the clicker example for a fetch image one.
+- Updated the clicker example. Now it fetches an image.
 
 ## [0.3.0] - 1/09/2019
 

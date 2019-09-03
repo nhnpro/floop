@@ -1,21 +1,17 @@
 import 'dart:collection';
 import './controller.dart';
 
-final ObservedMap<String, dynamic> floop = ObservedMap();
-
-abstract class Observed<K, V> {
-  ObservedListener _listener = ObservedListener();
-}
+final ObservedMap<Object, dynamic> floop = ObservedMap();
 
 /// The basic Map data structure that is listened by Floop when reading
 /// or setting values.
 ///
-/// Any reads from an [ObservedMap] inside a Floop's Widget `buildWithFloop` method
-/// will be listened by a [FloopController] and will subscribe the widget to
-/// the read key. Whenever there is a different value set for the subscribed key,
-/// the widget will get updated.
-class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
-  Map<K, V> _keyToValue = Map();
+/// Any reads from an [ObservedMap] inside a Floop's Widget [buildWithFloop]
+/// method, subscribes the read keys to the widget's [Element] (context).
+/// Whenever a key value changes, any subscribed context will be rebuilt in
+/// the next frame.
+class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
+  final Map<K, V> _keyToValue = Map();
 
   ObservedMap();
 
@@ -33,74 +29,80 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     }
   }
 
+  /// Retrieves the `value` of `key`. When invoked from within
+  /// [Floop.buildWithFloop], the context being built gets subscribed to
+  /// the key in order to rebuild when the key value changes.
   operator [](key) {
-    _listener.valueRetrieved(key);
+    valueRetrieved(key);
     return _keyToValue[key];
   }
 
-  /// Returns the keys of this [ObservedMap], retrieved from an internal [LinkedHashMap]
-  /// instance.
+  /// Returns the keys of this [ObservedMap], retrieved from an internal
+  /// [LinkedHashMap] instance.
   ///
-  /// Retrieving `keys` during a [Widget] or [State] `buildWithFloop` cycle will subscribe
-  /// the correspnding widget to any insertions or removals of keys in this Map, regardless
-  /// of the keys being iterated over or not. It does not make the widget subscription
-  /// sensitive to a key's corresponding value though (unless the value is also retrieved
-  /// during the build cycle), so setting a key to a different value will not trigger rebuilds.
+  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle
+  /// will subscribe the correspnding widget to any insertions or removals of
+  /// of keys in this Map, regardless of the keys being iterated over or not.
+  /// It does not make the widget subscription sensitive to the keys
+  /// corresponding values though.
   @override
   Iterable<K> get keys {
-    // if(_prepareAndCheckIfListening()) _subscribeMutation();
-    _listener.mutationRead();
+    keysRetrieved();
     return _keyToValue.keys;
   }
 
-  /// Sets the `value` of the `key`. A deep copy of `value` will be stored when it is of
-  /// type [Map] or [List].
+  /// Sets the `value` of `key`. When `value` is of type [Map] or [List] a
+  /// deep copy of `value` is created and stored instead of `value`.
   ///
-  /// [Map] and [List] values will be recursively traversed saving copied versions of them.
-  /// Stored [Map] values can be modified while [List] values are unmodifiable.
+  /// Subscribed elements to the `key` will get updated if `this[key]!=value`.
   ///
-  /// For each value of type [Map] it will create an [ObservedMap] copy of it.
-  /// For each value of type [List] it will create a copy using [List.unmodifiable].
+  /// Use [setValue] to update a key without deep copying [Map] or [List] or
+  /// for setting values without triggering element updates.
   ///
-  /// If the `key` was already in [this], the subscribed widgets to the `key` will only get
-  /// updated when `this[key]!=value`. When there is a desire to update all subscribed widgets
-  /// to they key without setting a new value use `forceUpdate` instead.
+  /// [Map] and [List] values are recursively traversed saving copied versions
+  /// of them. For each value of type [Map] an [ObservedMap] copy of it is
+  /// saved. For each value of type [List] it will create an unmodifiable copy
+  /// using [List.unmodifiable].
   operator []=(Object key, V value) {
-    // print('Setting \'$key\'  subscriptions: ${keySubscriptions[key]}');
     _notifyListenerIfChange(key, value);
     _keyToValue[key] = convert(value);
   }
 
-  /// Sets the `value` of the `key`.
-  /// Use this method instead of `[]=` to store a value exactly as it is given (no deep copy).
-  setValueRaw(Object key, V value) {
-    _notifyListenerIfChange(key, value);
+  /// Sets the `value` of the `key` exactly as it is given.
+  ///
+  /// Potential [Element] updates can be avoided by passing `triggerUpdates`
+  /// as false.
+  setValue(Object key, V value, [bool triggerUpdates = true]) {
+    if (triggerUpdates) {
+      _notifyListenerIfChange(key, value);
+    }
     _keyToValue[key] = value;
   }
 
   _notifyListenerIfChange(Object key, V value) {
-    if (!_keyToValue.containsKey(key) || _keyToValue[key] != value) {
-      _listener.valueChanged(key);
+    if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
+      valueChanged(key);
     }
   }
 
-  /// Updates all widgets subscribed to they key. Avoid using this method unless strictly necessary.
-  /// The `operator []=` already updates subscribed widgets to the `key` when a value changes,
-  /// which is the only case when a widget should get updated.
+  /// Updates all elements subscribed to they key.
+  ///
+  /// It should be rare to use this method, `operator []=` automatically
+  /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    _listener.valueChanged(key);
+    valueChanged(key);
   }
 
   @override
   void clear() {
     _keyToValue.clear();
-    _listener.cleared();
+    cleared();
   }
 
   @override
-  V remove(Object key) {
-    if (_keyToValue.containsKey(key)) {
-      _listener.valueChanged(key);
+  V remove(Object key, [bool triggerUpdates = true]) {
+    if (triggerUpdates && _keyToValue.containsKey(key)) {
+      valueChanged(key);
     }
     return _keyToValue.remove(key);
   }

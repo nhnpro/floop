@@ -1,84 +1,139 @@
-typedef PeriodicFunction = Function(Repeater);
+typedef RepeaterCallback = Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
 class Repeater extends Stopwatch {
-  /// Stops the repeating execution.
-  bool _stop = true;
+  /// Used to ensure only one asynchronous instance is executing.
+  bool _executionLocked = false;
 
-  /// Used to ensure only one asynchrnous repeating call in ongoing on this repeater.
-  bool _executionLock = false;
+  /// The function that gets recurrently called by the [Repeater].
+  /// It gets called with `this` as parameter.
+  final RepeaterCallback fn;
 
-  /// The function that will be called when method `start` is called on this repeater.
-  /// The function gets called with this repeater as parameter.
-  PeriodicFunction f;
+  /// A convenient variable that can be used for storing arbitrary values.
+  /// Useful for transmitting information between callbacks.
+  dynamic storage;
 
-  /// The frequency of the function calls when method `start` is called. A frequency can
-  /// optionally be provided when calling the start method, so it's not necessary to set
-  /// this value.
+  /// The frequency of the function calls when method `start` is called.
   int frequencyMilliseconds;
 
-  Repeater(this.f, [this.frequencyMilliseconds = 50]);
+  /// Maximum duration of the recurrent calls once this repeaters starts.
+  int durationMilliseconds;
 
-  /// Stops this stopwatch and the recurrent executions to `this.f`.
+  Repeater(this.fn,
+      [this.frequencyMilliseconds = 50, this.durationMilliseconds]);
+
+  /// Creates a repeater that transitions a number from 0 to 1 inclusive,
+  /// passing it as parameter to the function `update` as the transition
+  /// progresses.
+  ///
+  /// The transition lasts `durationMillis` milliseconds and updates with a
+  /// frequency of `refreshRateMillis` milliseconds.
+  ///
+  /// The number starts transitioning after `delayMillis` milliseconds, but
+  /// the recurrent calls to `update` start immediately (passing 0 until
+  /// `delayMillis` have elapsed).
+  ///
+  /// `onFinish` is a callback that gets invoked one time when the transition
+  /// finishes, passing the created repeater instance as parameter.
+  factory Repeater.transition(
+      int durationMillis, update(double elapsedToDurationRatio),
+      {int refreshRateMillis = 20,
+      int delayMillis = 0,
+      RepeaterCallback onFinish}) {
+    callback(Repeater repeater) {
+      double ratio =
+          ((repeater.elapsedMilliseconds - delayMillis) / durationMillis)
+              .clamp(0, 1);
+      update(ratio);
+      if (ratio == 1 && onFinish != null) {
+        onFinish(repeater);
+      }
+    }
+
+    return Repeater(callback, refreshRateMillis, durationMillis + delayMillis);
+  }
+
+  /// Stops the [Repeater].
   stop() {
     super.stop();
-    _stop = true;
   }
 
-  /// Stops and resets all values of this repeater to it's starting values. It makes a
-  /// single call to `this.f` at the end.
-  reset([bool callF = true]) {
-    stop();
-    super.reset();
-    !callF ?? f(this);
-  }
+  /// Whether the [Repeater] is currently running.
+  bool get isRunning => super.isRunning;
 
-  /// Starts this stopwatch making recurrent calls to `this.f` with the given `frequency`.
-  /// Uses `this.frequencyMilliseconds` if no `frequency` is provided.
-  start([int frequency]) {
-    if (!_stop) {
-      print('The repeater is already running');
-      return;
-    } else if (_executionLock) {
-      print('Another asynchronous instance is already running');
-      return;
-    }
-    _stop = false;
-    _executionLock = true;
-    frequency = frequency ?? frequencyMilliseconds;
-    super.start();
-    run() {
-      Future.delayed(Duration(milliseconds: frequency), () {
-        if (_stop) {
-          _executionLock = false;
-        } else {
-          f(this);
-          run();
-        }
-      });
-    }
-
-    run();
-  }
-
-  /// Utility function that returns an integer between 0 inclusive and `maxNumber` exclusive
-  /// corresponding to the proportional position in a cycle of `periodMilliseconds` in current
-  /// `elapsed` time.
+  /// Resets this repeater's underlying stopwatch.
   ///
-  /// For example if elapsed time is 23ms and period is 10ms, then the current cycle time is
-  /// 3ms or 30% of the cycle run. If `number` is 100, the result would be 30 (30% of 100).
-  int proportionInt(int maxNumber, int periodMilliseconds) {
+  /// If `callOnce` is true (default) a single call to `update` is made
+  /// potentially reseting some values.
+  reset([bool callOnce = true]) {
+    super.reset();
+    if (callOnce) {
+      update();
+    }
+  }
+
+  _releaseLock() => _executionLocked = false;
+
+  _lock() => _executionLocked = true;
+
+  /// Whether an asynchronous periodic instance is executing.
+  ///
+  /// A lock is necessary to ensure at most once asynchronous instance
+  /// is executing at any given time.
+  bool get isLocked => _executionLocked;
+
+  /// The function that gets recurrently invoked while the [Repeater] is running.
+  update() {
+    fn(this);
+  }
+
+  /// Starts making recurrent calls to `this.fn` by invoking [update] with
+  /// `frequencyMilliseconds` for a duration of `durationMilliseconds` or
+  /// indefinetely if null.
+  start() {
+    if (isLocked) {
+      // print('The repeater asynchronous instance is already running');
+      return;
+    }
+    assert(!isRunning);
+    _lock();
+    super.start();
+    assert(isRunning);
+    _run();
+  }
+
+  _run() {
+    Future.delayed(Duration(milliseconds: frequencyMilliseconds), () {
+      assert(isLocked);
+      if (super.isRunning) {
+        if (durationMilliseconds != null &&
+            elapsedMilliseconds >= durationMilliseconds) {
+          stop();
+        }
+        update();
+        _run();
+      } else {
+        _releaseLock();
+      }
+    });
+  }
+
+  /// Integer version of [Repeater.periodicLinear].
+  int periodicLinearInt(int periodMilliseconds, int maxNumber) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
     var res = (maxNumber * current) ~/ periodMilliseconds;
     return res;
   }
 
-  /// Returns the proportion of a [double] `number` in a cycle of length `periodMilliseconds`
-  /// running for `this.elapsed.inMilliseconds`.
+  /// Returns the equivalent value of a linear periodic function (sawtooth
+  /// wave) that goes from 0 (inclusive) to `maxNumber` (exclusive) with
+  /// period `periodMilliseconds` running for this Repeater's elapsed time.
   ///
-  /// Floating point precision version of method `[Repeater.proportionInt]`.
-  double proportionDouble(double number, int periodMilliseconds) {
+  /// For example if elapsed time is 18ms and period is 8ms, then the
+  /// "current cycle time" is 2ms (25% of the cycle length). If `maxNumber`
+  /// is 6, the return value would be 1.5 (0.25*6).
+  double periodicLinear(int periodMilliseconds, [double maxNumber = 1]) {
     int current = elapsed.inMilliseconds % periodMilliseconds;
-    return number * current / periodMilliseconds;
+    return maxNumber * current / periodMilliseconds;
   }
 }
