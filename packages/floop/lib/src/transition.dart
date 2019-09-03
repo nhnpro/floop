@@ -51,8 +51,8 @@ _addKeyToContext(key, context) {
   contextKeys.add(key);
 }
 
-/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds
-/// when invoked from inside a [Floop.buildWithFloop] method, automatically
+/// Transitions a number from 0 to 1 inclusive in `durationMillis`
+/// milliseconds when invoked from inside a [build] method, automatically
 /// rebuilding the widget as the transition progresses.
 ///
 /// `durationMillis` must not be null.
@@ -68,13 +68,13 @@ _addKeyToContext(key, context) {
 /// If `key` is non null and a transition registered to `key` exists, it's
 /// current value is returned. Keys can be used to reference and apply
 /// operations to transitions through [Transitions] static methods.
-/// When invoked from outside [buildWithFloop] methods, this function is
+/// When invoked from outside [build] methods, this function is
 /// equivalent to [transitionOf], the only used parameter is `key`.
 ///
 /// Note that this method does not work inside builders, like [LayoutBuilder],
-/// as builders build outside of the encompassing widget's build method.
+/// as builders build outside of the encompassing build method.
 /// The workaround is to use a `var t = transition(...)` in the body of the
-/// [buildWithFloop] function and then use the var within the builder body.
+/// [build] method and then reference the var from within the builder body.
 /// Another alternative is to define the transition with a key and then
 /// reference it with [transitionOf].
 ///
@@ -88,7 +88,7 @@ _addKeyToContext(key, context) {
 ///   ...
 ///
 ///   @override
-///   Widget buildWithFloop(BuildContext context, MyButtonState state) {
+///   Widget build(BuildContext context, MyButtonState state) {
 ///     double t = transition(5000);
 ///     return ...
 ///         Text('T is at $t and Y is at: ${floop['y']}'),
@@ -163,7 +163,7 @@ double transition(
 ///
 /// Once the transition finishes, all references to it get cleared.
 ///
-/// This function cannot be invoked from within a widget's [buildWithFloop].
+/// This function cannot be invoked from within a widget's [build].
 /// Refer to [transition] for that use case.
 ///
 /// See [Repeater.transition] to create more customized transitions.
@@ -286,8 +286,8 @@ int transitionInt(int start, int end, int durationMillis,
 
 /// Invokes [transition] and scales the return value between `start` and `end`.
 ///
-/// Can only be invoked from within [Floop.buildWithFloop] methods. See
-/// [transition] for detailed documentation about transitions.
+/// Can only be invoked from within [build] methods. See [transition] for
+/// detailed documentation about transitions.
 num transitionNumber(num start, num end, int durationMillis,
     {refreshRateMillis = 20}) {
   return start +
@@ -297,8 +297,8 @@ num transitionNumber(num start, num end, int durationMillis,
 
 /// Transitions a string from length 0 to the full string.
 ///
-/// Can only be invoked from within [Floop.buildWithFloop] methods. See
-/// [transition] for detailed documentation about transitions.
+/// Can only be invoked from within [build] methods. See [transition] for
+/// detailed documentation about transitions.
 String transitionString(String string, int durationMillis,
     {refreshRateMillis = 20}) {
   int length = (string.length *

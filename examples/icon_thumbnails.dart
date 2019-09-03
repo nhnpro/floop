@@ -29,7 +29,7 @@ createIconButton(IconData iconData, {double size = 40.0}) => IconButton(
 
 class IconThumbnails extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Column(children: [
         store['hide'] ? Container() : DisplayBox(),
@@ -45,7 +45,7 @@ class IconThumbnails extends StatelessWidget with Floop {
 
 class DisplayBox extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Container(
       height: 300.0,
       child: Center(

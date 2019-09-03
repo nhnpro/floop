@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
 
 class DisplayImages extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Interactive Images List')),
       body: floop['loading'] != true && floop['images'] == null
@@ -77,7 +77,7 @@ class ImageItem extends StatelessWidget with Floop {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Container(

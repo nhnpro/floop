@@ -19,7 +19,7 @@ void main() {
 
 class Bubbles extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     // int ms = 500 * timeFactor;
     List<Widget> widgets = floop['circleWidgets'].cast<Widget>();
     return LayoutBuilder(builder: (context, constraints) {
@@ -35,14 +35,11 @@ class Bubbles extends StatelessWidget with Floop {
             ),
           ),
           onLongPressStart: (details) {
-            // print('spawning circle');
             spawnCircle(details.localPosition, constraints.biggest);
           },
-          // onTap: () => print('Tapped on the body'),
         ),
         floatingActionButton: FloatingActionButton(
             child: Icon(Icons.repeat),
-            // child: Icon(paused == true ? Icons.play_arrow : Icons.repeat),
             onPressed: () {
               Transitions.resumeOrPause();
             }),
@@ -63,7 +60,7 @@ class InteractiveCircle extends FloopWidget {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     // print('building circle $name');
     int ms = min(5000, 500 * circle.count);
     var x = transition(ms, key: name, refreshRateMillis: 100);
@@ -219,6 +216,10 @@ placeCircleLast(String name) {
     final circle = circleWidgets.removeAt(i);
     circleWidgets.add(circle);
   }
+}
+
+removeAll() {
+  floop['circleWidgets'] = circleWidgets..clear();
 }
 
 removeCircle(String name) {

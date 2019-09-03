@@ -13,7 +13,7 @@ import 'base.dart';
 /// console, in the root folder of the project.
 
 Map store;
-MockElement mockEle = MockElement();
+// MockElement mockEle = MockElement();
 
 typedef NoArgFunction = Function();
 typedef WidgetCreator = StatelessWidget Function(NoArgFunction);
@@ -53,22 +53,24 @@ void benchmarkWidgets(Function createRefWidget, createFloopWidget,
 
 void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
     WidgetCreator createFloopWidget, WidgetCreator createFloopLightWidget) {
-  StatelessWidget widget = createRefWidget(() {});
+  ComponentElement element = createRefWidget(() {}).createElement();
   var referenceTimePureBuild =
-      runBenchmarkFunction(widget, 'pure build (no map read)');
+      runBenchmarkFunction(element, 'pure build (no map read)');
 
   Map map = createMapWithValues(numberOfReads);
-  widget = createRefWidget(createValueReader(map, numberOfReads));
-  var referenceTime = runBenchmarkFunction(widget);
+  element =
+      createRefWidget(createValueReader(map, numberOfReads)).createElement();
+  var referenceTime = runBenchmarkFunction(element);
 
   print('----Using ${FloopController}----');
 
   map = ObservedMap.of(map);
-  widget = createFloopWidget(createValueReader(map, numberOfReads));
-  var floopTime = runBenchmarkFunction(widget);
+  element =
+      createFloopWidget(createValueReader(map, numberOfReads)).createElement();
+  var floopTime = runBenchmarkFunction(element);
 
   addObservedSubscriptions(map, numberOfReads);
-  var floopTimeFilled = runBenchmarkFunction(widget, 'with controller filled');
+  var floopTimeFilled = runBenchmarkFunction(element, 'with controller filled');
 
   print(
       '\nWidget read map operation build overhead x${(referenceTime / referenceTimePureBuild).toStringAsFixed(2)}');
@@ -78,19 +80,24 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
       'FloopWidget with controller filled build overhead x${(floopTimeFilled / referenceTime).toStringAsFixed(2)}');
 }
 
-double runBenchmarkFunction(StatelessWidget widget, [String messageAdd = '']) {
+double runBenchmarkFunction(ComponentElement element,
+    [String messageAdd = '']) {
   messageAdd = messageAdd == null ? '' : ' $messageAdd';
   // This should be changed to use many elements. Requires some change to
   // the benchmark harrness.
   void buildManyTimes() {
-    for (int i = 0; i < 20; i++) {
-      widget.build(mockEle);
+    for (int i = 0; i < 10; i++) {
+      element.build();
+      element.build();
+      element.build();
+      element.build();
+      element.build();
     }
   }
 
   FloopController.reset();
   return benchmarkFunction(
-      buildManyTimes, '${widget.runtimeType.toString()}$messageAdd');
+      buildManyTimes, '${element.runtimeType.toString()}$messageAdd');
 }
 
 class SmallWidget extends StatelessWidget {
@@ -98,18 +105,13 @@ class SmallWidget extends StatelessWidget {
 
   SmallWidget(this.readOperation);
 
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     readOperation();
     return Container(
         child: RaisedButton(
       onPressed: () => print(3),
       child: Text('My test widget ${Random().nextInt(1000000)}'),
     ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return buildWithFloop(context);
   }
 }
 
@@ -122,7 +124,7 @@ class MediumWidget extends StatelessWidget {
 
   MediumWidget(this.readOperation);
 
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     readOperation();
     return Scaffold(
       appBar: AppBar(
@@ -157,11 +159,6 @@ class MediumWidget extends StatelessWidget {
         onPressed: () => print('Floating action'),
       ),
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return buildWithFloop(context);
   }
 }
 

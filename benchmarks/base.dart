@@ -92,7 +92,7 @@ plainRead(Map data, Iterable keys) {
 }
 
 createValueReader(Map map, [int numberOfReads]) {
-  numberOfReads = numberOfReads ?? map.length;
+  numberOfReads ??= map.length;
   var keys = map.keys.toList().sublist(0, numberOfReads);
   return () {
     for (var k in keys) {

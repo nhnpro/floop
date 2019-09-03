@@ -25,10 +25,10 @@ packages:
   floop:
     dependency: "direct main"
     description:
-      name: floop
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.3.0"
+      path: ".."
+      relative: true
+    source: path
+    version: "0.4.0"
   flutter:
     dependency: "direct main"
     description: flutter

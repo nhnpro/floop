@@ -28,7 +28,7 @@ class TransitionImage extends FloopWidget {
   const TransitionImage(this.image);
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     // Opacity transitions from 0 to 1 in 1.5 seconds.
     return Opacity(opacity: transition(1500), child: image);
   }
@@ -36,7 +36,7 @@ class TransitionImage extends FloopWidget {
 
 class ImageDisplay extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       // `floop['image']` is null while fetching an image. When the
       // imaged is downloaded, an image widget is stored on `floop['image']`

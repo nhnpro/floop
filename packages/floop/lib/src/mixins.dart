@@ -2,33 +2,29 @@ import 'package:meta/meta.dart' show visibleForOverriding;
 import './flutter_import.dart';
 import './controller.dart';
 
+// It's not possible to mix mixins in Dart. If it ever becomes possible,
+// all other mixins should use FloopBuilder.
 mixin FloopBuilder {
-  /// Override this method as you would normally override the [build] method.
-  /// Do NOT override [build].
-  Widget buildWithFloop(BuildContext context);
+  Widget build(BuildContext context);
 
-  /// Do NOT override this method, use [buildWithFloop] to build your widget.
   @visibleForOverriding
-  Widget build(BuildContext context) {
+  Widget _buildWithFloopListening(BuildContext context) {
     FloopController.startListening(context);
-    var widget = buildWithFloop(context);
+    var widget = build(context);
     FloopController.stopListening();
     return widget;
   }
 }
 
-/// Mixin that causes the Widget be listened while building. Include this
-/// mixin in a StatelessWidget and override [buildWithFloop] method.
-mixin Floop on StatelessWidget implements FloopBuilder {
-  /// Override this method as you would normally override the [build] method.
-  /// Do NOT override [build].
-  Widget buildWithFloop(BuildContext context);
-
-  /// Do NOT override this method, use [buildWithFloop] to build your widget.
-  @visibleForOverriding
-  Widget build(BuildContext context) {
+/// Mixin that causes the Widget be listened while building.
+///
+/// Include this mixin in a StatelessWidget and it will autoupdate on value
+/// changes detected to [ObservedMap] instances read during the build.
+/// Example: `MyWidget extends StatelessWidget with Floop {...}`.
+mixin Floop on StatelessWidget {
+  Widget _buildWithFloopListening(BuildContext context) {
     FloopController.startListening(context);
-    var widget = buildWithFloop(context);
+    var widget = build(context);
     FloopController.stopListening();
     return widget;
   }
@@ -53,11 +49,14 @@ abstract class FloopWidget extends StatelessWidget with Floop {
 /// Wrapper class of StatelessElement used to catch calls to unmount.
 ///
 /// When unmount is called, all references to the Element in Floop are
-/// cleaned and it's current widget [Floop.disposeContext] is invoked.
+/// cleaned and the widget's [Floop.disposeContext] is invoked.
 class StatelessElementFloop extends StatelessElement {
   StatelessElementFloop(Floop widget) : super(widget);
 
   Floop get widget => super.widget;
+
+  @override
+  Widget build() => widget._buildWithFloopListening(this);
 
   @override
   void unmount() {
@@ -79,29 +78,46 @@ class StatelessElementFloop extends StatelessElement {
 
 /// Mixin for StatefulWidgets. Use this mixin in a State class to enable
 /// widget builds to be observed by Floop.
-mixin FloopStateMixin<T extends StatefulWidget> on State<T>
-    implements FloopBuilder {
-  /// Override this method as you would normally override the [build] method.
-  /// Do NOT override [build].
-  Widget buildWithFloop(BuildContext context);
-
-  /// Do NOT override this method, use [buildWithFloop] to build your widget.
-  @visibleForOverriding
-  Widget build(BuildContext context) {
+mixin FloopStateful on StatefulWidget {
+  /// The build is performed through the widget which is not elegant, but
+  /// rather a workaround to enable Floop's listening mode without having
+  /// the user to intervene the State with another mixin.
+  Widget _buildWithFloopListening(covariant StatefulElement context) {
     FloopController.startListening(context);
-    var widget = buildWithFloop(context);
+    var widget = context.state.build(context);
     FloopController.stopListening();
     return widget;
   }
 
   @override
-  dispose() {
-    unsubscribeElement(this.context);
-    super.dispose();
+  StatefulElement createElement() => StatefulElementFloop(this);
+}
+
+class StatefulElementFloop extends StatefulElement {
+  StatefulElementFloop(FloopStateful widget) : super(widget);
+
+  FloopStateful get widget => super.widget;
+
+  @override
+  Widget build() => widget._buildWithFloopListening(this);
+
+  @override
+  void unmount() {
+    assert(() {
+      FloopController.debugUnmounting(this);
+      return true;
+    }());
+    unsubscribeElement(this);
+    super.unmount();
+    assert(() {
+      FloopController.debugfinishUnmounting();
+      return true;
+    }());
   }
 }
 
 /// `class MyState extends FloopState` is equivalent to
 /// `class MyWidget extends State with FloopStateMixin`.
-abstract class FloopState<T extends StatefulWidget> = State<T>
-    with FloopStateMixin<T>, FloopBuilder;
+abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
+  const FloopStatefulWidget({Key key}) : super(key: key);
+}

@@ -37,7 +37,7 @@ void main() {
 
 class Phrases extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Inspiring Phrases'),
@@ -54,7 +54,7 @@ class PhraseWidget extends FloopWidget {
   const PhraseWidget(this.phrase, {Key key}) : super(key: key);
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     final text = phrase.text;
     return ListTile(
       title: Text(
