@@ -42,7 +42,7 @@ packages:
       name: floop
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.3.0"
+    version: "1.0.0"
   flutter:
     dependency: "direct main"
     description: flutter
