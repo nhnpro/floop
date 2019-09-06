@@ -20,15 +20,13 @@ const phrases = [
   'What we think, we become. – Buddha',
 ];
 
-final List<Widget> phraseWidgets = phrases
-    .map((text) {
-      final split = text.split(' – ');
-      return PhraseWidget(Phrase(split[0], split[1]));
-    })
-    .toList()
-    .cast<Widget>();
+final List<Widget> phraseWidgets = phrases.map((text) {
+  final split = text.split(' – ');
+  return PhraseWidget(Phrase(split[0], split[1]), key: Key(text));
+}).toList();
 
 void main() {
+  floop['phraseWidgets'] = phraseWidgets;
   runApp(MaterialApp(
       title: 'Phrases',
       theme: ThemeData(
@@ -37,15 +35,15 @@ void main() {
       home: Phrases()));
 }
 
-class Phrases extends StatelessWidget {
+class Phrases extends StatelessWidget with Floop {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Replay Text'),
+        title: Text('Inspiring Phrases'),
       ),
       body: ListView(
-        children: phraseWidgets,
+        children: floop['phraseWidgets'].cast<Widget>(),
       ),
     );
   }
@@ -53,15 +51,27 @@ class Phrases extends StatelessWidget {
 
 class PhraseWidget extends FloopWidget {
   final Phrase phrase;
-  const PhraseWidget(this.phrase);
+  const PhraseWidget(this.phrase, {Key key}) : super(key: key);
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     final text = phrase.text;
     return ListTile(
-      title: Text(transitionString(text, text.length * 200)),
+      title: Text(
+        transitionString(text, text.length * 100),
+        style: TextStyle(
+            color: Color.lerp(
+                Colors.red, Colors.black, transition(text.length * 100))),
+      ),
       subtitle: Text(phrase.autor),
-      onTap: () => Transitions.restart(context: context),
+      onTap: () {
+        Transitions.restart(context: context);
+        // When setting a value of type list in `floop`, it always gets
+        // copied, therefore `floop['phraseWidgets']` is never the same
+        // object as `phraseWidgets`.
+        floop['phraseWidgets'] = phraseWidgets..shuffle();
+      },
+      onLongPress: () => Transitions.restart(),
     );
   }
 }

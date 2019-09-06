@@ -51,7 +51,7 @@ class DragCircle extends StatelessWidget with Floop {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     Map position = floop['circle'];
 
     return Scaffold(

@@ -1,6 +1,6 @@
 # floop_web
 
-State management for Flutter. It's literally the same code as Floop, it just imports from package flutter_web instead of flutter.
+Dynamic values for Flutter Widgets. It's the same as floop library.
 
 https://pub.dev/packages/floop
 
@@ -12,23 +12,20 @@ https://github.com/icatalud/floop/
 
 ### Example - How to use
 
-```diff
-+import 'package:floop_web/floop_web.dart';
-
+```dart
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-
   @override
--Widget build(BuildContext context) {
-+Widget buildWithFloop(BuildContext context) {
-buildWithFloop
+  Widget build(BuildContext context) {
     return Scaffold(
+      // Text widget always displays the current value of 'clicks'
       body: Center(
-+          child: Text(floop['clicks'].toString())
-        ),
+        child: Text(floop['clicks'].toString())
+      ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-+        onPressed: () => floop['clicks']++    // change 'clicks' from anywhere in the app and the widget will get updated
+        // change 'clicks' from anywhere in the app (except build methods)
+        onPressed: () => floop['clicks']++,
       ),
     );
   }
@@ -39,7 +36,7 @@ On StatefulWidgets: `...extends State with FloopStateMixin`.
 
 ## Install
 
-Add floop dependency to your project's `pubspec.yaml`. Currently there are problems publishing flutter_web projects, because flutter_web does not exist on pub.dev. If adding the dependency like a regular pub.dev project does not work, try the following:
+Add floop dependency to the project's `pubspec.yaml`. Currently there are problems publishing flutter_web projects, because flutter_web does not exist on pub.dev. If adding the dependency like a regular pub.dev project does not work, try the following:
 
 ```yaml
 depedencies:

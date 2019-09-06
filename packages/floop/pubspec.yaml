@@ -1,6 +1,6 @@
 name: floop
-description: Dynamic values for widgets. Changes values from anywhere and affected widgets are updated.
-version: 0.3.0
+description: Dynamic values for widgets. Changes values from anywhere and affected widgets are updated automatically.
+version: 1.0.0
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 

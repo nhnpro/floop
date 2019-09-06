@@ -10,22 +10,22 @@ List<InteractiveCircle> circleWidgets = List();
 void main() {
   floop['circleWidgets'] = circleWidgets;
   runApp(MaterialApp(
-      title: 'Circle Spawner',
+      title: 'Bubbles',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MovingCircles()));
+      home: Bubbles()));
 }
 
-class MovingCircles extends StatelessWidget with Floop {
+class Bubbles extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     // int ms = 500 * timeFactor;
     List<Widget> widgets = floop['circleWidgets'].cast<Widget>();
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Replay Text'),
+          title: Text('Bubbles - Long press to spawn a bubble'),
         ),
         body: GestureDetector(
           child: Container(
@@ -35,14 +35,11 @@ class MovingCircles extends StatelessWidget with Floop {
             ),
           ),
           onLongPressStart: (details) {
-            // print('spawning circle');
             spawnCircle(details.localPosition, constraints.biggest);
           },
-          // onTap: () => print('Tapped on the body'),
         ),
         floatingActionButton: FloatingActionButton(
             child: Icon(Icons.repeat),
-            // child: Icon(paused == true ? Icons.play_arrow : Icons.repeat),
             onPressed: () {
               Transitions.resumeOrPause();
             }),
@@ -58,12 +55,12 @@ class InteractiveCircle extends FloopWidget {
       : name = circle.name,
         super(key: key);
 
-  disposeContext(Element element) {
+  disposeContext(BuildContext context) {
     circle.dispose();
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     // print('building circle $name');
     int ms = min(5000, 500 * circle.count);
     var x = transition(ms, key: name, refreshRateMillis: 100);
@@ -219,6 +216,10 @@ placeCircleLast(String name) {
     final circle = circleWidgets.removeAt(i);
     circleWidgets.add(circle);
   }
+}
+
+removeAll() {
+  floop['circleWidgets'] = circleWidgets..clear();
 }
 
 removeCircle(String name) {

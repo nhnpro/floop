@@ -1,6 +1,6 @@
 name: floop_web
-description: Simple state management for Flutter Web. Web version of Floop.
-version: 0.2.2
+description: Dynamic values for Flutter Widgets. Web version of Floop.
+version: 1.0.0
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
@@ -8,11 +8,11 @@ environment:
   sdk: ">=2.3.0 <3.0.0"
 
 dependencies:
-  flutter_web: any
+  flutter_web: ^1.0.0
     # git:
     #   url: https://github.com/flutter/flutter_web
     #   path: packages/flutter_web
-  flutter_web_ui: any
+  flutter_web_ui: ^1.0.0
     # git:
     #   url: https://github.com/flutter/flutter_web
     #   path: packages/flutter_web_ui
@@ -36,7 +36,7 @@ dev_dependencies:
   mockito:
 
 dependency_overrides:
-  # Must override these dependencies, but cannot publish to puv.dev
+  # Should override flutter_web dependencies, but cannot publish to puv.dev
   # when overriding.
 
   flutter_web:

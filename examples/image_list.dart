@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
 
 class DisplayImages extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Interactive Images List')),
       body: floop['loading'] != true && floop['images'] == null
@@ -46,7 +46,11 @@ class DisplayImages extends StatelessWidget with Floop {
                     fontWeight: FontWeight.w700,
                   ),
                 )
-              : ImagesList(floop['images'].cast<Map>()),
+              : ListView(
+                  children: floop['images']
+                      .map((im) => ImageItem(im))
+                      .toList()
+                      .cast<Widget>()),
       floatingActionButton: FloatingActionButton(
         child: Icon(
             floop['images'] == null ? Icons.cloud_download : Icons.refresh),
@@ -65,20 +69,7 @@ class DisplayImages extends StatelessWidget with Floop {
   }
 }
 
-class ImagesList extends StatelessWidget {
-  final List<Map> images;
-
-  ImagesList(this.images);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: images.map((im) => ImageItem(im)).toList(),
-    );
-  }
-}
-
-class ImageItem extends StatelessWidget with FloopLight {
+class ImageItem extends StatelessWidget with Floop {
   final Map image;
 
   ImageItem(this.image) {
@@ -86,7 +77,7 @@ class ImageItem extends StatelessWidget with FloopLight {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Container(

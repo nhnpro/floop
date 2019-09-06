@@ -81,7 +81,9 @@ rotateWidget(Widget widget, [speed = 1]) {
 class IconThumbnails extends StatelessWidget with Floop {
   reset() {
     for (Repeater rep in repeaters) {
-      rep.reset();
+      rep
+        ..stop()
+        ..reset();
     }
     (store['speedUp'] as Repeater).reset();
     (store['speedDown'] as Repeater).reset();
@@ -89,7 +91,7 @@ class IconThumbnails extends StatelessWidget with Floop {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Column(children: [
         store['showBig'] ? DisplayBox() : Container(),
@@ -168,7 +170,7 @@ class IconThumbnails extends StatelessWidget with Floop {
 
 class DisplayBox extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Container(
       height: 300.0,
       child: Center(
@@ -200,7 +202,7 @@ class AnimatedIconButton extends StatelessWidget with Floop {
   }
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     int c = store['colorOffset'] ?? 0;
     var color = store['animate']
         ? Color.fromRGBO(c + 90, c + 180, Random().nextInt(256), 1.0)

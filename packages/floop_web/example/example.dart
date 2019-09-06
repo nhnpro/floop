@@ -1,71 +1,127 @@
 import 'package:flutter_web/material.dart';
 import 'package:floop_web/floop_web.dart';
-
-/// This example exists solely to satisfy dart publishing requirements.
-/// The real examples folder lies at the root of the project on Github.
-/// https://github.com/icatalud/floop
+import 'package:http/http.dart' as http;
 
 void main() {
-  floop['clicks'] = 0;
-  runApp(MaterialApp(
-      title: 'Clicker',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: Clicker()));
+  fetchAndUpdateImage();
+  runApp(MaterialApp(title: 'Fetch image', home: ImageDisplay2()));
 }
 
-class Clicker extends StatelessWidget with Floop {
+var _fetching = false;
+
+fetchAndUpdateImage([String url = 'https://picsum.photos/300/200']) async {
+  if (_fetching) {
+    return false;
+  }
+  try {
+    _fetching = true; // locks the fetching function
+    final response = await http.get(url);
+    floop['image'] = TransitionImage(Image.memory(response.bodyBytes));
+    return true;
+  } finally {
+    _fetching = false;
+  }
+}
+
+class ImageDisplay extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Text(
-          floop['clicks'].toString(),
-          style: TextStyle(
-            color: Colors.red,
-            fontSize: 100,
-          ),
-        ),
-      ),
+      // `floop['image']` is null while fetching an image. When the
+      // imaged is downloaded, an image widget is stored on `floop['image']`
+      // and the widget automatically updates.
+      body: floop['image'] == null
+          ? Center(
+              child: Text(
+                'Loading...',
+                textScaleFactor: 2,
+              ),
+            )
+          : Align(
+              alignment: Alignment(0, transition(2000, delayMillis: 800) - 1),
+              child: floop['image']),
       floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.add), onPressed: () => floop['clicks']++),
+        child: Icon(Icons.refresh),
+        onPressed: () async {
+          floop['image'] = null;
+          await fetchAndUpdateImage();
+          // print('image fetched: ${floop['image']}');
+          // Restarting context transitions after the new image has loaded
+          // causes the new image to also transition from top to center.
+          Transitions.restart(context: context);
+        },
+      ),
     );
   }
 }
 
-// The following are alternative implementations.
+// `extends FloopWidget` is equivalent to `...StatelessWidget with Floop`.
+class TransitionImage extends FloopWidget {
+  final Image image;
+  const TransitionImage(this.image);
 
-class ClickerStateful extends StatefulWidget {
   @override
-  State<StatefulWidget> createState() => ClickerState();
-}
-
-class ClickerState extends State<ClickerStateful> with FloopStateMixin {
-  @override
-  Widget buildWithFloop(BuildContext context) {
-    return Scaffold(
-      body: Center(
-          child: Text(floop['clicks'].toString(),
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 100,
-              ))),
-      floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.add), onPressed: () => floop['clicks']++),
+  Widget build(BuildContext context) {
+    // Opacity transitions from 0 to 1 in 1.5 seconds.
+    return GestureDetector(
+      child: Opacity(opacity: transition(1500), child: image),
+      onTap: () async {
+        if (await fetchAndUpdateImage()) {
+          Transitions.restart(context: context);
+        }
+      },
     );
   }
 }
 
-// Simplest example.
+// Same example but using a class that access the values on `floop`. Serves
+// as a model to organize the code in a big app. Shared dynamic values, like
+// user data can be stored in a class with static values and access `floop`
+// only from there.
 
-class SimpleClicker extends StatelessWidget with Floop {
+class DynamicValues {
+  static Widget get image => floop['image'];
+  static set image(Widget widget) => floop['image'] = widget;
+}
+
+fetchAndUpdateImage2([String url = 'https://picsum.photos/300/200']) async {
+  if (_fetching) {
+    return false;
+  }
+  try {
+    _fetching = true; // locks the fetching function
+    final response = await http.get(url);
+    DynamicValues.image = TransitionImage(Image.memory(response.bodyBytes));
+    return true;
+  } finally {
+    _fetching = false;
+  }
+}
+
+class ImageDisplay2 extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: Text(floop['clicks'].toString())),
+      body: DynamicValues.image == null
+          ? Center(
+              child: Text(
+                'Loading...',
+                textScaleFactor: 2,
+              ),
+            )
+          : Align(
+              alignment: Alignment(0, transition(2000, delayMillis: 800) - 1),
+              child: DynamicValues.image),
       floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.add), onPressed: () => floop['clicks']++),
+        child: Icon(Icons.refresh),
+        onPressed: () async {
+          DynamicValues.image = null;
+          await fetchAndUpdateImage2();
+          // Restarting context transitions after the new image has loaded
+          // causes the new image to also transition from top to center.
+          Transitions.restart(context: context);
+        },
+      ),
     );
   }
 }

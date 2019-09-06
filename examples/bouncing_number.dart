@@ -23,7 +23,7 @@ class PerspectiveLayout extends StatelessWidget with Floop {
   const PerspectiveLayout();
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Transform(
         transform: Matrix4.identity()
           ..setEntry(3, 2, 0.001) // perspective
@@ -77,7 +77,7 @@ class BouncingNumber extends StatelessWidget with Floop {
   const BouncingNumber({Key key});
 
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         Align(

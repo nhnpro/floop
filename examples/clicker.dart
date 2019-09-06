@@ -13,7 +13,7 @@ void main() {
 
 class Clicker extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Text(
@@ -32,14 +32,14 @@ class Clicker extends StatelessWidget with Floop {
 
 // The following are alternative implementations of the same Widget
 
-class ClickerStateful extends StatefulWidget {
+class ClickerStateful extends StatefulWidget with FloopStateful {
   @override
-  State<StatefulWidget> createState() => ClickerState();
+  State<ClickerStateful> createState() => ClickerState();
 }
 
-class ClickerState extends State<ClickerStateful> with FloopStateMixin {
+class ClickerState extends State<ClickerStateful> {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
           child: Text(floop['clicks'].toString(),
@@ -55,17 +55,12 @@ class ClickerState extends State<ClickerStateful> with FloopStateMixin {
 
 void mainSimple() {
   floop['clicks'] = 0;
-  runApp(MaterialApp(
-      title: 'Clicker',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: SimpleClicker()));
+  runApp(MaterialApp(title: 'Clicker', home: SimpleClicker()));
 }
 
 class SimpleClicker extends StatelessWidget with Floop {
   @override
-  Widget buildWithFloop(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(child: Text(floop['clicks'].toString())),
       floatingActionButton: FloatingActionButton(

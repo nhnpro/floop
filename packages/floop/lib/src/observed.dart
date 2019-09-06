@@ -3,18 +3,14 @@ import './controller.dart';
 
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-abstract class Observed<K, V> {
-  ObservedListener _listener = ObservedListener();
-}
-
 /// The basic Map data structure that is listened by Floop when reading
 /// or setting values.
 ///
-/// Any reads from an [ObservedMap] inside a Floop's Widget [buildWithFloop]
+/// Any reads from an [ObservedMap] inside a Floop's Widget [build]
 /// method, subscribes the read keys to the widget's [Element] (context).
 /// Whenever a key value changes, any subscribed context will be rebuilt in
 /// the next frame.
-class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
+class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   final Map<K, V> _keyToValue = Map();
 
   ObservedMap();
@@ -33,25 +29,25 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
     }
   }
 
-  /// Retrieves the `value` of `key`. When invoked from within
-  /// [Floop.buildWithFloop], the context being built gets subscribed to
+  /// Retrieves the `value` of `key`. When invoked from within a [build]
+  /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
   operator [](key) {
-    _listener.valueRetrieved(key);
+    valueRetrieved(key);
     return _keyToValue[key];
   }
 
   /// Returns the keys of this [ObservedMap], retrieved from an internal
   /// [LinkedHashMap] instance.
   ///
-  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle
-  /// will subscribe the correspnding widget to any insertions or removals of
-  /// of keys in this Map, regardless of the keys being iterated over or not.
-  /// It does not make the widget subscription sensitive to the keys
-  /// corresponding values though.
+  /// Retrieving [keys] during a [Widget] or [State] build cycle will
+  /// subscribe the correspnding widget to any insertions or removals of
+  /// keys in the Map, regardless of the keys being iterated over or not.
+  /// It does not make the subscription sensitive to the keys corresponding
+  /// values.
   @override
   Iterable<K> get keys {
-    _listener.mutationRead();
+    keysRetrieved();
     return _keyToValue.keys;
   }
 
@@ -85,7 +81,7 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
 
   _notifyListenerIfChange(Object key, V value) {
     if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
-      _listener.valueChanged(key);
+      valueChanged(key);
     }
   }
 
@@ -94,19 +90,20 @@ class ObservedMap<K, V> extends MapMixin<K, V> with Observed<K, V> {
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    _listener.valueChanged(key);
+    valueChanged(key);
   }
 
   @override
   void clear() {
     _keyToValue.clear();
-    _listener.cleared();
+    cleared();
   }
 
   @override
   V remove(Object key, [bool triggerUpdates = true]) {
     if (triggerUpdates && _keyToValue.containsKey(key)) {
-      _listener.valueChanged(key);
+      valueChanged(key);
+      mutation();
     }
     return _keyToValue.remove(key);
   }
