@@ -118,7 +118,6 @@ Widget build(BuildContext context) {
 
 Reading a value from `floop` inside a [Builder] does not subscribe the value to the context used by the builder, because the builder function is a callback that executes outside of the encompassing [build] method.
 
-
 ### Transitions and Keys in Stateless Widgets
 
 Use keys on widgets that invoke [transition] when the following conditions are met:
@@ -152,7 +151,6 @@ Maps and lists can still be stored as they are by using the method [ObservedMap.
 
 Those methods would be the equivalent of what [State.init] and [State.dispose] are.
 It can be useful to override them to for example initialize or dispose dynamic values in `floop` that are only used by the widget. Be careful not to write values of existing keys that are subscribed to other widgets, as it would trigger a rebuild when it is not allowed, causing a Flutter error.
-
 
 ## <a name="performance">Performance</a>
 

@@ -1,12 +1,12 @@
-## [0.1.0] - 2/09/2019
+## [1.0.0] - 06/09/2019
 
-- Adding `with Floop` is all that is required to enable Floop on a widget
+- Now only `with Floop` is required to enable Floop on a widget
 - No more [buildWithFloop], the build method is just [build]
 - Major refactor to core functionality. Listening is faster.
 - Eliminated [FloopLight], examples updated accordingly.
 - Updated the clicker example. Now it fetches an image.
 
-## [0.3.0] - 1/09/2019
+## [0.3.0] - 01/09/2019
 
 - Adds transition API with examples.
 - Changes to Repeater.

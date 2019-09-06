@@ -22,13 +22,6 @@ mixin FloopBuilder {
 /// changes detected to [ObservedMap] instances read during the build.
 /// Example: `MyWidget extends StatelessWidget with Floop {...}`.
 mixin Floop on StatelessWidget {
-  Widget _buildWithFloopListening(BuildContext context) {
-    FloopController.startListening(context);
-    var widget = build(context);
-    FloopController.stopListening();
-    return widget;
-  }
-
   /// Override to dispose any resources, like values or listeners that are
   /// related only to the context.
   ///
@@ -61,8 +54,15 @@ class StatelessElementFloop extends StatelessElement {
 
   Floop get widget => super.widget;
 
+  Widget _buildWithFloopListening() {
+    FloopController.startListening(this);
+    var childWidget = widget.build(this);
+    FloopController.stopListening();
+    return childWidget;
+  }
+
   @override
-  Widget build() => widget._buildWithFloopListening(this);
+  Widget build() => _buildWithFloopListening();
 
   void mount(Element parent, dynamic newSlot) {
     widget.initContext(this);
@@ -90,16 +90,6 @@ class StatelessElementFloop extends StatelessElement {
 /// Mixin for StatefulWidgets. Use this mixin in a State class to enable
 /// widget builds to be observed by Floop.
 mixin FloopStateful on StatefulWidget {
-  /// The build is performed through the widget which is not elegant, but
-  /// rather a workaround to enable Floop's listening mode without having
-  /// the user to intervene the State with another mixin.
-  Widget _buildWithFloopListening(covariant StatefulElement context) {
-    FloopController.startListening(context);
-    var widget = context.state.build(context);
-    FloopController.stopListening();
-    return widget;
-  }
-
   @override
   StatefulElement createElement() => StatefulElementFloop(this);
 }
@@ -109,8 +99,15 @@ class StatefulElementFloop extends StatefulElement {
 
   FloopStateful get widget => super.widget;
 
+  Widget _buildWithFloopListening() {
+    FloopController.startListening(this);
+    var widget = state.build(this);
+    FloopController.stopListening();
+    return widget;
+  }
+
   @override
-  Widget build() => widget._buildWithFloopListening(this);
+  Widget build() => _buildWithFloopListening();
 
   @override
   void unmount() {
@@ -132,3 +129,22 @@ class StatefulElementFloop extends StatefulElement {
 abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
   const FloopStatefulWidget({Key key}) : super(key: key);
 }
+
+// abstract class DynamicWidget extends FloopWidget {
+//   const DynamicWidget({Key key}) : super(key: key);
+
+//   @override
+//   StatelessElement createElement() => DynamicValuesElement(this);
+// }
+
+// class DynamicValuesElement extends StatelessElementFloop {
+//   DynamicValuesElement(DynamicWidget widget) : super(widget);
+
+//   DynamicWidget get widget => super.widget;
+
+//   @override
+//   void mount(Element parent, newSlot) {
+//     // TODO: implement mount
+//     super.mount(parent, newSlot);
+//   }
+// }

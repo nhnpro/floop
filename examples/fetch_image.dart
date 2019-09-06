@@ -3,32 +3,23 @@ import 'package:floop/floop.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  fetchImage();
-  runApp(MaterialApp(title: 'Fetch image', home: ImageDisplay()));
+  fetchAndUpdateImage();
+  runApp(MaterialApp(title: 'Fetch image', home: ImageDisplay2()));
 }
 
 var _fetching = false;
 
-fetchImage([String url = 'https://picsum.photos/300/200']) async {
+fetchAndUpdateImage([String url = 'https://picsum.photos/300/200']) async {
   if (_fetching) {
-    return null;
+    return false;
   }
-  _fetching = true; // locks the fetching function
-  floop['image'] = null; // Set to null while awaiting the response
-  final response = await http.get(url);
-  _fetching = false;
-  return TransitionImage(Image.memory(response.bodyBytes));
-}
-
-// `extends FloopWidget` is equivalent to `...StatelessWidget with Floop`.
-class TransitionImage extends FloopWidget {
-  final Image image;
-  const TransitionImage(this.image);
-
-  @override
-  Widget build(BuildContext context) {
-    // Opacity transitions from 0 to 1 in 1.5 seconds.
-    return Opacity(opacity: transition(1500), child: image);
+  try {
+    _fetching = true; // locks the fetching function
+    final response = await http.get(url);
+    floop['image'] = TransitionImage(Image.memory(response.bodyBytes));
+    return true;
+  } finally {
+    _fetching = false;
   }
 }
 
@@ -53,12 +44,32 @@ class ImageDisplay extends StatelessWidget with Floop {
         child: Icon(Icons.refresh),
         onPressed: () async {
           floop['image'] = null;
-          floop['image'] = await fetchImage();
+          await fetchAndUpdateImage();
+          // print('image fetched: ${floop['image']}');
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
           Transitions.restart(context: context);
         },
       ),
+    );
+  }
+}
+
+// `extends FloopWidget` is equivalent to `...StatelessWidget with Floop`.
+class TransitionImage extends FloopWidget {
+  final Image image;
+  const TransitionImage(this.image);
+
+  @override
+  Widget build(BuildContext context) {
+    // Opacity transitions from 0 to 1 in 1.5 seconds.
+    return GestureDetector(
+      child: Opacity(opacity: transition(1500), child: image),
+      onTap: () async {
+        if (await fetchAndUpdateImage()) {
+          Transitions.restart(context: context);
+        }
+      },
     );
   }
 }
@@ -71,6 +82,20 @@ class ImageDisplay extends StatelessWidget with Floop {
 class DynamicValues {
   static Widget get image => floop['image'];
   static set image(Widget widget) => floop['image'] = widget;
+}
+
+fetchAndUpdateImage2([String url = 'https://picsum.photos/300/200']) async {
+  if (_fetching) {
+    return false;
+  }
+  try {
+    _fetching = true; // locks the fetching function
+    final response = await http.get(url);
+    DynamicValues.image = TransitionImage(Image.memory(response.bodyBytes));
+    return true;
+  } finally {
+    _fetching = false;
+  }
 }
 
 class ImageDisplay2 extends StatelessWidget with Floop {
@@ -91,7 +116,7 @@ class ImageDisplay2 extends StatelessWidget with Floop {
         child: Icon(Icons.refresh),
         onPressed: () async {
           DynamicValues.image = null;
-          DynamicValues.image = await fetchImage();
+          await fetchAndUpdateImage2();
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
           Transitions.restart(context: context);
