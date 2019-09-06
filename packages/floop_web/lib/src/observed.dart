@@ -6,7 +6,7 @@ final ObservedMap<Object, dynamic> floop = ObservedMap();
 /// The basic Map data structure that is listened by Floop when reading
 /// or setting values.
 ///
-/// Any reads from an [ObservedMap] inside a Floop's Widget [buildWithFloop]
+/// Any reads from an [ObservedMap] inside a Floop's Widget [build]
 /// method, subscribes the read keys to the widget's [Element] (context).
 /// Whenever a key value changes, any subscribed context will be rebuilt in
 /// the next frame.
@@ -29,8 +29,8 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
     }
   }
 
-  /// Retrieves the `value` of `key`. When invoked from within
-  /// [Floop.buildWithFloop], the context being built gets subscribed to
+  /// Retrieves the `value` of `key`. When invoked from within a [build]
+  /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
   operator [](key) {
     valueRetrieved(key);
@@ -40,11 +40,11 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// Returns the keys of this [ObservedMap], retrieved from an internal
   /// [LinkedHashMap] instance.
   ///
-  /// Retrieving [keys] during a [Widget] or [State] `buildWithFloop` cycle
-  /// will subscribe the correspnding widget to any insertions or removals of
-  /// of keys in this Map, regardless of the keys being iterated over or not.
-  /// It does not make the widget subscription sensitive to the keys
-  /// corresponding values though.
+  /// Retrieving [keys] during a [Widget] or [State] build cycle will
+  /// subscribe the correspnding widget to any insertions or removals of
+  /// keys in the Map, regardless of the keys being iterated over or not.
+  /// It does not make the subscription sensitive to the keys corresponding
+  /// values.
   @override
   Iterable<K> get keys {
     keysRetrieved();
@@ -103,6 +103,7 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   V remove(Object key, [bool triggerUpdates = true]) {
     if (triggerUpdates && _keyToValue.containsKey(key)) {
       valueChanged(key);
+      mutation();
     }
     return _keyToValue.remove(key);
   }

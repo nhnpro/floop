@@ -4,10 +4,25 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
-  floop: #0.4.0
-  http:
+  floop_web: ^1.0.0
+    # path: ../floop_web
+  flutter_web: ^1.0.0
+    # git:
+    #   url: https://github.com/flutter/flutter_web
+    #   path: packages/flutter_web
+  flutter_web_ui: ^1.0.0
+    # git:
+    #   url: https://github.com/flutter/flutter_web
+    #   path: packages/flutter_web_ui
 
-# For information on the generic Dart part of this file, see the
-# following page: https://www.dartlang.org/tools/pub/pubspec
+dependency_overrides:
+  # Should override flutter_web dependencies, but cannot publish to puv.dev
+  # when overriding.
+  flutter_web:
+    git:
+      url: https://github.com/flutter/flutter_web
+      path: packages/flutter_web
+  flutter_web_ui:
+    git:
+      url: https://github.com/flutter/flutter_web
+      path: packages/flutter_web_ui

@@ -20,7 +20,7 @@ abstract class FloopController {
   /// Element corresponding to widget on build.
   static Element _currentBuild;
 
-  /// [BuildContext] of the ongoing [buildWithFloop].
+  /// [BuildContext] of the ongoing [build].
   static Element get currentBuild => _currentBuild;
 
   /// Returns true if this controller is on listening mode.
@@ -198,7 +198,7 @@ abstract class FloopController {
 }
 
 /// This mixin provides the functionality to connect [ObservedMap] with
-/// [FloopController]. Used by [ObservedMap].
+/// [FloopController]. Mixed in by [ObservedMap].
 mixin ObservedListener {
   /// The map that associates keys with cannonical ids used by the controller
   /// that should be updated when the value of the key changes.

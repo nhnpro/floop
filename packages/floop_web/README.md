@@ -12,23 +12,20 @@ https://github.com/icatalud/floop/
 
 ### Example - How to use
 
-```diff
-+import 'package:floop_web/floop_web.dart';
-
+```dart
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-
   @override
--Widget build(BuildContext context) {
-+Widget buildWithFloop(BuildContext context) {
-buildWithFloop
+  Widget build(BuildContext context) {
     return Scaffold(
+      // Text widget always displays the current value of 'clicks'
       body: Center(
-+          child: Text(floop['clicks'].toString())
-        ),
+        child: Text(floop['clicks'].toString())
+      ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-+        onPressed: () => floop['clicks']++    // change 'clicks' from anywhere in the app and the widget will get updated
+        // change 'clicks' from anywhere in the app (except build methods)
+        onPressed: () => floop['clicks']++,
       ),
     );
   }
