@@ -29,10 +29,16 @@ mixin Floop on StatelessWidget {
     return widget;
   }
 
-  /// Invoked when an [Element] (context) that holds this widget gets unmounted.
   /// Override to dispose any resources, like values or listeners that are
-  /// related only to the element.
-  disposeContext(Element element) {}
+  /// related only to the context.
+  ///
+  /// Invoked when an [BuildContext] that holds this widget gets unmounted.
+  void disposeContext(BuildContext context) {}
+
+  /// Override initialize values that are related only to the context.
+  ///
+  /// Invoked when a [BuildContext] with this widget has just been created.
+  void initContext(BuildContext context) {}
 
   @override
   StatelessElement createElement() {
@@ -58,6 +64,11 @@ class StatelessElementFloop extends StatelessElement {
   @override
   Widget build() => widget._buildWithFloopListening(this);
 
+  void mount(Element parent, dynamic newSlot) {
+    widget.initContext(this);
+    super.mount(parent, newSlot);
+  }
+
   @override
   void unmount() {
     assert(() {
@@ -67,8 +78,8 @@ class StatelessElementFloop extends StatelessElement {
     unsubscribeElement(this);
     // WidgetsBinding.instance
     //     .addPostFrameCallback((_) => widget.onContextUnmount(this));
-    widget.disposeContext(this);
     super.unmount();
+    widget.disposeContext(this);
     assert(() {
       FloopController.debugfinishUnmounting();
       return true;

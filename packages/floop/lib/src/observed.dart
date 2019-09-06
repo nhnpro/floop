@@ -103,6 +103,7 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   V remove(Object key, [bool triggerUpdates = true]) {
     if (triggerUpdates && _keyToValue.containsKey(key)) {
       valueChanged(key);
+      mutation();
     }
     return _keyToValue.remove(key);
   }

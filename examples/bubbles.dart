@@ -55,7 +55,7 @@ class InteractiveCircle extends FloopWidget {
       : name = circle.name,
         super(key: key);
 
-  disposeContext(Element element) {
+  disposeContext(BuildContext context) {
     circle.dispose();
   }
 

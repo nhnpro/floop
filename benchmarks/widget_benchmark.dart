@@ -100,6 +100,7 @@ double runBenchmarkFunction(ComponentElement element,
       buildManyTimes, '${element.runtimeType.toString()}$messageAdd');
 }
 
+// int _build = 0;
 class SmallWidget extends StatelessWidget {
   final Function readOperation;
 
