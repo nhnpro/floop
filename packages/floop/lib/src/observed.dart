@@ -1,6 +1,13 @@
 import 'dart:collection';
 import './controller.dart';
 
+/// Dynamic values provider to widgets.
+///
+/// Read values like reading from any [Map] within a widget's build method
+/// and the widget will automatically rebuild on changes to the values read.
+///
+/// `floop` is just instance of [ObservedMap], other [ObservedMap] objects
+/// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
 /// The basic Map data structure that is listened by Floop when reading

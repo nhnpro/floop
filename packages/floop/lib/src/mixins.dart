@@ -1,20 +1,5 @@
-import 'package:meta/meta.dart' show visibleForOverriding;
 import './flutter_import.dart';
 import './controller.dart';
-
-// It's not possible to mix mixins in Dart. If it ever becomes possible,
-// all other mixins should use FloopBuilder.
-mixin FloopBuilder {
-  Widget build(BuildContext context);
-
-  @visibleForOverriding
-  Widget _buildWithFloopListening(BuildContext context) {
-    FloopController.startListening(context);
-    var widget = build(context);
-    FloopController.stopListening();
-    return widget;
-  }
-}
 
 /// Mixin that causes the Widget be listened while building.
 ///

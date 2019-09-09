@@ -152,7 +152,7 @@ abstract class FloopController {
     assert(() {
       if (isListening) {
         print('Error: Floop widget `${currentBuild.widget}` is building while '
-            'setting value of key `${_debugLastKeyChange}` in an '
+            'setting value of key `$_debugLastKeyChange` in an '
             '[ObservedMap]. Avoid writing to an [ObservedMap] while '
             'bulding Widgets.');
         assert(false);
@@ -188,9 +188,8 @@ abstract class FloopController {
         // Future.microtask(() => unsubscribeElement(ele));
         // WidgetsBinding.instance
         //     .addPostFrameCallback((_) => unsubscribeElement(ele));
-      } finally {
-        return true;
       }
+      return true;
     }());
 
     _idToElements[id]?.forEach((element) => element.markNeedsBuild());

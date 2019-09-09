@@ -45,7 +45,6 @@ class ImageDisplay extends StatelessWidget with Floop {
         onPressed: () async {
           floop['image'] = null;
           await fetchAndUpdateImage();
-          // print('image fetched: ${floop['image']}');
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
           Transitions.restart(context: context);
@@ -62,8 +61,8 @@ class TransitionImage extends FloopWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Opacity transitions from 0 to 1 in 1.5 seconds.
     return GestureDetector(
+      // opacity property transitions from 0 to 1 in 1.5 seconds.
       child: Opacity(opacity: transition(1500), child: image),
       onTap: () async {
         if (await fetchAndUpdateImage()) {
