@@ -10,13 +10,12 @@ import './controller.dart';
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-/// The basic Map data structure that is listened by Floop when reading
-/// or setting values.
+/// A special [Map] implementation that provides dynamic values to widgets.
 ///
-/// Any reads from an [ObservedMap] inside a Floop's Widget [build]
-/// method, subscribes the read keys to the widget's [Element] (context).
-/// Whenever a key value changes, any subscribed context will be rebuilt in
-/// the next frame.
+/// Any reads from an [ObservedMap] inside a Floop's Widget [build] method
+/// subscribes the read keys to the [BuildContext] `context`. When a key's
+/// value is set with a different value, all subscribed contexts to the key
+/// will be rebuilt in the next frame.
 class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   final Map<K, V> _keyToValue = Map();
 
@@ -67,9 +66,8 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// for setting values without triggering element updates.
   ///
   /// [Map] and [List] values are recursively traversed saving copied versions
-  /// of them. For each value of type [Map] an [ObservedMap] copy of it is
-  /// saved. For each value of type [List] it will create an unmodifiable copy
-  /// using [List.unmodifiable].
+  /// of them. For values of type [Map] an [ObservedMap] copy of it is stored.
+  /// Values of type [List] are copied using [List.unmodifiable].
   operator []=(Object key, V value) {
     _notifyListenerIfChange(key, value);
     _keyToValue[key] = convert(value);

@@ -177,11 +177,10 @@ abstract class FloopController {
           }
         }
       } catch (e) {
-        print('Error - Floop: When invoking markNeedsBuild on $ele. This '
-            'is due to the element being subscribed to updates but is '
-            'probably on defunct state.\n'
-            'Currently there is no way to check through Flutter framework '
-            'if the element is defunct.');
+        print('Error: FloopController is invoking markNeedsBuild on $ele when '
+            'it\'s not allowed or on an invalid Element. This is most likely '
+            'due to initContext or disposeContext methods writing values to '
+            'an ObservedMap instance.');
 
         /// Used to clean in case there is error from Flutter framework
         /// defunct check when marking element as need build in debug mode.
