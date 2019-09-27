@@ -256,6 +256,15 @@ abstract class Transitions {
 
   static _restart(_Transition t) => t?.restart();
 
+  /// Advances the transition by `advanceTimeMillis`.
+  ///
+  /// If `advanceTimeMillis` is null, the transition will be advanced to it's
+  /// total duration time.
+  static advance({int advanceTimeMillis, Object key, BuildContext context}) {
+    _applyToTransitions(
+        (_Transition t) => t?.advance(advanceTimeMillis), key, context);
+  }
+
   /// Clear all transitions. Equivalent to invoking `Transitions.clear()`.
   static clearAll() =>
       _Transition.all().toList().forEach((t) => t.stopAndDispose());
@@ -277,10 +286,13 @@ abstract class Transitions {
 
 /// Integer version of [transitionNumber].
 int transitionInt(int start, int end, int durationMillis,
-    {refreshRateMillis = 20}) {
+    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
   return (start +
           (end - start) *
-              transition(durationMillis, refreshRateMillis: refreshRateMillis))
+              transition(durationMillis,
+                  refreshRateMillis: refreshRateMillis,
+                  delayMillis: delayMillis,
+                  key: key))
       .toInt();
 }
 
@@ -289,10 +301,13 @@ int transitionInt(int start, int end, int durationMillis,
 /// Can only be invoked from within [build] methods. See [transition] for
 /// detailed documentation about transitions.
 num transitionNumber(num start, num end, int durationMillis,
-    {refreshRateMillis = 20}) {
+    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
   return start +
       (end - start) *
-          transition(durationMillis, refreshRateMillis: refreshRateMillis);
+          transition(durationMillis,
+              refreshRateMillis: refreshRateMillis,
+              delayMillis: delayMillis,
+              key: key);
 }
 
 /// Transitions a string from length 0 to the full string.
@@ -300,9 +315,12 @@ num transitionNumber(num start, num end, int durationMillis,
 /// Can only be invoked from within [build] methods. See [transition] for
 /// detailed documentation about transitions.
 String transitionString(String string, int durationMillis,
-    {refreshRateMillis = 20}) {
+    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
   int length = (string.length *
-          transition(durationMillis, refreshRateMillis: refreshRateMillis))
+          transition(durationMillis,
+              refreshRateMillis: refreshRateMillis,
+              delayMillis: delayMillis,
+              key: key))
       .toInt();
   return string.substring(0, length);
 }
@@ -404,6 +422,10 @@ class _Transition extends Repeater {
     _keyToTransition[key] = this;
   }
 
+  int timeShift = 0;
+
+  int get elapsedMilliseconds => super.elapsedMilliseconds + timeShift;
+
   double get progressRatio =>
       ((elapsedMilliseconds - delayMillis) / durationMillis)
           .clamp(0, 1)
@@ -417,19 +439,25 @@ class _Transition extends Repeater {
     observedRatio.dispose();
   }
 
-  reset([bool notUsed = true]) => super.reset(false);
+  reset([bool notUsed = true]) {
+    timeShift = 0;
+    super.reset(false);
+  }
 
   restart() {
     reset();
-    if (!isRunning) {
-      start();
-    }
+    start();
+  }
+
+  advance([int timeMillis]) {
+    timeMillis ??= durationMillis + delayMillis - super.elapsedMilliseconds;
+    timeShift += timeMillis;
   }
 
   @override
   update() {
     double ratio = progressRatio;
-    // Disposing must go first, in case `evaluate` callback creates a new
+    // Stop and dispose first in case `evaluate` callback creates a new
     // transition with the same key.
     if (ratio == 1 && disposeOnFinish) {
       stopAndDispose();

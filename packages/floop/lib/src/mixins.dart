@@ -160,7 +160,7 @@ abstract class DynamicWidget extends FloopWidget {
   /// [Widget] `@immutable` annotation requires all fields to be final.
   final _ObservedMapWrapper _dyn = _ObservedMapWrapper();
 
-  /// An internal [ObservedMap] instance that keeps dynamic values.
+  /// An internal [ObservedMap] instance that provides dynamic values.
   ///
   /// It gets passed on to new [DynamicWidget] instances whenever the context
   /// rebuilds. Assume [dyn] is persistant on calls to [build].
@@ -168,18 +168,32 @@ abstract class DynamicWidget extends FloopWidget {
 
   /// Invoked when the widget's [dyn] member is created.
   ///
-  /// A new [dyn] member will only be created when it is null and when an
-  /// [BuildContext] with this widget is mounted on the element tree (builds
-  /// for the first time).
+  /// A new [dyn] member will be created:
+  ///   1. Automatically: when [dyn] is null and a [BuildContext] instance with
+  ///      this widget is mounted (builds for the first time).
+  ///   2. Manually: [forceInit] is invoked.
   ///
-  /// Useful to override for initializing dynamic values that are used in the
-  /// [build] method.
+  /// Override to initialize any dynamic values that are used in the [build]
+  /// method. It can be thought of as the equivalent of [State.initState].
   @protected
-  init() {}
+  initDyn() {}
+
+  /// Creates a new [dyn] member and invokes [initDyn].
+  ///
+  /// Normally the widget is automatically initialized, but it can be useful
+  /// to initialize it using [forceInit] when the widget is created outside
+  /// of a [build] method. In those cases, if the widget has not yet been
+  /// initialized and it is used to replace an existing widget, it will copy
+  /// the [dyn] member of the old widget. If that behavior is undesired,
+  /// invoke [forceInit] when the widget is created to initialize it's own
+  /// [dyn] member.
+  forceInit() {
+    _init();
+  }
 
   _init() {
     _dyn.map = ObservedMap();
-    init();
+    initDyn();
   }
 
   /// Builds this widget with Floop listening.
