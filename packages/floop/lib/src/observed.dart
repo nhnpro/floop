@@ -12,10 +12,9 @@ final ObservedMap<Object, dynamic> floop = ObservedMap();
 
 /// A special [Map] implementation that provides dynamic values to widgets.
 ///
-/// Any reads from an [ObservedMap] inside a Floop's Widget [build] method
-/// subscribes the read keys to the [BuildContext] `context`. When a key's
-/// value is set with a different value, all subscribed contexts to the key
-/// will be rebuilt in the next frame.
+/// Retrieving values from an [ObservedMap] instance within a widget's build
+/// method will trigger automatic rebuilds of the [BuildContext] on changes to
+/// the values retrieved.
 class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   final Map<K, V> _keyToValue = Map();
 
