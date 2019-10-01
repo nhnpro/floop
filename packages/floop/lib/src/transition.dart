@@ -256,13 +256,13 @@ abstract class Transitions {
 
   static _restart(_Transition t) => t?.restart();
 
-  /// Advances the transition by `advanceTimeMillis`.
+  /// Shifts the transition by `shiftTimeMillis`.
   ///
-  /// If `advanceTimeMillis` is null, the transition will be advanced to it's
+  /// If `shiftTimeMillis` is null, the transition will be advanced to it's
   /// total duration time.
-  static advance({int advanceTimeMillis, Object key, BuildContext context}) {
+  static shift({int shiftTimeMillis, Object key, BuildContext context}) {
     _applyToTransitions(
-        (_Transition t) => t?.advance(advanceTimeMillis), key, context);
+        (_Transition t) => t?.shift(shiftTimeMillis), key, context);
   }
 
   /// Clear all transitions. Equivalent to invoking `Transitions.clear()`.
@@ -422,9 +422,9 @@ class _Transition extends Repeater {
     _keyToTransition[key] = this;
   }
 
-  int timeShift = 0;
+  int shiftedMillis = 0;
 
-  int get elapsedMilliseconds => super.elapsedMilliseconds + timeShift;
+  int get elapsedMilliseconds => super.elapsedMilliseconds + shiftedMillis;
 
   double get progressRatio =>
       ((elapsedMilliseconds - delayMillis) / durationMillis)
@@ -440,7 +440,7 @@ class _Transition extends Repeater {
   }
 
   reset([bool notUsed = true]) {
-    timeShift = 0;
+    shiftedMillis = 0;
     super.reset(false);
   }
 
@@ -449,9 +449,9 @@ class _Transition extends Repeater {
     start();
   }
 
-  advance([int timeMillis]) {
-    timeMillis ??= durationMillis + delayMillis - super.elapsedMilliseconds;
-    timeShift += timeMillis;
+  shift([int shiftTimeMillis]) {
+    shiftTimeMillis ??= durationMillis + delayMillis - elapsedMilliseconds;
+    shiftedMillis += shiftTimeMillis;
   }
 
   @override

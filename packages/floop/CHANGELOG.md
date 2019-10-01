@@ -1,3 +1,10 @@
+## [1.1.0] - 01/10/2019
+
+- Added [DynamicWidget], a widget with it's own [ObservedMap].
+- Added [Transitions.shift], which allows shifting a transition.
+- Included all transition parameters to type transitions.
+- Some internal changes to the mixins and [FloopController].
+
 ## [1.0.0] - 06/09/2019
 
 - Now only `with Floop` is required to enable Floop on a widget
