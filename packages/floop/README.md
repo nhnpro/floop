@@ -29,13 +29,13 @@ Example:
 }
 ```
 
-Extra step:
+**Extra step**:
 - Use `transition(ms)` within the build method to have a value transition from 0 to 1 in `ms` milliseconds.
 
-Other options:
+**Other options**:
 - [DynamicWidget] is a convenient Floop widget that has it's own map of dynamic values accessed through [dyn].
 - `... extends StatelessWidget with Floop` is equivalent to `... extends FloopWidget`.
-- On stateful widgets use `...extends StatefulWidget with FloopStateful` or extend [FloopStatefulWidget].
+- `...extends StatefulWidget with FloopStateful` or extend [FloopStatefulWidget] for stateful widgets.
 - Maps of dynamic values like `floop` can be instantiated using [ObservedMap].
 
 ## Suggested use cases

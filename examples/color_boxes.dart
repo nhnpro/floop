@@ -99,8 +99,9 @@ class ColorBox extends DynamicWidget {
       color: color,
       onPressed: () {
         clicks++;
-        Dyn.useRepeatingWidgets ^= clicks % 4 == 0;
-        Dyn.selectedBoxId = id;
+        final switchMode = clicks % 4 == 0;
+        Dyn.useRepeatingWidgets ^= switchMode;
+        Dyn.selectedBoxId = switchMode ? null : id;
         Dyn.totalClicks++;
         // Note that [Dyn.widgets] is copied into a new list prior to
         // shuffling. This is because when [List] instances are stored in an
