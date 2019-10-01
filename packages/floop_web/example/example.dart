@@ -9,7 +9,8 @@ void main() {
 
 var _fetching = false;
 
-fetchAndUpdateImage([String url = 'https://picsum.photos/300/200']) async {
+Future<bool> fetchAndUpdateImage(
+    [String url = 'https://picsum.photos/300/200']) async {
   if (_fetching) {
     return false;
   }
@@ -84,7 +85,8 @@ class DynamicValues {
   static set image(Widget widget) => floop['image'] = widget;
 }
 
-fetchAndUpdateImage2([String url = 'https://picsum.photos/300/200']) async {
+Future<bool> fetchAndUpdateImage2(
+    [String url = 'https://picsum.photos/300/200']) async {
   if (_fetching) {
     return false;
   }

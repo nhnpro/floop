@@ -45,6 +45,16 @@ class Phrases extends StatelessWidget with Floop {
       body: ListView(
         children: floop['phraseWidgets'].cast<Widget>(),
       ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.shuffle),
+        onPressed: () {
+          // When setting a value of type [List] in `floop`, it always gets
+          // copied, therefore `floop['phraseWidgets']` is never the same
+          // object as `phraseWidgets`.
+          Transitions.restart();
+          floop['phraseWidgets'] = phraseWidgets..shuffle();
+        },
+      ),
     );
   }
 }
@@ -65,13 +75,10 @@ class PhraseWidget extends FloopWidget {
       ),
       subtitle: Text(phrase.autor),
       onTap: () {
-        Transitions.restart(context: context);
-        // When setting a value of type list in `floop`, it always gets
-        // copied, therefore `floop['phraseWidgets']` is never the same
-        // object as `phraseWidgets`.
-        floop['phraseWidgets'] = phraseWidgets..shuffle();
+        // Transitions.restart(context: context);
+        Transitions.shift(shiftTimeMillis: 300, context: context);
       },
-      onLongPress: () => Transitions.restart(),
+      onLongPress: () => Transitions.restart(context: context),
     );
   }
 }

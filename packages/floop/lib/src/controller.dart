@@ -32,6 +32,7 @@ abstract class FloopController {
   static bool contains(Element element) => _elementToIds.containsKey(element);
 
   static int _lastId = 0;
+  static bool _postFrameUpdates = false;
 
   static void startListening(Element element) {
     if (isListening) {
@@ -48,6 +49,16 @@ abstract class FloopController {
     assert(_currentBuild != null);
     _commitObservedReads();
     _currentBuild = null;
+  }
+
+  static void enablePostFrameUpdatesMode() {
+    assert(!_postFrameUpdates);
+    _postFrameUpdates = true;
+  }
+
+  static void disablePostFrameUpdatesMode() {
+    assert(_postFrameUpdates);
+    _postFrameUpdates = false;
   }
 
   /// Unsubscribes all Elements (Widgets) from the registered Observeds.
@@ -148,11 +159,31 @@ abstract class FloopController {
         ?.forEach((id) => _unregisterElementFromId(element, id));
   }
 
+  static final Set<int> _posponedIdsToUpdate = Set();
+
+  static void _markAsNeedBuildCallback([_]) {
+    assert(_posponedIdsToUpdate.isNotEmpty);
+    _posponedIdsToUpdate
+      ..forEach(markElementsAsNeedBuild)
+      ..clear();
+  }
+
+  static void posponeMarkAsNeedBuild(int id) {
+    if (_posponedIdsToUpdate.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback(_markAsNeedBuildCallback);
+    }
+    _posponedIdsToUpdate.add(id);
+  }
+
   static void markElementsAsNeedBuild(int id) {
+    if (_postFrameUpdates) {
+      posponeMarkAsNeedBuild(id);
+      return;
+    }
     assert(() {
       if (isListening) {
         print('Error: Floop widget `${currentBuild.widget}` is building while '
-            'setting value of key `${_debugLastKeyChange}` in an '
+            'setting value of key `$_debugLastKeyChange` in an '
             '[ObservedMap]. Avoid writing to an [ObservedMap] while '
             'bulding Widgets.');
         assert(false);
@@ -177,22 +208,13 @@ abstract class FloopController {
           }
         }
       } catch (e) {
-        print('Error - Floop: When invoking markNeedsBuild on $ele. This '
-            'is due to the element being subscribed to updates but is '
-            'probably on defunct state.\n'
-            'Currently there is no way to check through Flutter framework '
-            'if the element is defunct.');
-
-        /// Used to clean in case there is error from Flutter framework
-        /// defunct check when marking element as need build in debug mode.
-        // Future.microtask(() => unsubscribeElement(ele));
-        // WidgetsBinding.instance
-        //     .addPostFrameCallback((_) => unsubscribeElement(ele));
-      } finally {
-        return true;
+        print('Error: FloopController is invoking markNeedsBuild on $ele when '
+            'it\'s not allowed or on an invalid Element. This is most likely '
+            'due to initContext or disposeContext methods writing values to '
+            'an ObservedMap instance.');
       }
+      return true;
     }());
-
     _idToElements[id]?.forEach((element) => element.markNeedsBuild());
   }
 }

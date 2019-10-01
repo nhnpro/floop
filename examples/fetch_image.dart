@@ -4,12 +4,13 @@ import 'package:http/http.dart' as http;
 
 void main() {
   fetchAndUpdateImage();
-  runApp(MaterialApp(title: 'Fetch image', home: ImageDisplay2()));
+  runApp(MaterialApp(title: 'Fetch image', home: ImageDisplay()));
 }
 
 var _fetching = false;
 
-fetchAndUpdateImage([String url = 'https://picsum.photos/300/200']) async {
+Future<bool> fetchAndUpdateImage(
+    [String url = 'https://picsum.photos/300/200']) async {
   if (_fetching) {
     return false;
   }
@@ -45,7 +46,6 @@ class ImageDisplay extends StatelessWidget with Floop {
         onPressed: () async {
           floop['image'] = null;
           await fetchAndUpdateImage();
-          // print('image fetched: ${floop['image']}');
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
           Transitions.restart(context: context);
@@ -62,8 +62,8 @@ class TransitionImage extends FloopWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Opacity transitions from 0 to 1 in 1.5 seconds.
     return GestureDetector(
+      // opacity property transitions from 0 to 1 in 1.5 seconds.
       child: Opacity(opacity: transition(1500), child: image),
       onTap: () async {
         if (await fetchAndUpdateImage()) {
@@ -84,7 +84,8 @@ class DynamicValues {
   static set image(Widget widget) => floop['image'] = widget;
 }
 
-fetchAndUpdateImage2([String url = 'https://picsum.photos/300/200']) async {
+Future<bool> fetchAndUpdateImage2(
+    [String url = 'https://picsum.photos/300/200']) async {
   if (_fetching) {
     return false;
   }

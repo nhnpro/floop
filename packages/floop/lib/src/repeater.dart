@@ -53,7 +53,7 @@ class Repeater extends Stopwatch {
     return Repeater(callback, refreshRateMillis, durationMillis + delayMillis);
   }
 
-  /// Stops the [Repeater].
+  /// Stops this [Repeater].
   stop() {
     super.stop();
   }
@@ -72,9 +72,15 @@ class Repeater extends Stopwatch {
     }
   }
 
-  _releaseLock() => _executionLocked = false;
+  _stopAndReleaseLock() {
+    stop();
+    _executionLocked = false;
+  }
 
-  _lock() => _executionLocked = true;
+  _startAndLock() {
+    super.start();
+    _executionLocked = true;
+  }
 
   /// Whether an asynchronous periodic instance is executing.
   ///
@@ -82,22 +88,21 @@ class Repeater extends Stopwatch {
   /// is executing at any given time.
   bool get isLocked => _executionLocked;
 
-  /// The function that gets recurrently invoked while the [Repeater] is running.
+  /// The function that gets recurrently invoked while the [Repeater] is
+  /// running. It invokes `fn` with `this` as parameter.
   update() {
     fn(this);
   }
 
-  /// Starts making recurrent calls to `this.fn` by invoking [update] with
+  /// Starts making recurrent invocations to [update] with
   /// `frequencyMilliseconds` for a duration of `durationMilliseconds` or
   /// indefinetely if null.
   start() {
     if (isLocked) {
-      // print('The repeater asynchronous instance is already running');
       return;
     }
     assert(!isRunning);
-    _lock();
-    super.start();
+    _startAndLock();
     assert(isRunning);
     _run();
   }
@@ -108,12 +113,13 @@ class Repeater extends Stopwatch {
       if (super.isRunning) {
         if (durationMilliseconds != null &&
             elapsedMilliseconds >= durationMilliseconds) {
-          stop();
+          _stopAndReleaseLock();
+        } else {
+          _run();
         }
         update();
-        _run();
       } else {
-        _releaseLock();
+        _stopAndReleaseLock();
       }
     });
   }

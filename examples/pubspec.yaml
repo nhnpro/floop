@@ -4,12 +4,12 @@ author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.2.2 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  floop: ^0.3.0
+  floop:
     # path: ../packages/floop
   http: any
 

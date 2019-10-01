@@ -15,26 +15,28 @@ Example:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Text widget always displays the current value of 'clicks'
+      // Text widget always displays the current value of #clicks
       body: Center(
-        child: Text(floop['clicks'].toString())
+        child: Text(floop[#clicks].toString())
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        // change 'clicks' from anywhere in the app (except build methods)
-        onPressed: () => floop['clicks']++,
+        // change #clicks from anywhere in the app (except build methods)
+        onPressed: () => floop[#clicks]++,
       ),
     );
   }
 }
 ```
 
-Extra step:
+**Extra step**:
 - Use `transition(ms)` within the build method to have a value transition from 0 to 1 in `ms` milliseconds.
 
-On Stateful widgets use: `...with FloopStateful`.
-
-Note when reading the readme: the behavior of the library is explained by referring to `floop`, which is just an instance of [ObservedMap], the same behavior that applies to `floop` applies to any other instance of [ObservedMap].
+**Other options**:
+- [DynamicWidget] is a convenient Floop widget that has it's own map of dynamic values accessed through [dyn].
+- `... extends StatelessWidget with Floop` is equivalent to `... extends FloopWidget`.
+- `...extends StatefulWidget with FloopStateful` or extend [FloopStatefulWidget] for stateful widgets.
+- Maps of dynamic values like `floop` can be instantiated using [ObservedMap].
 
 ## Suggested use cases
 
