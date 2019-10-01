@@ -3,23 +3,24 @@ import 'package:floop/floop.dart';
 import './flutter_import.dart';
 import './controller.dart';
 
-mixin DisposableWidget on StatelessWidget {
-  /// Invoked when an [BuildContext] that holds this widget gets unmounted
-  /// (removed from the element tree).
+mixin DisposableWidget on Widget {
+  /// Invoked when `context` is mounted (builds for the first time).
   ///
-  /// Override to dispose any resources, like values or listeners that are
-  /// related only to the context. The default implementation is empty, it's
-  /// not necessary to call super.
-  @protected
-  void disposeContext(BuildContext context) {}
-
-  /// Invoked when a [BuildContext] with this widget is mounted into the
-  /// element tree (builds for the first time).
+  /// Useful to override for initializing values in an [ObservedMap], or any
+  /// other resources that are related only to `context`.
   ///
-  /// Useful to override for initializing values that are related only to the
-  /// context. It's not necessary to call super.
+  /// Default implementation is no-op, it's not necessary to call super.
   @protected
   void initContext(BuildContext context) {}
+
+  /// Invoked when `context` is unmounted (not going to be used anymore).
+  ///
+  /// Useful for disposing values that are were initialized in [initContext],
+  /// or any other resources like listeners that are only related to `context`.
+  ///
+  /// Default implementation is no-op, it's not necessary to call super.
+  @protected
+  void disposeContext(BuildContext context) {}
 }
 
 /// Mixin that causes the Widget be listened while building.
@@ -28,15 +29,8 @@ mixin DisposableWidget on StatelessWidget {
 /// changes detected to [ObservedMap] instances read during the build.
 /// Example: `MyWidget extends StatelessWidget with Floop {...}`.
 mixin Floop on StatelessWidget implements DisposableWidget {
-  /// Override to dispose any resources, like values or listeners that are
-  /// related only to the context.
-  ///
-  /// Invoked when an [BuildContext] that holds this widget gets unmounted.
   void disposeContext(BuildContext context) {}
 
-  /// Override initialize values that are related only to the context.
-  ///
-  /// Invoked when a [BuildContext] with this widget has just been created.
   void initContext(BuildContext context) {}
 
   @override
@@ -51,12 +45,14 @@ abstract class FloopWidget extends StatelessWidget with Floop {
   const FloopWidget({Key key}) : super(key: key);
 }
 
-mixin InitAndDisposeContextMixin on StatelessElement {
-  DisposableWidget get widget => super.widget;
+mixin InitAndDisposeContextMixin on Element {
+  DisposableWidget get disposableWidget => widget;
 
   void mount(Element parent, dynamic newSlot) {
-    widget.initContext(this);
+    FloopController.enablePostFrameUpdatesMode();
+    disposableWidget.initContext(this);
     super.mount(parent, newSlot);
+    FloopController.disablePostFrameUpdatesMode();
   }
 
   @override
@@ -65,11 +61,11 @@ mixin InitAndDisposeContextMixin on StatelessElement {
       FloopController.debugUnmounting(this);
       return true;
     }());
+    FloopController.enablePostFrameUpdatesMode();
     unsubscribeElement(this);
-    // WidgetsBinding.instance
-    //     .addPostFrameCallback((_) => widget.disposeContext(this));
     super.unmount();
-    widget.disposeContext(this);
+    disposableWidget.disposeContext(this);
+    FloopController.disablePostFrameUpdatesMode();
     assert(() {
       FloopController.debugfinishUnmounting();
       return true;
@@ -83,11 +79,12 @@ mixin InitAndDisposeContextMixin on StatelessElement {
 /// cleaned and the widget's [Floop.disposeContext] is invoked.
 class StatelessElementFloop extends StatelessElement
     with InitAndDisposeContextMixin {
-  StatelessElementFloop(DisposableWidget widget) : super(widget);
+  StatelessElementFloop(Floop widget) : super(widget);
 
   Widget _buildWithFloopListening() {
     FloopController.startListening(this);
-    var childWidget = widget.build(this);
+    // ignore: invalid_use_of_protected_member
+    final childWidget = widget.build(this);
     FloopController.stopListening();
     return childWidget;
   }
@@ -98,39 +95,29 @@ class StatelessElementFloop extends StatelessElement
 
 /// Mixin for StatefulWidgets. Use this mixin in a State class to enable
 /// widget builds to be observed by Floop.
-mixin FloopStateful on StatefulWidget {
+mixin FloopStateful on StatefulWidget implements DisposableWidget {
+  void initContext(BuildContext context) {}
+
+  void disposeContext(BuildContext context) {}
+
   @override
   StatefulElement createElement() => StatefulElementFloop(this);
 }
 
-class StatefulElementFloop extends StatefulElement {
+class StatefulElementFloop extends StatefulElement
+    with InitAndDisposeContextMixin {
   StatefulElementFloop(FloopStateful widget) : super(widget);
-
-  FloopStateful get widget => super.widget;
 
   Widget _buildWithFloopListening() {
     FloopController.startListening(this);
-    var widget = state.build(this);
+    // ignore: invalid_use_of_protected_member
+    final childWidget = state.build(this);
     FloopController.stopListening();
-    return widget;
+    return childWidget;
   }
 
   @override
   Widget build() => _buildWithFloopListening();
-
-  @override
-  void unmount() {
-    assert(() {
-      FloopController.debugUnmounting(this);
-      return true;
-    }());
-    unsubscribeElement(this);
-    super.unmount();
-    assert(() {
-      FloopController.debugfinishUnmounting();
-      return true;
-    }());
-  }
 }
 
 /// `class MyState extends FloopState` is equivalent to
@@ -141,7 +128,7 @@ abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
 
 /// Wrapper class used for the mere purpose of skipping the [Widget] class
 /// immutable annotation, since the [ObservedMap] requires to be written after
-/// a widget have been instantiated.
+/// a widget has been instantiated.
 class _ObservedMapWrapper {
   ObservedMap map;
 }
@@ -149,10 +136,16 @@ class _ObservedMapWrapper {
 /// A Floop widget that keeps a mutable [ObservedMap] instance that can be
 /// accessed through [dyn].
 ///
-/// The existing [dyn] gets passed on to new [DynamicWidget] instances
-/// whenever the context rebuilds. It can be therefore assumed that [dyn]
-/// is persistant.
+/// To initialize values in [dyn], override the [initDyn] method, which is the
+/// equivalent of what [State.initState] would be.
+///
+/// The existing widget's [dyn] member gets passed on to new [DynamicWidget]
+/// instances that update an element (unless the new widget has already been
+/// initialized). It can be therefore assumed that [dyn] is persistent on
+/// every build cycle.
 abstract class DynamicWidget extends FloopWidget {
+  DynamicWidget({Key key}) : super(key: key);
+
   /// Wrapper that hold the internal [ObservedMap].
   ///
   /// A wrapper is used to bypass the annotation warnings.Ideally the map
@@ -163,15 +156,15 @@ abstract class DynamicWidget extends FloopWidget {
   /// An internal [ObservedMap] instance that provides dynamic values.
   ///
   /// It gets passed on to new [DynamicWidget] instances whenever the context
-  /// rebuilds. Assume [dyn] is persistant on calls to [build].
+  /// rebuilds. Assume [dyn] is persistent on calls to [build].
   ObservedMap get dyn => _dyn.map;
 
   /// Invoked when the widget's [dyn] member is created.
   ///
-  /// A new [dyn] member will be created:
-  ///   1. Automatically: when [dyn] is null and a [BuildContext] instance with
+  /// A new [dyn] member will be created is two scenarios:
+  ///   1. Automatically: when [dyn] is null and an [Element] instance with
   ///      this widget is mounted (builds for the first time).
-  ///   2. Manually: [forceInit] is invoked.
+  ///   2. Manually: by invoking [forceInit].
   ///
   /// Override to initialize any dynamic values that are used in the [build]
   /// method. It can be thought of as the equivalent of [State.initState].
@@ -196,16 +189,6 @@ abstract class DynamicWidget extends FloopWidget {
     initDyn();
   }
 
-  /// Builds this widget with Floop listening.
-  ///
-  /// The [dyn] member holds dynamic values that can be mutated and persist on
-  /// every build cycle,
-  ///
-  /// serving a similar purpose to a [State]. Values in
-  /// will always display as what they are, therefore changing a value
-  /// will automatically trigger a rebuild.
-  build(BuildContext context);
-
   @override
   StatelessElement createElement() => DynamicWidgetElement(this);
 }
@@ -216,17 +199,6 @@ class DynamicWidgetElement extends StatelessElementFloop {
   DynamicWidget get widget => super.widget;
 
   update(DynamicWidget newWidget) {
-    // assert(() {
-    //   if (newWidget._dyn == null) {
-    //     print('Error: Attempting to use an initialized [StorageWidget] to '
-    //         'replace an existing StorageWidget.\n'
-    //         'This is probably due to having a reusable [StorageWidget] saved '
-    //         'in a variable and is being used in a context that has already '
-    //         'initialized it\'s own [StorageWidget] instance.');
-    //     return false;
-    //   }
-    //   return true;
-    // }());
     newWidget._dyn.map ??= widget._dyn.map;
     super.update(newWidget);
   }
