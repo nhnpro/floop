@@ -1,5 +1,4 @@
 import 'dart:collection';
-
 import './controller.dart';
 
 /// Dynamic values provider to widgets.
@@ -16,21 +15,21 @@ class ObservedValue<T> with ObservedListener {
   ObservedValue(T initialValue) : _value = initialValue;
 
   T get value {
-    notifyRead();
+    // notifyRead();
     return _value;
   }
 
   set value(T newValue) {
     if (newValue != _value) {
       _value = newValue;
-      notifyMutation();
+      // notifyMutation();
     }
   }
 
   set(T newValue) {
     if (newValue != _value) {
       _value = newValue;
-      notifyMutation();
+      // notifyMutation();
     }
   }
 
@@ -38,10 +37,17 @@ class ObservedValue<T> with ObservedListener {
   setSilently(T newValue) {
     _value = newValue;
   }
+
+  dispose() {}
 }
 
+/// A special [Map] implementation that provides dynamic values to widgets.
+///
+/// Retrieving values from an [ObservedMap] instance within a widget's build
+/// method will trigger automatic rebuilds of the [BuildContext] on changes to
+/// the values retrieved.
 class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
-  final Map<K, ObservedValue<V>> _keyToValue = Map();
+  final Map<K, V> _keyToValue = Map();
 
   ObservedMap();
 
@@ -62,8 +68,9 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// Retrieves the `value` of `key`. When invoked from within a [build]
   /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
-  V operator [](Object key) {
-    return _keyToValue[key]?.value;
+  operator [](Object key) {
+    valueRetrieved(key);
+    return _keyToValue[key];
   }
 
   /// Returns the keys of this [ObservedMap], retrieved from an internal
@@ -76,17 +83,8 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// values.
   @override
   Iterable<K> get keys {
-    notifyRead;
+    keysRetrieved();
     return _keyToValue.keys;
-  }
-
-  _setValue(K key, V value) {
-    final observedValue = _keyToValue[key];
-    if (observedValue == null) {
-      _keyToValue[key] = ObservedValue(value);
-    } else {
-      observedValue.value = value;
-    }
   }
 
   /// Sets the `value` of `key`. When `value` is of type [Map] or [List] a
@@ -101,20 +99,24 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// of them. For values of type [Map] an [ObservedMap] copy of it is stored.
   /// Values of type [List] are copied using [List.unmodifiable].
   operator []=(Object key, V value) {
-    _setValue(key, convert(value));
+    _notifyListenerIfChange(key, value);
+    _keyToValue[key] = convert(value);
   }
 
   /// Sets the `value` of the `key` exactly as it is given.
   ///
-  /// [Element] updates can be avoided by passing `triggerUpdates` as false.
+  /// Potential [Element] updates can be avoided by passing `triggerUpdates`
+  /// as false.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
-    var observedValue = _keyToValue[key];
-    if (observedValue == null) {
-      _keyToValue[key] = ObservedValue(value);
-    } else if (triggerUpdates) {
-      observedValue.setSilently(value);
-    } else {
-      observedValue.value = value;
+    if (triggerUpdates) {
+      _notifyListenerIfChange(key, value);
+    }
+    _keyToValue[key] = value;
+  }
+
+  _notifyListenerIfChange(Object key, V value) {
+    if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
+      valueChanged(key);
     }
   }
 
@@ -123,26 +125,21 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    _keyToValue[key]?.notifyMutation();
+    valueChanged(key);
   }
 
   @override
-  void clear([bool triggerUpdates = true]) {
-    if (triggerUpdates) {
-      for (var listener in _keyToValue.values) {
-        listener.notifyMutation();
-      }
-      notifyMutation();
-    }
+  void clear() {
     _keyToValue.clear();
+    cleared();
   }
 
   @override
   V remove(Object key, [bool triggerUpdates = true]) {
-    var observedValue = _keyToValue.remove(key);
-    if (triggerUpdates) {
-      observedValue.notifyMutation();
+    if (triggerUpdates && _keyToValue.containsKey(key)) {
+      valueChanged(key);
+      mutation();
     }
-    return observedValue.value;
+    return _keyToValue.remove(key);
   }
 }

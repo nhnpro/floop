@@ -209,9 +209,15 @@ enum ListenerStatus {
 }
 
 mixin ObservedListener {
-  final Set<Element> _elements = Set();
+  Set<Element> _elements = Set();
 
   List<Element> get subscribedElements => _elements.toList();
+
+  // int _id;
+
+  // _disposeId(int id) {
+  //   id = null;
+  // }
 
   _registerElement(Element element) {
     assert(_debugDisposed == ListenerStatus.active);
@@ -243,11 +249,17 @@ mixin ObservedListener {
     assert(_debugDisposed == ListenerStatus.active);
     if (FloopController.isListening) {
       FloopController.registerListenerRead(this);
+      // if (_id == null) {
+      //   _id = FloopController.createSubscriptionId(this);
+      // } else {
+      //   FloopController.registerIdRead(id);
+      // }
     }
   }
 
   notifyMutation() {
     assert(_debugDisposed == ListenerStatus.active);
+    // FloopController.updateSubscribedElements(_id);
     _elements.forEach(FloopController.markElementAsNeedsBuild);
   }
 }

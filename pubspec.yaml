@@ -1,5 +1,6 @@
-name: floop_benchmarks
-description: Benchmarks for Floop
+name: floop
+description: Dynamic values for widgets. Changes values from anywhere and affected widgets are updated automatically.
+version: 1.1.0
 author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
@@ -9,17 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  floop:
+  # meta: ^1.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   pedantic: ^1.0.0
-  benchmark_harness: any
-
-dependency_overrides:
-  floop:
-    path: ../
+  mockito: ^4.1.0
   
+
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec
