@@ -28,15 +28,15 @@ abstract class FloopController {
 
   static void startListening(Element element) {
     if (isListening) {
-      // If this happens it means there was an error while the a [FloopWidget]
-      // instance was building.
+      // If this happens it means there was a error while a [FloopWidget]
+      // instance was building previously.
       stopListening();
     }
     _currentBuild = element;
   }
 
   static void stopListening() {
-    assert(_currentBuild != null);
+    assert(isListening);
     _commitObservedReads();
     _currentBuild = null;
   }
@@ -61,9 +61,7 @@ abstract class FloopController {
 
   /// Unsubscribes all Elements (Widgets) from the registered Observeds.
   static void reset() {
-    if (isListening) {
-      stopListening();
-    }
+    assert(!isListening);
     _elementToListeners.keys.toList().forEach(unsubscribeElement);
     assert(_elementToListeners.isEmpty);
   }
@@ -84,14 +82,17 @@ abstract class FloopController {
     // If `element` isn't registered yet, it is registered and associated with
     // all current read listeners.
     if (previousListeners == null) {
-      if (_currentListeners.isNotEmpty) {
-        _elementToListeners[element] = _currentListeners;
-        for (var listener in _currentListeners) {
-          listener._registerElement(element);
-        }
-        _currentListeners = Set();
+      // if (_currentListeners.isNotEmpty) {
+      //   _elementToListeners[element] = _currentListeners;
+      //   for (var listener in _currentListeners) {
+      //     listener._registerElement(element);
+      //   }
+      //   _currentListeners = Set();
+      // }
+      if (_currentListeners.isEmpty) {
+        return;
       }
-      return;
+      previousListeners = Set();
     }
     // Most element rebuilds should read the same keys, a quick check is done
     // to handle that case.
@@ -209,15 +210,9 @@ enum ListenerStatus {
 }
 
 mixin ObservedListener {
-  Set<Element> _elements = Set();
+  final Set<Element> _elements = Set();
 
   List<Element> get subscribedElements => _elements.toList();
-
-  // int _id;
-
-  // _disposeId(int id) {
-  //   id = null;
-  // }
 
   _registerElement(Element element) {
     assert(_debugDisposed == ListenerStatus.active);
@@ -249,17 +244,11 @@ mixin ObservedListener {
     assert(_debugDisposed == ListenerStatus.active);
     if (FloopController.isListening) {
       FloopController.registerListenerRead(this);
-      // if (_id == null) {
-      //   _id = FloopController.createSubscriptionId(this);
-      // } else {
-      //   FloopController.registerIdRead(id);
-      // }
     }
   }
 
   notifyMutation() {
     assert(_debugDisposed == ListenerStatus.active);
-    // FloopController.updateSubscribedElements(_id);
     _elements.forEach(FloopController.markElementAsNeedsBuild);
   }
 }

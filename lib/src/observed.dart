@@ -10,26 +10,19 @@ import './controller.dart';
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-class ObservedValue<T> with ObservedListener {
+class ObservedValue<T> with FloopListener {
   T _value;
   ObservedValue(T initialValue) : _value = initialValue;
 
   T get value {
-    // notifyRead();
+    notifyRead();
     return _value;
   }
 
   set value(T newValue) {
     if (newValue != _value) {
       _value = newValue;
-      // notifyMutation();
-    }
-  }
-
-  set(T newValue) {
-    if (newValue != _value) {
-      _value = newValue;
-      // notifyMutation();
+      notifyChange();
     }
   }
 
@@ -37,8 +30,6 @@ class ObservedValue<T> with ObservedListener {
   setSilently(T newValue) {
     _value = newValue;
   }
-
-  dispose() {}
 }
 
 /// A special [Map] implementation that provides dynamic values to widgets.
@@ -46,8 +37,8 @@ class ObservedValue<T> with ObservedListener {
 /// Retrieving values from an [ObservedMap] instance within a widget's build
 /// method will trigger automatic rebuilds of the [BuildContext] on changes to
 /// the values retrieved.
-class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
-  final Map<K, V> _keyToValue = Map();
+class ObservedMap<K, V> with MapMixin<K, V>, FloopListener {
+  final Map<K, ObservedValue<V>> _keyToValue = Map();
 
   ObservedMap();
 
@@ -68,9 +59,8 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// Retrieves the `value` of `key`. When invoked from within a [build]
   /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
-  operator [](Object key) {
-    valueRetrieved(key);
-    return _keyToValue[key];
+  V operator [](Object key) {
+    return _keyToValue[key]?.value;
   }
 
   /// Returns the keys of this [ObservedMap], retrieved from an internal
@@ -83,8 +73,21 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// values.
   @override
   Iterable<K> get keys {
-    keysRetrieved();
+    notifyRead;
     return _keyToValue.keys;
+  }
+
+  _setValue(K key, V value) {
+    // assert(() {
+    //   FloopController.debugLastKeyChange(key);
+    //   return true;
+    // }());
+    final observedValue = _keyToValue[key];
+    if (observedValue == null) {
+      _keyToValue[key] = ObservedValue(value);
+    } else {
+      observedValue.value = value;
+    }
   }
 
   /// Sets the `value` of `key`. When `value` is of type [Map] or [List] a
@@ -99,24 +102,22 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// of them. For values of type [Map] an [ObservedMap] copy of it is stored.
   /// Values of type [List] are copied using [List.unmodifiable].
   operator []=(Object key, V value) {
-    _notifyListenerIfChange(key, value);
-    _keyToValue[key] = convert(value);
+    _setValue(key, convert(value));
   }
 
   /// Sets the `value` of the `key` exactly as it is given.
   ///
-  /// Potential [Element] updates can be avoided by passing `triggerUpdates`
-  /// as false.
+  /// [Element] updates can be avoided by passing `triggerUpdates` as false.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
     if (triggerUpdates) {
-      _notifyListenerIfChange(key, value);
+      _setValue(key, value);
+      return;
     }
-    _keyToValue[key] = value;
-  }
-
-  _notifyListenerIfChange(Object key, V value) {
-    if (_keyToValue[key] != value || !_keyToValue.containsKey(key)) {
-      valueChanged(key);
+    var observedValue = _keyToValue[key];
+    if (observedValue == null) {
+      _keyToValue[key] = ObservedValue(value);
+    } else {
+      observedValue.value = value;
     }
   }
 
@@ -125,21 +126,26 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    valueChanged(key);
+    _keyToValue[key]?.notifyChange();
   }
 
   @override
-  void clear() {
+  void clear([bool triggerUpdates = true]) {
+    if (triggerUpdates) {
+      for (var listener in _keyToValue.values) {
+        listener.notifyChange();
+      }
+      notifyChange();
+    }
     _keyToValue.clear();
-    cleared();
   }
 
   @override
   V remove(Object key, [bool triggerUpdates = true]) {
-    if (triggerUpdates && _keyToValue.containsKey(key)) {
-      valueChanged(key);
-      mutation();
+    var observedValue = _keyToValue.remove(key);
+    if (triggerUpdates) {
+      observedValue.notifyChange();
     }
-    return _keyToValue.remove(key);
+    return observedValue.value;
   }
 }

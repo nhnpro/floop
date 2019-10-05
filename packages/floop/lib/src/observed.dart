@@ -1,5 +1,4 @@
 import 'dart:collection';
-
 import './controller.dart';
 
 /// Dynamic values provider to widgets.
@@ -11,7 +10,7 @@ import './controller.dart';
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-class ObservedValue<T> with ObservedListener {
+class ObservedValue<T> with FloopListener {
   T _value;
   ObservedValue(T initialValue) : _value = initialValue;
 
@@ -23,14 +22,7 @@ class ObservedValue<T> with ObservedListener {
   set value(T newValue) {
     if (newValue != _value) {
       _value = newValue;
-      notifyMutation();
-    }
-  }
-
-  set(T newValue) {
-    if (newValue != _value) {
-      _value = newValue;
-      notifyMutation();
+      notifyChange();
     }
   }
 
@@ -40,7 +32,12 @@ class ObservedValue<T> with ObservedListener {
   }
 }
 
-class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
+/// A special [Map] implementation that provides dynamic values to widgets.
+///
+/// Retrieving values from an [ObservedMap] instance within a widget's build
+/// method will trigger automatic rebuilds of the [BuildContext] on changes to
+/// the values retrieved.
+class ObservedMap<K, V> with MapMixin<K, V>, FloopListener {
   final Map<K, ObservedValue<V>> _keyToValue = Map();
 
   ObservedMap();
@@ -81,6 +78,10 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   }
 
   _setValue(K key, V value) {
+    // assert(() {
+    //   FloopController.debugLastKeyChange(key);
+    //   return true;
+    // }());
     final observedValue = _keyToValue[key];
     if (observedValue == null) {
       _keyToValue[key] = ObservedValue(value);
@@ -108,11 +109,13 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   ///
   /// [Element] updates can be avoided by passing `triggerUpdates` as false.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
+    if (triggerUpdates) {
+      _setValue(key, value);
+      return;
+    }
     var observedValue = _keyToValue[key];
     if (observedValue == null) {
       _keyToValue[key] = ObservedValue(value);
-    } else if (triggerUpdates) {
-      observedValue.setSilently(value);
     } else {
       observedValue.value = value;
     }
@@ -123,16 +126,16 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.
   void forceUpdate(Object key) {
-    _keyToValue[key]?.notifyMutation();
+    _keyToValue[key]?.notifyChange();
   }
 
   @override
   void clear([bool triggerUpdates = true]) {
     if (triggerUpdates) {
       for (var listener in _keyToValue.values) {
-        listener.notifyMutation();
+        listener.notifyChange();
       }
-      notifyMutation();
+      notifyChange();
     }
     _keyToValue.clear();
   }
@@ -141,7 +144,7 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedListener {
   V remove(Object key, [bool triggerUpdates = true]) {
     var observedValue = _keyToValue.remove(key);
     if (triggerUpdates) {
-      observedValue.notifyMutation();
+      observedValue.notifyChange();
     }
     return observedValue.value;
   }

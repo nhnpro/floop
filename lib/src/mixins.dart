@@ -5,6 +5,8 @@ import './controller.dart';
 
 typedef UnmountCallback = Function(Element element);
 
+const inMixin = 'in Mixin';
+
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
   ///
