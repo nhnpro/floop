@@ -109,7 +109,7 @@ double transition(
   int delayMillis = 0,
   Object key,
 }) {
-  FloopElement context = FloopController.currentBuild;
+  FloopElement context = ObservedController.activeListener;
   final bool canCreate =
       durationMillis != null && (context != null || key != null);
   assert(() {
@@ -176,7 +176,7 @@ Object transitionEval(
   Object key,
 }) {
   assert(() {
-    if (FloopController.currentBuild != null) {
+    if (ObservedController.isListening) {
       print('Error: should not invoke [transitionEval] while a Floop Widget '
           'is building. Use [transition]` instead.');
       return false;

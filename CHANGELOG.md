@@ -1,3 +1,7 @@
+## [1.1.1] - DATE HERE
+
+- Major internal refactor of listening cycle, simplified and faster.
+
 ## [1.1.0] - 01/10/2019
 
 - Added [DynamicWidget], a widget with it's own [ObservedMap].

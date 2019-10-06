@@ -47,7 +47,7 @@ runReadBenchmark(Map data, Iterable keys,
   print('\n${benchmarkHeadLine.toUpperCase()}\n');
   MockElement mockElement = MockElement();
 
-  FloopController.reset();
+  ObservedController.debugReset();
 
   Map readMap = ObservedMap.of(data);
   var obsTime =
@@ -65,38 +65,38 @@ runReadBenchmark(Map data, Iterable keys,
   readMap = Map.of(data);
   refTime = benchmarkFunction(() => plainRead(readMap, keys), 'LinkedHashMap');
 
-  print('----Using ${FloopController}----');
+  print('----Using ${ObservedController}----');
 
   readMap = ObservedMap.of(data);
-  FloopController.startListening(mockElement);
+  ObservedController.startListening(mockElement);
   var obsTimeListening = benchmarkFunction(
       () => plainRead(readMap, keys), 'ObservadMap while listening');
-  FloopController.stopListening();
+  ObservedController.stopListening();
 
   readMap = ObservedMap.of(data);
   addObservedSubscriptions(readMap); // loads the controller with subscriptions
-  FloopController.startListening(mockElement);
+  ObservedController.startListening(mockElement);
   var obsTimeListening2 = benchmarkFunction(() => plainRead(readMap, keys),
       'ObservadMap while listening with filled controller');
-  FloopController.stopListening();
-  FloopController.reset();
+  ObservedController.stopListening();
+  ObservedController.debugReset();
 
   readMap = ObservedMap.of(data);
   var obsTimeListeningCycle = benchmarkFunction(() {
-    FloopController.startListening(mockElement);
+    ObservedController.startListening(mockElement);
     plainRead(readMap, keys);
-    FloopController.stopListening();
+    ObservedController.stopListening();
   }, 'ObservadMap complete listening cycle');
 
   readMap = ObservedMap.of(data);
   addObservedSubscriptions(readMap);
   var obsTimeListeningCycle2 = benchmarkFunction(() {
-    FloopController.startListening(mockElement);
+    ObservedController.startListening(mockElement);
     plainRead(readMap, keys);
-    FloopController.stopListening();
+    ObservedController.stopListening();
   }, 'ObservadMap complete listening cycle with filled controller');
 
-  FloopController.reset();
+  ObservedController.debugReset();
 
   // For experimental comparison controller
   // Using Light controller
@@ -133,7 +133,7 @@ runReadBenchmark(Map data, Iterable keys,
   //   UnifiedController.stopListening();
   // }, 'ObservadMap complete listening cycle with filled controller');
 
-  FloopController.reset();
+  ObservedController.debugReset();
   // UnifiedController.useFullController();
 
   benchmarkFunction(() {

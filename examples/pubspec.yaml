@@ -10,7 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   floop:
-    path: ../packages/floop
+    path: ../
+    # path: ../packages/floop
   http: any
 
 dev_dependencies:
@@ -20,7 +21,8 @@ dev_dependencies:
 
 dependency_overrides:
   floop:
-    path: ../packages/floop/
+    path: ../
+    # path: ../packages/floop/
 
 flutter:
 

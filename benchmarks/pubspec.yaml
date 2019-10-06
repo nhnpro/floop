@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   floop:
-    # path: ../
-    path: ../packages/floop
+    path: ../
+    # path: ../packages/floop
 
 dev_dependencies:
   flutter_test:
@@ -21,8 +21,8 @@ dev_dependencies:
 
 dependency_overrides:
   floop:
-    # path: ../
-    path: ../packages/floop
+    path: ../
+    # path: ../packages/floop
   
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec

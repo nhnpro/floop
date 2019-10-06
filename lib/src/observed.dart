@@ -10,7 +10,7 @@ import './controller.dart';
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-class ObservedValue<T> with FloopListener {
+class ObservedValue<T> with ObservedNotifierMixin {
   T _value;
   ObservedValue(T initialValue) : _value = initialValue;
 
@@ -37,7 +37,7 @@ class ObservedValue<T> with FloopListener {
 /// Retrieving values from an [ObservedMap] instance within a widget's build
 /// method will trigger automatic rebuilds of the [BuildContext] on changes to
 /// the values retrieved.
-class ObservedMap<K, V> with MapMixin<K, V>, FloopListener {
+class ObservedMap<K, V> with MapMixin<K, V>, ObservedNotifierMixin {
   final Map<K, ObservedValue<V>> _keyToValue = Map();
 
   ObservedMap();

@@ -10,7 +10,9 @@ typedef MapCreator = Map Function();
 
 typedef BenchmarkFunction = void Function(Map);
 
-class MockElement extends Object implements Element {
+class MockElement extends Object implements Element, ObservedListener {
+  Set<ObservedNotifier> observeds = Set();
+
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.debug}) =>
       super.toString();
@@ -42,18 +44,21 @@ addObservedSubscriptions(ObservedMap observed, [int numberOfKeys = 10]) {
 
 void warmUpController(int numberOfElements,
     [ObservedMap readMap, Iterable keys]) {
-  FloopController.reset();
+  assert(() {
+    ObservedController.debugReset();
+    return true;
+  }());
   readMap = readMap != null ? readMap : ObservedMap.of(createMapWithValues(3));
   keys = keys != null ? keys : readMap.keys;
   for (int i = 0; i < numberOfElements; i++) {
-    FloopController.startListening(MockElement());
+    ObservedController.startListening(MockElement());
     plainRead(readMap, keys);
-    FloopController.stopListening();
+    ObservedController.stopListening();
   }
   assert(() {
-    if (FloopController.length != numberOfElements && keys.isNotEmpty) {
-      print('Inconsistency: ${FloopController} elements is\n'
-          '${FloopController.length} but should be $numberOfElements.\n');
+    if (ObservedController.length != numberOfElements && keys.isNotEmpty) {
+      print('Inconsistency: ${ObservedController} elements is\n'
+          '${ObservedController.length} but should be $numberOfElements.\n');
       return false;
     }
     return true;

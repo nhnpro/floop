@@ -62,7 +62,7 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
       createRefWidget(createValueReader(map, numberOfReads)).createElement();
   var referenceTime = runBenchmarkFunction(element);
 
-  print('----Using ${FloopController}----');
+  print('----Using ${ObservedController}----');
 
   map = ObservedMap.of(map);
   element =
@@ -95,7 +95,7 @@ double runBenchmarkFunction(ComponentElement element,
     }
   }
 
-  FloopController.reset();
+  ObservedController.debugReset();
   return benchmarkFunction(
       buildManyTimes, '${element.runtimeType.toString()}$messageAdd');
 }

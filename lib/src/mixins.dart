@@ -3,10 +3,6 @@ import 'package:floop/floop.dart';
 import './flutter_import.dart';
 import './controller.dart';
 
-typedef UnmountCallback = Function(Element element);
-
-const inMixin = 'in Mixin';
-
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
   ///
@@ -53,16 +49,63 @@ abstract class FloopBuildContext extends BuildContext {
   void addUnmountCallback(VoidCallback callback);
 }
 
-mixin FloopElement on Element implements FloopBuildContext {}
+mixin FloopElement on Element implements FloopBuildContext, ObservedListener {}
 
 mixin FloopElementMixin on Element implements FloopElement {
+  static bool _posponeOnObservedChange = false;
+
+  static final _posponedObserveds = Set<ObservedNotifier>();
+
+  static void _observedChangeCallback([_]) {
+    assert(_posponedObserveds.isNotEmpty);
+    // for (var observed in _posponedObserveds) {
+    //   _posponedObserveds.forEach(ObservedController.handleChange);
+    // }
+    _posponedObserveds.forEach(ObservedController.notifyChangeToListeners);
+    _posponedObserveds.clear();
+  }
+
+  static int _initialPosponedNotifiersLenght;
+
+  static void _startPosponingObservedNotifications() {
+    ObservedController.posponeNotifications();
+    _initialPosponedNotifiersLenght =
+        ObservedController.posponedObserveds.length;
+  }
+
+  static void _finishPosponingObservedNotifications() {
+    ObservedController.disablePosponeNotifications();
+    if (ObservedController.posponedObserveds.length >
+        _initialPosponedNotifiersLenght) {
+      WidgetsBinding.instance.addPostFrameCallback(_observedChangeCallback);
+    }
+  }
+
   DisposableWidget get disposableWidget => widget;
 
   void mount(Element parent, dynamic newSlot) {
-    FloopController.enablePostFrameUpdatesMode();
+    _startPosponingObservedNotifications();
     disposableWidget.initContext(this);
     super.mount(parent, newSlot);
-    FloopController.disablePostFrameUpdatesMode();
+    _finishPosponingObservedNotifications();
+  }
+
+  @override
+  void unmount() {
+    assert(() {
+      // FloopController.debugUnmounting(this);
+      return true;
+    }());
+    _startPosponingObservedNotifications();
+    ObservedController.unsubscribeListener(this);
+    _unmountCallbacks.forEach((cb) => cb());
+    super.unmount();
+    disposableWidget.disposeContext(this);
+    _finishPosponingObservedNotifications();
+    assert(() {
+      // FloopController.debugfinishUnmounting();
+      return true;
+    }());
   }
 
   final Set<VoidCallback> _unmountCallbacks = Set();
@@ -72,22 +115,19 @@ mixin FloopElementMixin on Element implements FloopElement {
     _unmountCallbacks.add(callback);
   }
 
-  @override
-  void unmount() {
-    assert(() {
-      FloopController.debugUnmounting(this);
-      return true;
-    }());
-    FloopController.enablePostFrameUpdatesMode();
-    FloopController.unsubscribeElement(this);
-    _unmountCallbacks.forEach((cb) => cb());
-    super.unmount();
-    disposableWidget.disposeContext(this);
-    FloopController.disablePostFrameUpdatesMode();
-    assert(() {
-      FloopController.debugfinishUnmounting();
-      return true;
-    }());
+  final Set<ObservedNotifier> observeds = Set();
+
+  @protected
+  onObservedChange(ObservedNotifier observed) {
+    assert(observeds.contains(observed));
+    if (_posponeOnObservedChange) {
+      if (_posponedObserveds.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback(_observedChangeCallback);
+      }
+      _posponedObserveds.add(observed);
+    } else {
+      markNeedsBuild();
+    }
   }
 }
 
@@ -101,10 +141,10 @@ class StatelessElementFloop extends StatelessElement
   StatelessElementFloop(Floop widget) : super(widget);
 
   Widget _buildWithFloopListening() {
-    FloopController.startListening(this);
+    ObservedController.startListening(this);
     // ignore: invalid_use_of_protected_member
     final childWidget = widget.build(this);
-    FloopController.stopListening();
+    ObservedController.stopListening();
     return childWidget;
   }
 
@@ -123,27 +163,27 @@ mixin FloopStateful on StatefulWidget implements DisposableWidget {
   StatefulElement createElement() => StatefulElementFloop(this);
 }
 
+/// `class MyState extends FloopState` is equivalent to
+/// `class MyWidget extends State with FloopStateMixin`.
+abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
+  const FloopStatefulWidget({Key key}) : super(key: key);
+}
+
 class StatefulElementFloop extends StatefulElement
     with FloopElementMixin
     implements FloopElement {
   StatefulElementFloop(FloopStateful widget) : super(widget);
 
   Widget _buildWithFloopListening() {
-    FloopController.startListening(this);
+    ObservedController.startListening(this);
     // ignore: invalid_use_of_protected_member
     final childWidget = state.build(this);
-    FloopController.stopListening();
+    ObservedController.stopListening();
     return childWidget;
   }
 
   @override
   Widget build() => _buildWithFloopListening();
-}
-
-/// `class MyState extends FloopState` is equivalent to
-/// `class MyWidget extends State with FloopStateMixin`.
-abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
-  const FloopStatefulWidget({Key key}) : super(key: key);
 }
 
 /// Wrapper class used for the mere purpose of skipping the [Widget] class
