@@ -52,31 +52,35 @@ abstract class FloopBuildContext extends BuildContext {
 mixin FloopElement on Element implements FloopBuildContext, ObservedListener {}
 
 mixin FloopElementMixin on Element implements FloopElement {
-  static bool _posponeOnObservedChange = false;
-
-  static final _posponedObserveds = Set<ObservedNotifier>();
-
   static void _observedChangeCallback([_]) {
-    assert(_posponedObserveds.isNotEmpty);
-    // for (var observed in _posponedObserveds) {
-    //   _posponedObserveds.forEach(ObservedController.handleChange);
-    // }
-    _posponedObserveds.forEach(ObservedController.notifyChangeToListeners);
-    _posponedObserveds.clear();
+    assert(ObservedController.postponedNotifiers.isNotEmpty);
+    assert(!ObservedController.isPostponingChangeNotifications == false);
+    ObservedController.postponedNotifiers
+        .forEach(ObservedController.notifyChangeToListeners);
+    ObservedController.postponedNotifiers.clear();
   }
 
-  static int _initialPosponedNotifiersLenght;
+  static bool _shouldCreatePostFrameCallback;
+
+  // Value used to register when the postponed notifications callback was
+  // created. This is used a security mechanism in case a callback fails and
+  // the posponed observeds are not updated.
+  static Duration _postponeFrameTimeStamp;
 
   static void _startPosponingObservedNotifications() {
-    ObservedController.posponeNotifications();
-    _initialPosponedNotifiersLenght =
-        ObservedController.posponedObserveds.length;
+    ObservedController.postponeNotifications();
+    _shouldCreatePostFrameCallback =
+        ObservedController.postponedNotifiers.isEmpty ||
+            _postponeFrameTimeStamp !=
+                WidgetsBinding.instance.currentSystemFrameTimeStamp;
   }
 
   static void _finishPosponingObservedNotifications() {
-    ObservedController.disablePosponeNotifications();
-    if (ObservedController.posponedObserveds.length >
-        _initialPosponedNotifiersLenght) {
+    ObservedController.disablePostponeNotifications();
+    if (_shouldCreatePostFrameCallback &&
+        ObservedController.postponedNotifiers.isNotEmpty) {
+      _postponeFrameTimeStamp =
+          WidgetsBinding.instance.currentSystemFrameTimeStamp;
       WidgetsBinding.instance.addPostFrameCallback(_observedChangeCallback);
     }
   }
@@ -92,20 +96,12 @@ mixin FloopElementMixin on Element implements FloopElement {
 
   @override
   void unmount() {
-    assert(() {
-      // FloopController.debugUnmounting(this);
-      return true;
-    }());
     _startPosponingObservedNotifications();
     ObservedController.unsubscribeListener(this);
     _unmountCallbacks.forEach((cb) => cb());
     super.unmount();
     disposableWidget.disposeContext(this);
     _finishPosponingObservedNotifications();
-    assert(() {
-      // FloopController.debugfinishUnmounting();
-      return true;
-    }());
   }
 
   final Set<VoidCallback> _unmountCallbacks = Set();
@@ -115,19 +111,13 @@ mixin FloopElementMixin on Element implements FloopElement {
     _unmountCallbacks.add(callback);
   }
 
-  final Set<ObservedNotifier> observeds = Set();
+  Set<ObservedNotifier> notifiers;
 
   @protected
-  onObservedChange(ObservedNotifier observed) {
-    assert(observeds.contains(observed));
-    if (_posponeOnObservedChange) {
-      if (_posponedObserveds.isEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback(_observedChangeCallback);
-      }
-      _posponedObserveds.add(observed);
-    } else {
-      markNeedsBuild();
-    }
+  onObservedChange(ObservedNotifier notifier) {
+    assert(!ObservedController.isPostponingChangeNotifications);
+    assert(notifiers.contains(notifier));
+    markNeedsBuild();
   }
 }
 
@@ -136,7 +126,7 @@ mixin FloopElementMixin on Element implements FloopElement {
 /// When unmount is called, all references to the Element in Floop are
 /// cleaned and the widget's [Floop.disposeContext] is invoked.
 class StatelessElementFloop extends StatelessElement
-    with FloopElementMixin
+    with FloopElementMixin, FastHashCode
     implements FloopElement {
   StatelessElementFloop(Floop widget) : super(widget);
 
@@ -170,7 +160,7 @@ abstract class FloopStatefulWidget extends StatefulWidget with FloopStateful {
 }
 
 class StatefulElementFloop extends StatefulElement
-    with FloopElementMixin
+    with FloopElementMixin, FastHashCode
     implements FloopElement {
   StatefulElementFloop(FloopStateful widget) : super(widget);
 

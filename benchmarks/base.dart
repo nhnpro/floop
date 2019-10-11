@@ -10,9 +10,7 @@ typedef MapCreator = Map Function();
 
 typedef BenchmarkFunction = void Function(Map);
 
-class MockElement extends Object implements Element, ObservedListener {
-  Set<ObservedNotifier> observeds = Set();
-
+class MockListener with FastHashCode, ObservedListener {
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.debug}) =>
       super.toString();
@@ -23,14 +21,17 @@ class MockElement extends Object implements Element, ObservedListener {
 
 void doNothing([v]) {}
 
-double benchmarkFunction(f, [messagePrefix = 'Function']) {
-  f10() {
-    for (int i = 0; i < 10; i++) {
+double benchmarkFunction(f,
+    [messagePrefix = 'Function',
+    int minumumMillis = 2000,
+    int invocationsCount = 10]) {
+  fManyTimes() {
+    for (int i = 0; i < invocationsCount; i++) {
       f();
     }
   }
 
-  var avgTime = BenchmarkBase.measureFor(f10, 2000);
+  var avgTime = BenchmarkBase.measureFor(fManyTimes, minumumMillis);
   print('$messagePrefix average time: $avgTime us');
   return avgTime;
 }
@@ -51,14 +52,15 @@ void warmUpController(int numberOfElements,
   readMap = readMap != null ? readMap : ObservedMap.of(createMapWithValues(3));
   keys = keys != null ? keys : readMap.keys;
   for (int i = 0; i < numberOfElements; i++) {
-    ObservedController.startListening(MockElement());
+    ObservedController.startListening(MockListener());
     plainRead(readMap, keys);
     ObservedController.stopListening();
   }
   assert(() {
-    if (ObservedController.length != numberOfElements && keys.isNotEmpty) {
+    if (ObservedController.debugSubscribedListenersCount != numberOfElements &&
+        keys.isNotEmpty) {
       print('Inconsistency: ${ObservedController} elements is\n'
-          '${ObservedController.length} but should be $numberOfElements.\n');
+          '${ObservedController.debugSubscribedListenersCount} but should be $numberOfElements.\n');
       return false;
     }
     return true;

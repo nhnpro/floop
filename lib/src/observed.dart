@@ -10,9 +10,23 @@ import './controller.dart';
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
 
-class ObservedValue<T> with ObservedNotifierMixin {
+class Observed = Object with ObservedNotifierMixin, FastHashCode;
+
+convert(value) {
+  if (value is Observed) {
+    return value;
+  } else if (value is Map) {
+    return ObservedMap.of(value);
+  } else if (value is List) {
+    return List.unmodifiable(value.map((v) => convert(v)));
+  } else {
+    return value;
+  }
+}
+
+class ObservedValue<T> extends Observed {
   T _value;
-  ObservedValue(T initialValue) : _value = initialValue;
+  ObservedValue([T initialValue]) : _value = initialValue;
 
   T get value {
     notifyRead();
@@ -37,29 +51,27 @@ class ObservedValue<T> with ObservedNotifierMixin {
 /// Retrieving values from an [ObservedMap] instance within a widget's build
 /// method will trigger automatic rebuilds of the [BuildContext] on changes to
 /// the values retrieved.
-class ObservedMap<K, V> with MapMixin<K, V>, ObservedNotifierMixin {
+class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
   final Map<K, ObservedValue<V>> _keyToValue = Map();
 
-  ObservedMap();
+  // Map used to observe keys that were accessed but have not been set.
+  final Map<K, ObservedValue<V>> _unexistingKeyToNullValue = Map();
+
+  ObservedMap() : super();
 
   ObservedMap.of(Map map) {
     addAll(map);
-  }
-
-  convert(value) {
-    if (value is Map) {
-      return ObservedMap.of(value);
-    } else if (value is List) {
-      return List.unmodifiable(value.map((v) => convert(v)));
-    } else {
-      return value;
-    }
   }
 
   /// Retrieves the `value` of `key`. When invoked from within a [build]
   /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
   V operator [](Object key) {
+    if (isListening) {
+      return (_keyToValue[key] ??
+              _unexistingKeyToNullValue.putIfAbsent(key, () => ObservedValue()))
+          .value;
+    }
     return _keyToValue[key]?.value;
   }
 
@@ -77,15 +89,28 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedNotifierMixin {
     return _keyToValue.keys;
   }
 
+  // _setValueFirstTime(Key key, V value) {
+  //   observedValue = _unexistingKeyToNullValue.remove(key);
+  //   if (observedValue == null) {
+  //     _keyToValue[key] = ObservedValue(value);
+  //   } else {
+  //     _keyToValue[key] = observedValue;
+  //     observedValue.value = value;
+  //   }
+  // }
+
   _setValue(K key, V value) {
-    // assert(() {
-    //   FloopController.debugLastKeyChange(key);
-    //   return true;
-    // }());
-    final observedValue = _keyToValue[key];
+    var observedValue = _keyToValue[key];
     if (observedValue == null) {
-      _keyToValue[key] = ObservedValue(value);
+      observedValue = _unexistingKeyToNullValue.remove(key);
+      if (observedValue == null) {
+        _keyToValue[key] = ObservedValue(value);
+      } else {
+        _keyToValue[key] = observedValue..value = value;
+        observedValue.value = value;
+      }
     } else {
+      assert(!_unexistingKeyToNullValue.containsKey(key));
       observedValue.value = value;
     }
   }
@@ -113,11 +138,14 @@ class ObservedMap<K, V> with MapMixin<K, V>, ObservedNotifierMixin {
       _setValue(key, value);
       return;
     }
-    var observedValue = _keyToValue[key];
-    if (observedValue == null) {
-      _keyToValue[key] = ObservedValue(value);
+    var observedValue =
+        _keyToValue[key] ?? _unexistingKeyToNullValue.remove(key);
+    if (observedValue != null) {
+      assert(!_unexistingKeyToNullValue.containsKey(key));
+      observedValue.setSilently(value);
     } else {
-      observedValue.value = value;
+      observedValue = _unexistingKeyToNullValue.remove(key) ?? ObservedValue();
+      _keyToValue[key] = observedValue..setSilently(value);
     }
   }
 

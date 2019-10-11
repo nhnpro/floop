@@ -45,7 +45,7 @@ void readBenchmarks([int numberOfValues = 1000]) {
 runReadBenchmark(Map data, Iterable keys,
     [String benchmarkHeadLine = 'Running Benchmark']) {
   print('\n${benchmarkHeadLine.toUpperCase()}\n');
-  MockElement mockElement = MockElement();
+  MockListener mockElement = MockListener();
 
   ObservedController.debugReset();
 
