@@ -125,10 +125,10 @@ class ObservedController {
     assert(() {
       if (isListening) {
         print('Error: `${activeListener}` is listening (building) while '
-            'setting value of an [ObservedMap] or [ObservedValue]. '
-            '[Observed] instances cannot be modified from within a build '
-            'method. In [FloopWidget] classes, method [initContext] can be '
-            'used to initialize values of observeds.');
+            'setting value of the [ObservedNotifier] $notifier. '
+            '[Observed] instances like [ObservedMap] cannot be modified '
+            'from within a build method. In [FloopWidget] classes, '
+            'initContext can be used to initialize values of observeds.');
         assert(false);
       }
       return true;
@@ -214,24 +214,26 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
   Set<ObservedListener> listeners;
 
   void notifyRead() {
-    assert(_debugStatus == ObservedStatus.active);
+    assert(_debugStatus != ObservedStatus.defunct);
     if (ObservedController.isListening) {
       ObservedController.registerCurrentNotifier(this);
     }
   }
 
   notifyChange() {
-    assert(_debugStatus == ObservedStatus.active);
+    assert(_debugStatus != ObservedStatus.defunct);
     if (listeners != null && listeners.isNotEmpty) {
+      assert(_debugStatus == ObservedStatus.active);
       ObservedController.notifyChangeToListeners(this);
     }
   }
 
   forgetListeners() {
-    assert(_debugStatus == ObservedStatus.active);
+    assert(_debugStatus != ObservedStatus.defunct);
     ObservedController.unsubscribeNotifier(this);
   }
 
+  /// Dispose can be invoked when this notifier is not going to be used again.
   dispose() {
     assert(_debugStatus == ObservedStatus.active);
     forgetListeners();

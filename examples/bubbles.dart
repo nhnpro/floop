@@ -63,7 +63,7 @@ class InteractiveCircle extends FloopWidget {
   Widget build(BuildContext context) {
     // print('building circle $name');
     int ms = min(5000, 500 * circle.count);
-    var x = transition(ms, key: name, refreshRateMillis: 100);
+    var x = transition(ms, key: name, refreshPeriodicityMillis: 100);
     var pos = circle.position; // reads floop map
     return Positioned(
       left: pos.dx,

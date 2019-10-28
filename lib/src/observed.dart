@@ -24,7 +24,12 @@ convert(value) {
   }
 }
 
-class ObservedValue<T> extends Observed {
+class ValueWrapper<T> {
+  T value;
+  ValueWrapper([this.value]);
+}
+
+class ObservedValue<T> extends Observed implements ValueWrapper<T> {
   T _value;
   ObservedValue([T initialValue]) : _value = initialValue;
 
