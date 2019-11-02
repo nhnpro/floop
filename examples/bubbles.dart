@@ -97,15 +97,15 @@ class InteractiveCircle extends FloopWidget {
               circle.count = (circle.count + 1).clamp(0, 99);
               circle.baseColor = circle.color;
               circle.color = randomColor();
-              Transitions.clear(key: name);
+              Transitions.cancel(key: name);
               Transitions.resumeOrPause(key: circle.backKey);
             },
             onDoubleTap: () {
-              Transitions.clear(context: context);
+              Transitions.cancel(context: context);
             },
             onPanStart: (_) {
               // Transitions.clear(context: context);
-              Transitions.clear(key: circle.backKey);
+              Transitions.cancel(key: circle.backKey);
               circle.targetPosition = circle.position;
               placeCircleLast(name);
               // Transitions.pause(key: goBackKey);
@@ -117,8 +117,8 @@ class InteractiveCircle extends FloopWidget {
             onPanEnd: (_) => transitionBack(circle),
             onLongPress: () {
               removeCircle(name);
-              Transitions.clear(context: context);
-              Transitions.clear(key: circle.backKey);
+              Transitions.cancel(context: context);
+              Transitions.cancel(key: circle.backKey);
             }),
       ),
     );
@@ -194,7 +194,7 @@ spawnCircle(Offset offset, Size maxSpace) {
 }
 
 transitionBack(CircleProperties circle, [bool delayed = false]) {
-  Transitions.clear(key: circle.backKey);
+  Transitions.cancel(key: circle.backKey);
   int delay = delayed ? circle.delay : 0;
   circle.basePosition = circle.position;
   transitionEval(1000 * timeFactor, (ratio) {

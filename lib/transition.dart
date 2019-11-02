@@ -1,2 +1,2 @@
 export './src/repeater.dart';
-export './src/transition.dart' hide TransitionCallback, ValueCallback;
+export './src/transition.dart' hide RatioEvaluator, ValueCallback;

@@ -208,7 +208,7 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
   var _debugStatus = ObservedStatus.active;
 
   ObservedListener get activeListener => ObservedController._activeListener;
-  bool get isListening => ObservedController.isListening;
+  bool get controllerIsListening => ObservedController.isListening;
 
   @protected
   Set<ObservedListener> listeners;
@@ -220,7 +220,7 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
     }
   }
 
-  notifyChange() {
+  void notifyChange() {
     assert(_debugStatus != ObservedStatus.defunct);
     if (listeners != null && listeners.isNotEmpty) {
       assert(_debugStatus == ObservedStatus.active);
@@ -228,13 +228,13 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
     }
   }
 
-  forgetListeners() {
+  void forgetListeners() {
     assert(_debugStatus != ObservedStatus.defunct);
     ObservedController.unsubscribeNotifier(this);
   }
 
   /// Dispose can be invoked when this notifier is not going to be used again.
-  dispose() {
+  void dispose() {
     assert(_debugStatus == ObservedStatus.active);
     forgetListeners();
     assert(() {

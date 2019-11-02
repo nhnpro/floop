@@ -12,17 +12,12 @@ final Map<BuildContext, Set<Object>> _contextToKeys = Map();
 
 typedef MillisecondsReturner = int Function();
 
-int neverRepeat() => -1;
-
-/// var used just to force initialization of variables.
-final _ = () {
-  TransitionsParams.setDefaults();
-}();
+const _largeInt = 1 << 62 | 1 << 53 | (1 << 31);
 
 /// Returns the current value of the transition registered to `key` if it
 /// exists, `null` otherwise.
 double transitionOf(Object key) {
-  return _TransitionState.of(key)?.lastSetProgressRatio;
+  return _Registry.getForKey(key)?.lastSetProgressRatio;
 }
 
 /// Returns a number that transitions from 0 to 1 inclusive in `durationMillis`
@@ -32,7 +27,8 @@ double transitionOf(Object key) {
 /// `durationMillis` must not be null.
 ///
 /// `refreshPeriodicityMillis` is the periodicity at which the transition
-/// attempts to update it's progress (the context rebuilds).
+/// attempts to update it's progress (the context rebuilds). Defaults to
+/// [TransitionsConfig.refreshPeriodicityMillis].
 ///
 /// The transition can be delayed by `delayMillis`.
 ///
@@ -45,8 +41,8 @@ double transitionOf(Object key) {
 /// existing transition's value is returned. When invoked outside of a widget's
 /// [build] method, `key` must specified.
 ///
-/// `tags` are used to identify transitions by groups. Many transitions can have
-/// the same tag or tags. They are useful to apply operations through
+/// `tag` is similar to `key` but it is not unique. Many transitions can have
+/// the same tag. They are only useful to apply operations through
 /// [Transitions] API.
 ///
 /// When `key` is not provided, transitions are internally identified by all
@@ -96,15 +92,14 @@ double transitionOf(Object key) {
 /// corresponding build context gets unmounted.
 double transition(
   int durationMillis, {
-  int refreshPeriodicityMillis = 20,
+  int refreshPeriodicityMillis,
   int delayMillis = 0,
   int repeatAfterMillis,
   Object key,
-  List<String> tags,
+  String tag,
 }) {
   FloopElement context = ObservedController.activeListener;
-  final bool canCreate =
-      durationMillis != null && (context != null || key != null);
+  final bool canCreate = context != null || key != null;
   assert(() {
     if (durationMillis == null) {
       print('Error: [transition] was invoked with `durationMillis` as null. '
@@ -122,26 +117,34 @@ double transition(
     return true;
   }());
   if (canCreate && key == null) {
-    final tagIdentifier = tags?.join('_');
     key = _createKey(
       context,
       durationMillis,
       delayMillis,
       repeatAfterMillis,
-      tagIdentifier,
+      tag,
     );
   }
-  var transitionState = _Registry.stateOfKey(key);
+  var transitionState = _Registry.getForKey(key);
   if (!canCreate && transitionState == null) {
     return null;
   }
   assert(canCreate != null || transitionState != null);
   if (transitionState == null) {
-    _addKeyToContext(key, context);
-    tags = tags?.toList(growable: false);
-    Transitions._newContextTransition(durationMillis, refreshPeriodicityMillis,
-        delayMillis, repeatAfterMillis, key, tags);
+    // _addKeyToContext(key, context);
+    // transitionState = Transitions._newContextTransition(
+    //     context,
+    //     key,
+    //     durationMillis,
+    //     refreshPeriodicityMillis,
+    //     delayMillis,
+    //     repeatAfterMillis,
+    //     tag);
+    transitionState = _TransitionState(
+        key, durationMillis, delayMillis, repeatAfterMillis, tag, context);
+    Transitions._addTransition(transitionState, refreshPeriodicityMillis);
   }
+  assert(transitionState.lastSetProgressRatio != null);
   return transitionState.lastSetProgressRatio;
 }
 
@@ -154,7 +157,8 @@ double transition(
 /// `durationMillis` and `evaluate` must not be null.
 ///
 /// `refreshPeriodicityMillis` is the periodicity in milliseconds at which the
-/// transition refreshes it's value.
+/// transition refreshes it's value and invokes evaluate. Defaults to
+/// [TransitionsConfig.refreshPeriodicityMillis]
 ///
 /// The transition can be delayed by `delayMillis` milliseconds.
 ///
@@ -171,10 +175,12 @@ double transition(
 /// See [Repeater.transition] to create more customized transitions.
 Object transitionEval(
   int durationMillis,
-  TransitionCallback evaluate, {
-  int refreshPeriodicityMillis = 20,
+  RatioEvaluator evaluate, {
+  int refreshPeriodicityMillis,
   int delayMillis = 0,
+  int repeatAfterMillis,
   Object key,
+  String tag,
 }) {
   assert(() {
     if (ObservedController.isListening) {
@@ -183,35 +189,50 @@ Object transitionEval(
       return false;
     }
     if (durationMillis == null || evaluate == null) {
-      print('Error: bad inputs for [transitionEval], durationMillis '
-          'and evaluate cannot be null.');
+      print('Error: bad inputs for [transitionEval], durationMillis or '
+          'evaluate cannot be null.');
       return false;
     }
     return true;
   }());
-  _TransitionState transitionObj;
+  _TransitionState transitionState;
   if (key != null) {
-    transitionObj = _TransitionState.of(key);
+    transitionState = _Registry.getForKey(key);
   }
   key ??= _createKey();
-  if (transitionObj == null) {
-    _TransitionEval(
-      key,
-      durationMillis,
-      evaluate,
-      // refreshRateMillis,
-      delayMillis,
-    );
+  if (transitionState == null) {
+    // Transitions._newTransitionEval(key, durationMillis, evaluate,
+    //     refreshPeriodicityMillis, delayMillis, repeatAfterMillis, tag);
+    transitionState = _TransitionEvalState(
+        key, durationMillis, evaluate, delayMillis, repeatAfterMillis, tag);
+    Transitions._addTransition(transitionState, refreshPeriodicityMillis);
+
+    // _TransitionEvalState(
+    //   key,
+    //   durationMillis,
+    //   evaluate,
+    //   // refreshRateMillis,
+    //   delayMillis,
+    //   repeatAfterMillis,
+
+    // );
   }
   return key;
 }
 
-abstract class TransitionsParams {
+abstract class TransitionsConfig {
   /// The default refresh periodicity for transitions.
   ///
   /// It defines how often a transition should update it's state. It is only
   /// used when the periodicity is not specified in the transition itself.
-  static int refreshPeriodicityMillis = 25;
+  ///
+  /// Set to 0 to get the maximum possible refresh rate.
+  static int _refreshPeriodicityMillis = 20;
+  static int get refreshPeriodicityMillis => _refreshPeriodicityMillis;
+  static set refreshPeriodicityMillis(int periodicityMillis) {
+    assert(periodicityMillis != null && periodicityMillis >= 0);
+    _refreshPeriodicityMillis = periodicityMillis;
+  }
 
   /// The minimum size of time steps of transition updates.
   ///
@@ -227,7 +248,12 @@ abstract class TransitionsParams {
   /// The clock used to measure the transitions progress.
   ///
   /// By default it returns the elapsed milliseconds of an internal stopwatch.
-  static MillisecondsReturner referenceClock;
+  static MillisecondsReturner _referenceClock;
+  static MillisecondsReturner get referenceClock => _referenceClock;
+  static set referenceClock(MillisecondsReturner clock) {
+    _referenceClock = clock;
+    Transitions._refreshAll();
+  }
 
   static double _timeDilation;
 
@@ -256,110 +282,148 @@ abstract class TransitionsParams {
 
   /// Sets the default config values used by [Transitions].
   static void setDefaults() {
-    refreshPeriodicityMillis = 25;
+    refreshPeriodicityMillis = 20;
     timeGranularityMillis = 10;
-    referenceClock =
-        () => _stopwatch.elapsedMilliseconds % timeGranularityMillis;
+    referenceClock = () =>
+        _stopwatch.elapsedMilliseconds -
+        _stopwatch.elapsedMilliseconds % timeGranularityMillis;
     _stopwatch
       ..reset()
       ..start();
   }
+
+  /// null var used as a hack to force initialization of config parameters.
+  static final _initialize = () {
+    TransitionsConfig.setDefaults();
+    return null;
+  }();
 }
 
 /// [Transitions] allow manipulating the transitions created by this library.
 ///
-/// For operations [pause], [resume], [restart] and [clear], parameters `key`
-/// or `context` can be provided to apply the operation to the corresponding
-/// specific transition (`key`) or group of them (`context`). If none of them
-/// is specified, the operation is applied to all transitions. If both of them
-/// are provided, only `key` is used.
+/// For operations [pause], [resume], [restart] and [cancel], parameters `key`
+/// `tag` or `context` can be provided to apply the operation to the
+/// corresponding specific transition (`key`) or group of them (`context`). If
+/// none of them is specified, the operation is applied to all transitions. If
+/// both of them are provided, only `key` is used.
 ///
 /// The transitions registered to `context` are the ones that were created
 /// while the context was building.
 abstract class Transitions {
   // static int _lastUpdateTime;
 
-  /// `null` refreshRate represents the default refresh rate.
-  static Map<int, _TransitionGroupUpdater> _refreshRateToGroup = Map();
+  /// `null` refreshPeriodicity represents the default refresh rate.
+  static Map<int, _TransitionGroupUpdater> _refreshPeriodicityToGroup = Map();
 
-  static _TransitionState _newContextTransition(
-    int durationMillis,
-    int periodicityMillis,
-    int delayMillis,
-    Object key,
-    int repeatAfterMillis,
-    List<String> tags,
-  ) {
-    final group = _refreshRateToGroup.putIfAbsent(
+  // static _TransitionState _newContextTransition(
+  //   BuildContext context,
+  //   Object key,
+  //   int durationMillis,
+  //   int periodicityMillis,
+  //   int delayMillis,
+  //   int repeatAfterMillis,
+  //   String tag,
+  // ) {
+  //   final group = _refreshPeriodicityToGroup.putIfAbsent(
+  //       periodicityMillis, () => _TransitionGroupUpdater(periodicityMillis));
+  //   final state = _TransitionState(key, durationMillis, delayMillis,
+  //       repeatAfterMillis, tag, group, context);
+  //   _Registry.register(state);
+  //   return state;
+  // }
+
+  static void _addTransition(
+      _TransitionState transitionState, int periodicityMillis) {
+    final group = _refreshPeriodicityToGroup.putIfAbsent(
         periodicityMillis, () => _TransitionGroupUpdater(periodicityMillis));
-    final state = _TransitionState(
-        key, durationMillis, delayMillis, repeatAfterMillis, tags, group);
-    _Registry.add(state);
-    return state;
+    group.add(transitionState);
+    _Registry.register(transitionState);
   }
 
-  // static int lastUpdateTime() => _lastUpdateTime;
-
-  // /// Updates the progress of transitions with given `refreshRate`.
-  // static void _updateTransitionsProgress([int refreshRate]) {
-  //   final transitionsToUpdate = _refreshRateToTransitions[refreshRate];
-  //   for (var transition in transitionsToUpdate) {
-  //     transition.update();
-  //   }
+  // static _TransitionState _newTransitionEval(
+  //   Object key,
+  //   int durationMillis,
+  //   RatioEvaluator evaluate,
+  //   int periodicityMillis,
+  //   int delayMillis,
+  //   int repeatAfterMillis,
+  //   String tag,
+  // ) {
+  //   final group = _refreshPeriodicityToGroup.putIfAbsent(
+  //       periodicityMillis, () => _TransitionGroupUpdater(periodicityMillis));
+  //   final state = _TransitionEvalState(key, durationMillis, evaluate,
+  //       delayMillis, repeatAfterMillis, tag, group);
+  //   _Registry.register(state);
+  //   return state;
   // }
 
-  // static void _updateTransitionsCallback(int refreshRate) {
-  //   final elapsedMillis = currentElapsedMillis;
-  //   _lastUpdateTime =
-  //       elapsedMillis - elapsedMillis % _transitionsMillisGranularity;
-  //   final millisForNextCallback =
-  //       _refreshRateMillis - (elapsedMillis - _lastUpdateTime);
-  //   _updateTransitionsProgress(refreshRate);
-  // }
+  static void _refreshAll() {
+    for (var group in _refreshPeriodicityToGroup.values) {
+      if (group.update()) {
+        group.activatePeriodicUpdates();
+      }
+    }
+  }
 
-  // static void _addTransition(_TransitionState t, int refreshRate) {
-  //   _refreshRateToTransitions.putIfAbsent(refreshRate, () => Set()).add(t);
-  //   refreshRate ??= TransitionsConfig.refreshPeriodicityMillis;
-  //   Timer.periodic(Duration(milliseconds: refreshRate), (timer) {
-  //     _updateTransitionsCallback(refreshRate);
-  //   });
-  //   Timer(Duration(milliseconds: millisForNextCallback),
-  //       () => _updateTransitionsCallback(refreshRate));
-  //   // ??= TransitionsConfig.refreshRateMillis
-  // }
+  /// Returns the last measured refresh rate in Herz (updates per second) of
+  /// transitions with the default [TransitionsConfig.refreshPeriodicityMillis]
+  /// or with `refreshPeriodicityMillis` if provided.
+  ///
+  /// `null` is returned if no transitions have been created for the refresh
+  /// periodicity.
+  ///
+  /// If the Flutter engine is not under stress, the refresh rate should be
+  /// close to the inverse of the refresh periodicty. For example if the
+  /// periodicity is 50 milliseconds, the refreh rate should be 20 Hz.
+  ///
+  /// When [TransitionsConfig.refreshPeriodicityMillis] is 0 the Flutter engine
+  /// will be forcefully stressed to render new frames as soon as possible, by
+  /// updating transitions immediately after each frame renders.
+  double currentRefreshRate([int refreshPeriodicityMillis]) {
+    return _refreshPeriodicityToGroup[refreshPeriodicityMillis]?.refreshRate;
+  }
+
+  static _resumePeriodicUpdates(_TransitionState t) {
+    t.group.updateTransition(t);
+    if (t.shouldKeepUpdating) {
+      t.group.activatePeriodicUpdates();
+    }
+  }
 
   /// Pauses transitions.
   ///
   /// Note that paused transitions that are not associated to any
   /// [BuildContext] will remain stored (taking memory) until they are resumed
-  /// with [resume] or get disposed with [clear].
+  /// with [resume] or get disposed with [cancel].
   static pause({Object key, BuildContext context}) {
     _applyToTransitions(_pause, key, context);
   }
 
-  static _pause(_TransitionState t) => t?.pause();
+  static _pause(_TransitionState t) => t.pause();
 
   static resume({Object key, BuildContext context}) {
     _applyToTransitions(_resume, key, context);
   }
 
-  static _resume(_TransitionState t) => t?.resume();
+  static _resume(_TransitionState t) {
+    _resumePeriodicUpdates(t..resume());
+  }
 
   static resumeOrPause({Object key, BuildContext context}) {
     _applyToTransitions(_resumeOrPause, key, context);
   }
 
   static _resumeOrPause(_TransitionState t) {
-    if (t?.isPaused == false) {
-      t.pause();
-    } else if (t != null) {
-      t.resume();
+    if (t.isPaused) {
+      _resume(t);
+    } else {
+      _pause(t);
     }
   }
 
   /// Restarts transitions as if they were just created.
   ///
-  /// For restarting context transitions, [clear] might be more suitable, since
+  /// For restarting context transitions, [cancel] might be more suitable, since
   /// the transitions will be created again once the context rebuilds, while
   /// restarting them would cause transitions that are created within
   /// conditional statements to replay before the condition triggers.
@@ -367,7 +431,7 @@ abstract class Transitions {
     _applyToTransitions(_restart, key, context);
   }
 
-  static _restart(_TransitionState t) => t?.restart();
+  static _restart(_TransitionState t) => _resumePeriodicUpdates(t..restart());
 
   /// Shifts the transition by `shiftTimeMillis`.
   ///
@@ -388,143 +452,222 @@ abstract class Transitions {
   /// total duration time (finished).
   static shiftTime({int shiftMillis, Object key, BuildContext context}) {
     _applyToTransitions(
-        (_TransitionState t) => t?.shift(shiftMillis), key, context);
+        (_TransitionState t) => _resumePeriodicUpdates(t..shift(shiftMillis)),
+        key,
+        context);
   }
 
+  // static _shift(_TransitionState t, int shiftMillis) {
+  //   _resumePeriodicUpdates(t..shift(shiftMillis));
+  // }
+
   /// Clear all transitions. Equivalent to invoking `Transitions.clear()`.
-  static clearAll() =>
-      _TransitionState.all().toList().forEach((t) => t.dispose());
+  static cancelAll() => _Registry.all().toList().forEach(_cancel);
 
   /// Stops and removes references to transitions.
   ///
   /// Particularly useful for causing a context to rebuild as if it was being
   /// built for the first time.
-  static clear({Object key, BuildContext context}) {
+  static cancel({Object key, BuildContext context}) {
     if (key == null && context == null) {
-      clearAll();
+      cancelAll();
     } else {
-      _applyToTransitions(_clear, key, context);
+      _applyToTransitions(_cancel, key, context);
     }
   }
 
-  static _clear(_TransitionState t) => t?.dispose();
+  static _cancel(_TransitionState t) {
+    t.observedRatio.notifyChange();
+    _Registry.unregister(t);
+  }
 }
 
 const oneSecondInMillis = 1000;
 
 class _TransitionGroupUpdater {
-  static int get currentTime => TransitionsParams.referenceClock();
-  static int get stopwatchCurrent =>
-      TransitionsParams._stopwatch.elapsedMilliseconds;
+  static get _stopwatchPlainTime =>
+      TransitionsConfig._stopwatch.elapsedMilliseconds;
+
+  /// This is the periodicity eliminating 0 if it is the value.
+  int get _modPeriodicity => periodicityMillis.clamp(1, _largeInt);
+
+  int get currentTime {
+    int time = TransitionsConfig.referenceClock();
+    return time - time % _modPeriodicity;
+  }
+  // static int get stopwatchCurrent =>
+  //     TransitionsParams._stopwatch.elapsedMilliseconds;
+
+  _TransitionGroupUpdater(this._periodicityMillis) {
+    _updateTime = currentTime;
+  }
 
   final _transitions = Set<_TransitionState>();
 
   final int _periodicityMillis;
   int get periodicityMillis =>
-      _periodicityMillis ?? TransitionsParams.refreshPeriodicityMillis ?? 0;
+      _periodicityMillis ?? TransitionsConfig._refreshPeriodicityMillis;
 
   /// Number of frames per second (with updated transition progress).
   double refreshRate;
 
   int _updateTime;
-  int get updateTime => _updateTime;
+  // int get updateTime => _updateTime;
+  int get nextUpdateTime => _updateTime + periodicityMillis;
 
+  /// This time stamp is used to record whether or not an update callback is
+  /// queued before a new frame is rendered. If the app slows down, the updates
+  /// will slow down accordingly.
   Duration _referenceTimeStamp;
 
-  int _targetUpdateTime;
+  int _targetUpdateTime = -_largeInt;
 
   Duration get lastFrameUpdateTimeStamp =>
       WidgetsBinding.instance.currentSystemFrameTimeStamp;
 
+  /// Normally if _targetUpdateTime!=null the group will update.
+  ///
+  /// The second condition is used as a safety mechanism in case there is an
+  /// error somewhere and _tagetUpdateTime is never set to null.
   bool get willUpdate =>
-      _referenceTimeStamp == lastFrameUpdateTimeStamp ||
-      currentTime < _targetUpdateTime + periodicityMillis;
+      _targetUpdateTime != null &&
+      (_referenceTimeStamp == lastFrameUpdateTimeStamp ||
+          currentTime < _targetUpdateTime + periodicityMillis);
 
-  _refreshUpdateValues() {
-    final now = currentTime;
-    refreshRate = oneSecondInMillis / (now - _updateTime);
-    _updateTime = now;
+  /// Time measured directly from stopwatch (not scaled, paused, shifted, etc).
+  /// Used for calculating the refresh rate.
+  int _lastPlainTime = 0;
+
+  _refreshPeriodicValues() {
+    _targetUpdateTime = null;
+    final now = _stopwatchPlainTime;
+    refreshRate = oneSecondInMillis / (now - _lastPlainTime);
+    _lastPlainTime = now;
   }
-
-  _TransitionGroupUpdater(this._periodicityMillis) : _updateTime = currentTime;
 
   _delayedUpdate(_) {
     _referenceTimeStamp = lastFrameUpdateTimeStamp;
-    final timeToNextUpdate = _targetUpdateTime - stopwatchCurrent;
-    Future.delayed(Duration(milliseconds: timeToNextUpdate), performUpdates);
+    final timeToNextUpdate = _targetUpdateTime - currentTime;
+    Future.delayed(Duration(milliseconds: timeToNextUpdate), _updateCallback);
   }
 
   /// Updates are performed by two chained async callbacks. The first one waits
   /// for Flutter to render a new frame. The second one in [_delayedUpdate]
   /// waits for the time remaining. This ensures that the refresh rate
-  /// corresponds to the UI rendering updates.
-  _updateNext() {
-    _targetUpdateTime = stopwatchCurrent + periodicityMillis;
+  /// corresponds to the UI refresh rate.
+  _updateNext(int previousUpdateTime) {
+    _targetUpdateTime = previousUpdateTime + periodicityMillis;
     _referenceTimeStamp = lastFrameUpdateTimeStamp;
     WidgetsBinding.instance.addPostFrameCallback(_delayedUpdate);
   }
 
   add(_TransitionState transitionState) {
+    transitionState.group = this;
     _transitions.add(transitionState);
+    // transitionState.shiftedMillis = nextUpdateTime;
     assert(transitionState.group == this);
     activatePeriodicUpdates();
   }
 
   activatePeriodicUpdates() {
     if (!willUpdate) {
-      _updateNext();
+      _updateNext(currentTime);
     }
   }
 
-  performUpdates() {
-    _refreshUpdateValues();
+  updateTransition(_TransitionState transitionState) {
+    transitionState.update(_updateTime);
+    if (!transitionState.isActive && transitionState is _TransitionEvalState) {
+      _Registry.unregister(transitionState);
+    }
+  }
+
+  _updateCallback() {
+    _refreshPeriodicValues();
+    if (update()) {
+      _updateNext(_updateTime);
+    }
+  }
+
+  bool update() {
+    _updateTime = currentTime;
     bool active = false;
-    for (var transition in _transitions) {
-      active |= transition.update();
+    for (var transitionState in _transitions) {
+      updateTransition(transitionState);
+      active |= transitionState.shouldKeepUpdating;
     }
-    if (active) {
-      _updateNext();
-    }
+    return active;
   }
 }
 
 Set<T> _createEmptySet<T>() => Set();
 
 class _Registry {
+  static final Map<BuildContext, Set<_TransitionState>> _contextToTransitions =
+      Map();
   static final Map<Object, _TransitionState> _keyToTransition = Map();
   static final Map<String, Set<_TransitionState>> _tagToTransitions = Map();
 
-  static _TransitionState stateOfKey(Object key) => _keyToTransition[key];
+  static _TransitionState getForKey(Object key) => _keyToTransition[key];
 
-  static Iterable<_TransitionState> statesForTag(String tag) =>
+  static Iterable<_TransitionState> getForTag(String tag) =>
       _tagToTransitions[tag];
+
+  static Iterable<_TransitionState> getForContext(BuildContext context) =>
+      _contextToTransitions[context];
 
   static Iterable<_TransitionState> all() => _keyToTransition.values;
 
-  static add(_TransitionState transitionState) {
+  static register(_TransitionState transitionState) {
     final key = transitionState.key;
+    assert(key != null);
     if (_keyToTransition.containsKey(key)) {
       assert(() {
         print('Error: transitions API error, attempting to create a '
             'transition that already exists.');
         return false;
       }());
-      _keyToTransition[key].dispose();
+      unregister(_keyToTransition[key]);
     }
     _keyToTransition[key] = transitionState;
-    for (var tag in transitionState.tags) {
-      _tagToTransitions.putIfAbsent(tag, _createEmptySet).add(transitionState);
+    if (transitionState.tag != null) {
+      _tagToTransitions
+          .putIfAbsent(transitionState.tag, _createEmptySet)
+          .add(transitionState);
+    }
+    if (transitionState.context != null) {
+      _associateTransitionToContext(transitionState.context, transitionState);
     }
   }
 
-  static remove(_TransitionState transitionState) {
-    _keyToTransition.remove(transitionState.key);
-    for (var tag in transitionState.tags) {
-      assert(_tagToTransitions.containsKey(tag));
-      _tagToTransitions[tag]?.remove(transitionState);
+  static void _associateTransitionToContext(
+      FloopBuildContext context, _TransitionState transitionState) {
+    assert(transitionState.key != null && context != null);
+    var contextKeys = _contextToTransitions[context];
+    if (contextKeys == null) {
+      contextKeys = Set();
+      _contextToTransitions[context] = contextKeys;
+      context.addUnmountCallback(() => unregisterContext(context));
     }
+    contextKeys.add(transitionState);
+  }
+
+  static unregister(_TransitionState transitionState) {
+    assert(transitionState != null);
+    _keyToTransition.remove(transitionState.key);
+    _tagToTransitions[transitionState.tag]?.remove(transitionState);
+    _contextToTransitions[transitionState.context]?.remove(transitionState);
+    transitionState.dispose();
+  }
+
+  static unregisterContext(BuildContext context) {
+    _contextToTransitions.remove(context)?.forEach(unregister);
   }
 }
+
+/// Disposes the transition. [_Registry.unregister] gets called at some point.
+// _disposeTransition(_TransitionState transitionState) =>
+//     transitionState.dispose();
 
 enum _Status {
   active,
@@ -532,22 +675,25 @@ enum _Status {
   defunct,
 }
 
-const _mediumInt = 1 << 31;
-const _largeInt = 1 << 52 | (1 << 31);
+// const _mediumInt = 1 << 31;
+// const _largeInt = 1 << 52 | (1 << 31);
 
-class _TransitionBase with FastHashCode {}
+// class _TransitionBase with FastHashCode {}
 
 class _TransitionState with FastHashCode {
-  static final Map<Object, _TransitionState> _keyToTransition = Map();
+  // static final Map<Object, _TransitionState> _keyToTransition = Map();
 
-  factory _TransitionState.of(Object key) => _keyToTransition[key];
+  // factory _TransitionState.of(Object key) => _keyToTransition[key];
 
-  static Iterable<_TransitionState> all() => _keyToTransition.values;
+  // static Iterable<_TransitionState> all() => _keyToTransition.values;
 
-  /// Variables for external use (avoids extra maps)
+  static ObservedMap<Object, double> _keyToRatio = ObservedMap();
+
+  /// Variables saved as storage for external use (avoids creating extra maps).
   final Object key;
-  final Iterable<String> tags;
-  final _TransitionGroupUpdater group;
+  final String tag;
+  final BuildContext context;
+  _TransitionGroupUpdater group;
 
   /// State variables
   final int durationMillis;
@@ -558,48 +704,72 @@ class _TransitionState with FastHashCode {
 
   final ObservedValue<double> observedRatio = ObservedValue(0);
 
+  double setProgressRatio(double ratio) => observedRatio.value = ratio;
   double get lastSetProgressRatio => observedRatio.value;
+
+  // double setProgressRatio(double ratio) => _keyToRatio[key] = ratio;
+  // double get lastSetProgressRatio => _keyToRatio[key];
 
   _TransitionState(
     this.key,
     this.durationMillis, [
     // this.evaluate,
     // int refreshRateMillis = 20,
-    this.delayMillis = 0,
+    this.delayMillis,
     this.repeatAfterMillis,
-    this.tags,
-    this.group,
-  ]) {
-    // if (_keyToTransition.containsKey(key)) {
-    //   assert(() {
-    //     print('Error: transition api error, attempting to create a '
-    //         'transition that already exists.');
-    //     return false;
-    //   }());
-    //   _keyToTransition[key].dispose();
-    // }
-    baseTime = clockMillis;
-    group.add(this);
-    // _keyToTransition[key] = this;
-  }
+    this.tag,
+    // this.group,
+    this.context,
+  ]) :
+        // TransitionsConfig_initialized is written just to reference it, otherwise
+        // the compiler tree shaking might leave the variable out and config is
+        // never initialized. This is a hack.
+        shiftedMillis =
+            TransitionsConfig._initialize ?? TransitionsConfig.referenceClock();
+  //  {
+  // if (_keyToRatio.containsKey(key)) {
+  //   assert(() {
+  //     print('Error: transition api error, attempting to create a '
+  //         'transition that already exists.');
+  //     return false;
+  //   }());
+  // }
+  // TransitionsConfig_initialized is written just to reference it, otherwise
+  // the compiler tree shaking might leave the variable out and config is
+  // never initialized.
+  // TransitionsConfig._initialize;
+  // assert(!_keyToRatio.containsKey(key));
+  // shiftedMillis = -clockMillis;
+  // _keyToRatio[key] = 0;
+  // _keyToTransition[key] = this;
+  // }
 
-  int baseTime;
-  int shiftedMillis = 0;
+  bool matches(String refTag, BuildContext refContext) =>
+      (refTag == null || tag == refTag) &&
+      (refContext == null || context == refContext);
+
+  int cycleMillis = 0;
+  int shiftedMillis;
   int _pauseTime;
 
   _Status _status = _Status.active;
 
-  /// Active should represent (elapsedMillis < aggregatedDuration) on the last
-  /// update.
+  /// Active represents elapsedMillis < aggregatedDuration on the last update.
   bool get isActive => _status == _Status.active;
 
   /// Pause is different from active, a transition only reaches inactive status
   /// when it finishes (reaches its max duration).
   bool get isPaused => _pauseTime != null;
 
-  int get clockMillis => _pauseTime ?? TransitionsParams.referenceClock();
+  /// Whether this transition should keep updating periodically.
+  bool get shouldKeepUpdating => isActive && !isPaused;
 
-  int get elapsedMillis => clockMillis + shiftedMillis - baseTime;
+  int get clockMillis => _pauseTime ?? TransitionsConfig.referenceClock();
+
+  int get elapsedMillis => clockMillis + shiftedMillis - cycleMillis;
+
+  int computeElapsedMillis(int timeMillis) =>
+      timeMillis + shiftedMillis - cycleMillis;
 
   double computeProgressRatio([int timeMillis]) =>
       (((timeMillis ?? elapsedMillis) - delayMillis) / durationMillis)
@@ -607,7 +777,7 @@ class _TransitionState with FastHashCode {
           .toDouble();
 
   pause() {
-    _pauseTime = clockMillis;
+    _pauseTime = lastUpdateElapsedMillis;
   }
 
   resume() {
@@ -618,9 +788,9 @@ class _TransitionState with FastHashCode {
   }
 
   reset() {
-    baseTime = clockMillis;
+    cycleMillis = clockMillis;
     if (isPaused) {
-      _pauseTime = baseTime;
+      _pauseTime = cycleMillis;
     }
     shiftedMillis = 0;
     activate();
@@ -641,8 +811,8 @@ class _TransitionState with FastHashCode {
   }
 
   dispose() {
-    assert(_status == _Status.inactive);
-    _keyToTransition.remove(key);
+    assert(_status != _Status.defunct);
+    // _keyToRatio.remove(key);
     observedRatio.dispose();
     assert(() {
       _status = _Status.defunct;
@@ -650,23 +820,22 @@ class _TransitionState with FastHashCode {
     }());
   }
 
-  int referenceElapsedMillis;
+  int lastUpdateElapsedMillis = 0;
 
   activate() {
     _status = _Status.active;
-    group.activatePeriodicUpdates();
   }
 
   _repeatOrDeactivate() {
-    if (repeatAfterMillis >= 0) {
-      baseTime = elapsedMillis + repeatAfterMillis;
+    if (repeatAfterMillis != null) {
+      cycleMillis += aggregatedDuration + repeatAfterMillis;
     } else {
       _status = _Status.inactive;
     }
   }
 
   _updateStatusOrRepeat() {
-    if (referenceElapsedMillis >= aggregatedDuration) {
+    if (lastUpdateElapsedMillis >= aggregatedDuration) {
       if (isActive) {
         _repeatOrDeactivate();
       }
@@ -675,35 +844,39 @@ class _TransitionState with FastHashCode {
     }
   }
 
-  /// Updates the transition state and progress ratio.
-  update() {
+  /// Updates the transition state and returns the new progress ratio.
+  double update(int referenceTimeMillis) {
     assert(_status != _Status.defunct);
-    referenceElapsedMillis = elapsedMillis;
+    lastUpdateElapsedMillis = computeElapsedMillis(referenceTimeMillis);
     _updateStatusOrRepeat();
-    double ratio = computeProgressRatio(referenceElapsedMillis);
-    observedRatio.value = ratio;
-    return isActive;
+    double ratio = computeProgressRatio(lastUpdateElapsedMillis);
+    setProgressRatio(ratio);
+    return ratio;
   }
 }
 
-class _TransitionEval extends _TransitionState {
-  final TransitionCallback evaluate;
+class _TransitionEvalState extends _TransitionState {
+  final RatioEvaluator evaluate;
 
-  _TransitionEval(
+  _TransitionEvalState(
     key,
     durationMillis, [
     this.evaluate,
     // int refreshRateMillis = 20,
-    delayMillis = 0,
-  ]) : super(key, durationMillis, delayMillis);
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    String tag,
+    // _TransitionGroupUpdater group,
+  ]) : super(key, durationMillis, delayMillis, repeatAfterMillis, tag);
 
   @override
-  update() {
-    super.update();
-    evaluate(observedRatio.value);
-    if (!isActive) {
-      dispose();
-    }
+  double update(int referenceTimeMillis) {
+    double ratio = super.update(referenceTimeMillis);
+    evaluate(ratio);
+    // if (!isActive) {
+    //   dispose();
+    // }
+    return ratio;
   }
 }
 
@@ -731,7 +904,7 @@ class _MultiKey extends LocalKey {
   int get hashCode => _hash;
 }
 
-typedef TransitionCallback = Function(double elapsedToDurationRatio);
+typedef RatioEvaluator = Function(double elapsedToDurationRatio);
 typedef ValueCallback<V> = V Function(V transitionValue);
 
 Key _createKey([context, duration, delay, repeatAfter, tagIdentifier]) {
@@ -742,35 +915,56 @@ Key _createKey([context, duration, delay, repeatAfter, tagIdentifier]) {
   }
 }
 
-_addKeyToContext(key, FloopBuildContext context) {
-  assert(key != null && context != null);
-  var contextKeys = _contextToKeys[context];
-  if (contextKeys == null) {
-    contextKeys = Set();
-    _contextToKeys[context] = contextKeys;
-    context.addUnmountCallback(() => _clearContextTransitions(context));
-  }
-  contextKeys.add(key);
+// _addKeyToContext(key, FloopBuildContext context) {
+//   assert(key != null && context != null);
+//   var contextKeys = _contextToKeys[context];
+//   if (contextKeys == null) {
+//     contextKeys = Set();
+//     _contextToKeys[context] = contextKeys;
+//     context
+//         .addUnmountCallback(() => _Registry.removeContextTransitions(context));
+//   }
+//   contextKeys.add(key);
+// }
+
+Iterable<_TransitionState> _filter(String tag, BuildContext context) {
+  return _Registry.all()
+      .where((transitionState) => transitionState.matches(tag, context));
+  // Iterable<_TransitionState> transitions;
+  // if (tag != null && context != null) {
+  //   transitions = _Registry.getForTag(tag)
+  //       ?.where((transitionState) => transitionState.matches(tag, context));
+  // } else if (tag != null) {
+  //   transitions = _Registry.getForTag(tag);
+  // } else if (context != null) {
+  //   transitions = _Registry.getForContext(context);
+  // } else {
+  //   transitions = _Registry.all();
+  // }
+  // return transitions ?? const [];
 }
 
 void _applyToTransitions(
-    Function(_TransitionState) apply, Object key, BuildContext context) {
-  if (key != null && _TransitionState._keyToTransition.containsKey(key)) {
-    apply(_TransitionState.of(key));
-  } else if (context != null) {
-    _contextToKeys[context]?.forEach((key) => apply(_TransitionState.of(key)));
+    Function(_TransitionState) apply, Object key, BuildContext context,
+    [String tag]) {
+  // final transitions = _filter(key, tag, context);
+  if (key != null) {
+    final transitionState = _Registry.getForKey(key);
+    if (transitionState != null && transitionState.matches(tag, context)) {
+      apply(_Registry.getForKey(key));
+    }
   } else {
-    _TransitionState.all().forEach(apply);
+    _filter(tag, context).forEach(apply);
   }
 }
 
-void _stopAndDispose(Object key) {
-  _TransitionState.of(key)?.dispose();
-}
+// void _stopAndDispose(Object key) {
+//   _Registry.getTransition(key)?.dispose();
+// }
 
-void _clearContextTransitions(FloopBuildContext element) {
-  _contextToKeys.remove(element)?.forEach(_stopAndDispose);
-}
+// void _clearContextTransitions(FloopBuildContext element) {
+//   _contextToKeys.remove(element)?.forEach(_stopAndDispose);
+// }
 
 /// Integer version of [transitionNumber].
 int transitionInt(int start, int end, int durationMillis,

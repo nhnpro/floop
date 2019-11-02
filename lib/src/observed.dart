@@ -49,6 +49,11 @@ class ObservedValue<T> extends Observed implements ValueWrapper<T> {
   setSilently(T newValue) {
     _value = newValue;
   }
+
+  /// Retrieves the value without notifying a value retrieval.
+  getValueSilently() {
+    return _value;
+  }
 }
 
 /// A special [Map] implementation that provides dynamic values to widgets.
@@ -72,7 +77,10 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
   /// method, the context being built gets subscribed to
   /// the key in order to rebuild when the key value changes.
   V operator [](Object key) {
-    if (isListening) {
+    if (controllerIsListening) {
+      // Returns the value if it exists. If it doesn't, add the key to the
+      // map of the retrieved but unset keys. This is necessary to update the
+      // listener in case the key is set later.
       return (_keyToValue[key] ??
               _unexistingKeyToNullValue.putIfAbsent(key, () => ObservedValue()))
           .value;
@@ -176,9 +184,14 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
   @override
   V remove(Object key, [bool triggerUpdates = true]) {
     var observedValue = _keyToValue.remove(key);
-    if (triggerUpdates) {
-      observedValue.notifyChange();
+    var value;
+    if (observedValue != null) {
+      value = observedValue.value;
+      observedValue.dispose();
+      if (triggerUpdates) {
+        observedValue.notifyChange();
+      }
     }
-    return observedValue.value;
+    return value;
   }
 }

@@ -3,6 +3,28 @@ import 'package:floop/floop.dart';
 import './flutter_import.dart';
 import './controller.dart';
 
+typedef BuilderFunction = Widget Function(BuildContext, [dynamic, dynamic]);
+
+class FloopBuilder0 {
+  final BuilderFunction builder;
+
+  FloopBuilder0(this.builder);
+
+  Widget call(BuildContext context) {
+    return builder(context);
+  }
+}
+
+class FloopBuilder1 {
+  final BuilderFunction builder;
+
+  FloopBuilder1(this.builder);
+
+  Widget call(BuildContext context, extraArg) {
+    return builder(context, extraArg);
+  }
+}
+
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
   ///
