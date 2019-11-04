@@ -142,7 +142,8 @@ double transition(
     //     tag);
     transitionState = _TransitionState(
         key, durationMillis, delayMillis, repeatAfterMillis, tag, context);
-    Transitions._addTransition(transitionState, refreshPeriodicityMillis);
+    _Transitions.addContextTransition(
+        context, transitionState, refreshPeriodicityMillis);
   }
   assert(transitionState.lastSetProgressRatio != null);
   return transitionState.lastSetProgressRatio;
@@ -205,7 +206,7 @@ Object transitionEval(
     //     refreshPeriodicityMillis, delayMillis, repeatAfterMillis, tag);
     transitionState = _TransitionEvalState(
         key, durationMillis, evaluate, delayMillis, repeatAfterMillis, tag);
-    Transitions._addTransition(transitionState, refreshPeriodicityMillis);
+    _Transitions.addTransition(transitionState, refreshPeriodicityMillis);
 
     // _TransitionEvalState(
     //   key,
@@ -229,9 +230,9 @@ abstract class TransitionsConfig {
   /// Set to 0 to get the maximum possible refresh rate.
   static int _refreshPeriodicityMillis = 20;
   static int get refreshPeriodicityMillis => _refreshPeriodicityMillis;
-  static set refreshPeriodicityMillis(int periodicityMillis) {
-    assert(periodicityMillis != null && periodicityMillis >= 0);
-    _refreshPeriodicityMillis = periodicityMillis;
+  static set refreshPeriodicityMillis(int newPeriodicityMillis) {
+    assert(newPeriodicityMillis != null && newPeriodicityMillis >= 0);
+    _refreshPeriodicityMillis = newPeriodicityMillis;
   }
 
   /// The minimum size of time steps of transition updates.
@@ -245,14 +246,18 @@ abstract class TransitionsConfig {
 
   static final Stopwatch _stopwatch = Stopwatch();
 
+  static MillisecondsReturner _referenceClock;
+
   /// The clock used to measure the transitions progress.
   ///
-  /// By default it returns the elapsed milliseconds of an internal stopwatch.
-  static MillisecondsReturner _referenceClock;
+  /// It could be any function, so it shouldn't be used as a reliable source
+  /// for real time measuring. By default it returns the elapsed milliseconds
+  /// of an internal stopwatch.
   static MillisecondsReturner get referenceClock => _referenceClock;
+
   static set referenceClock(MillisecondsReturner clock) {
     _referenceClock = clock;
-    Transitions._refreshAll();
+    _Transitions.refreshAll();
   }
 
   static double _timeDilation;
@@ -299,19 +304,7 @@ abstract class TransitionsConfig {
   }();
 }
 
-/// [Transitions] allow manipulating the transitions created by this library.
-///
-/// For operations [pause], [resume], [restart] and [cancel], parameters `key`
-/// `tag` or `context` can be provided to apply the operation to the
-/// corresponding specific transition (`key`) or group of them (`context`). If
-/// none of them is specified, the operation is applied to all transitions. If
-/// both of them are provided, only `key` is used.
-///
-/// The transitions registered to `context` are the ones that were created
-/// while the context was building.
-abstract class Transitions {
-  // static int _lastUpdateTime;
-
+abstract class _Transitions {
   /// `null` refreshPeriodicity represents the default refresh rate.
   static Map<int, _TransitionGroupUpdater> _refreshPeriodicityToGroup = Map();
 
@@ -332,13 +325,67 @@ abstract class Transitions {
   //   return state;
   // }
 
-  static void _addTransition(
+  static void addTransition(
       _TransitionState transitionState, int periodicityMillis) {
     final group = _refreshPeriodicityToGroup.putIfAbsent(
         periodicityMillis, () => _TransitionGroupUpdater(periodicityMillis));
     group.add(transitionState);
     _Registry.register(transitionState);
   }
+
+  static void addContextTransition(FloopBuildContext context,
+      _TransitionState transitionState, int periodicityMillis) {
+    assert(context != null && context == transitionState.context);
+    if (!_Registry.contextIsRegistered(context)) {
+      context.addUnmountCallback(() => _removeContext(context));
+    }
+    addTransition(transitionState, periodicityMillis);
+  }
+
+  static void _removeTransition(_TransitionState transitionState) {
+    transitionState.group.removeTransition(transitionState..dispose());
+  }
+
+  static void _removeContext(BuildContext context) {
+    _Registry.unregisterContext(context)..forEach(_removeTransition);
+  }
+
+  // static _unregisterTransition(_TransitionState t) {
+  //   return () {
+  //     _Registry._unregisterFromKeyAndTag(t);
+  //     t.dispose();
+  //   };
+  // }
+
+  // static _unregisterContext(BuildContext context) {
+  //   _Registry._removeContext(context).forEach(_unregisterTransition);
+  // }
+
+  static void refreshAll() {
+    for (var group in _refreshPeriodicityToGroup.values) {
+      if (group.update()) {
+        group.activatePeriodicUpdates();
+      }
+    }
+  }
+}
+
+/// [Transitions] allow manipulating the transitions created by this library.
+///
+/// For operations [pause], [resume], [restart] and [cancel], parameters `key`
+/// `tag` or `context` can be provided to apply the operation to the
+/// corresponding specific transition (`key`) or group of them (`context`). If
+/// none of them is specified, the operation is applied to all transitions. If
+/// both of them are provided, only `key` is used.
+///
+/// The transitions registered to `context` are the ones that were created
+/// while the context was building.
+abstract class Transitions {
+  static setTimeDilation(double dilationFactor) {
+    TransitionsConfig.setTimeDilatingClock(dilationFactor);
+    _Transitions.refreshAll();
+  }
+  // static int _lastUpdateTime;
 
   // static _TransitionState _newTransitionEval(
   //   Object key,
@@ -357,14 +404,6 @@ abstract class Transitions {
   //   return state;
   // }
 
-  static void _refreshAll() {
-    for (var group in _refreshPeriodicityToGroup.values) {
-      if (group.update()) {
-        group.activatePeriodicUpdates();
-      }
-    }
-  }
-
   /// Returns the last measured refresh rate in Herz (updates per second) of
   /// transitions with the default [TransitionsConfig.refreshPeriodicityMillis]
   /// or with `refreshPeriodicityMillis` if provided.
@@ -380,7 +419,8 @@ abstract class Transitions {
   /// will be forcefully stressed to render new frames as soon as possible, by
   /// updating transitions immediately after each frame renders.
   double currentRefreshRate([int refreshPeriodicityMillis]) {
-    return _refreshPeriodicityToGroup[refreshPeriodicityMillis]?.refreshRate;
+    return _Transitions
+        ._refreshPeriodicityToGroup[refreshPeriodicityMillis]?.refreshRate;
   }
 
   static _resumePeriodicUpdates(_TransitionState t) {
@@ -478,7 +518,7 @@ abstract class Transitions {
 
   static _cancel(_TransitionState t) {
     t.observedRatio.notifyChange();
-    _Registry.unregister(t);
+    _Transitions._removeTransition(t);
   }
 }
 
@@ -488,58 +528,73 @@ class _TransitionGroupUpdater {
   static get _stopwatchPlainTime =>
       TransitionsConfig._stopwatch.elapsedMilliseconds;
 
-  /// This is the periodicity eliminating 0 if it is the value.
-  int get _modPeriodicity => periodicityMillis.clamp(1, _largeInt);
-
-  int get currentTime {
-    int time = TransitionsConfig.referenceClock();
-    return time - time % _modPeriodicity;
-  }
-  // static int get stopwatchCurrent =>
-  //     TransitionsParams._stopwatch.elapsedMilliseconds;
+  final _transitions = Set<_TransitionState>();
 
   _TransitionGroupUpdater(this._periodicityMillis) {
-    _updateTime = currentTime;
+    _updateTimeStep = currentClockTimeStep;
   }
-
-  final _transitions = Set<_TransitionState>();
 
   final int _periodicityMillis;
   int get periodicityMillis =>
       _periodicityMillis ?? TransitionsConfig._refreshPeriodicityMillis;
 
+  /// Returns the number truncated to a periodicity multiple.
+  int truncateTime(int number) {
+    // The periodicity is clamped in case it were 0.
+    number -= number % periodicityMillis.clamp(1, _largeInt);
+    return number;
+  }
+
+  /// Times used for updating. Update times used are multiples of the
+  /// periodicity. This way the transitions of the same refresh periodicity
+  /// are synchronized.
+
+  /// Time measured directly from a stopwatch.
+  ///
+  /// Used for calculating the refresh rate with real time and not not scaled,
+  /// paused, rounded, etc, like [currentClockTimeStep] could be.
+  int _lastPlainTime = 0;
+
+  /// The current clock time as multiple of the periodicity.
+  int get currentClockTimeStep {
+    int time = TransitionsConfig.referenceClock();
+    return truncateTime(time);
+  }
+
+  /// The target update time for the next update.
+  ///
+  /// It's null when no future updates are going to be performed.
+  int _targetUpdateTime = -_largeInt;
+
+  /// The last performed update time.
+  int _updateTimeStep;
+
+  refreshUpdateTimeStep() {
+    _updateTimeStep = truncateTime(TransitionsConfig.referenceClock());
+  }
+
   /// Number of frames per second (with updated transition progress).
   double refreshRate;
-
-  int _updateTime;
-  // int get updateTime => _updateTime;
-  int get nextUpdateTime => _updateTime + periodicityMillis;
 
   /// This time stamp is used to record whether or not an update callback is
   /// queued before a new frame is rendered. If the app slows down, the updates
   /// will slow down accordingly.
   Duration _referenceTimeStamp;
 
-  int _targetUpdateTime = -_largeInt;
-
   Duration get lastFrameUpdateTimeStamp =>
       WidgetsBinding.instance.currentSystemFrameTimeStamp;
 
-  /// Normally if _targetUpdateTime!=null the group will update.
+  /// Whether a future update is scheduled.
   ///
-  /// The second condition is used as a safety mechanism in case there is an
-  /// error somewhere and _tagetUpdateTime is never set to null.
+  /// If _targetUpdateTime!=null a fugure update should be scheduled. The
+  /// second condition is used as a safety mechanism in case there is an error
+  /// somewhere and _tagetUpdateTime is never set to null.
   bool get willUpdate =>
       _targetUpdateTime != null &&
       (_referenceTimeStamp == lastFrameUpdateTimeStamp ||
-          currentTime < _targetUpdateTime + periodicityMillis);
+          _stopwatchPlainTime < _targetUpdateTime + periodicityMillis);
 
-  /// Time measured directly from stopwatch (not scaled, paused, shifted, etc).
-  /// Used for calculating the refresh rate.
-  int _lastPlainTime = 0;
-
-  _refreshPeriodicValues() {
-    _targetUpdateTime = null;
+  _updateRefreshRateAndPlainTime() {
     final now = _stopwatchPlainTime;
     refreshRate = oneSecondInMillis / (now - _lastPlainTime);
     _lastPlainTime = now;
@@ -547,7 +602,7 @@ class _TransitionGroupUpdater {
 
   _delayedUpdate(_) {
     _referenceTimeStamp = lastFrameUpdateTimeStamp;
-    final timeToNextUpdate = _targetUpdateTime - currentTime;
+    final timeToNextUpdate = _targetUpdateTime - _stopwatchPlainTime;
     Future.delayed(Duration(milliseconds: timeToNextUpdate), _updateCallback);
   }
 
@@ -555,8 +610,8 @@ class _TransitionGroupUpdater {
   /// for Flutter to render a new frame. The second one in [_delayedUpdate]
   /// waits for the time remaining. This ensures that the refresh rate
   /// corresponds to the UI refresh rate.
-  _updateNext(int previousUpdateTime) {
-    _targetUpdateTime = previousUpdateTime + periodicityMillis;
+  _updateNext() {
+    _targetUpdateTime = _lastPlainTime + periodicityMillis;
     _referenceTimeStamp = lastFrameUpdateTimeStamp;
     WidgetsBinding.instance.addPostFrameCallback(_delayedUpdate);
   }
@@ -571,26 +626,35 @@ class _TransitionGroupUpdater {
 
   activatePeriodicUpdates() {
     if (!willUpdate) {
-      _updateNext(currentTime);
+      _lastPlainTime = _stopwatchPlainTime;
+      _updateNext();
     }
   }
 
   updateTransition(_TransitionState transitionState) {
-    transitionState.update(_updateTime);
-    if (!transitionState.isActive && transitionState is _TransitionEvalState) {
-      _Registry.unregister(transitionState);
+    assert(_transitions.contains(transitionState));
+    transitionState.update(_updateTimeStep);
+    if (transitionState._status == _Status.defunct) {
+      removeTransition(transitionState);
     }
   }
 
+  removeTransition(_TransitionState transitionState) {
+    assert(transitionState._status == _Status.defunct);
+    _transitions.remove(transitionState);
+    _Registry.unregister(transitionState);
+  }
+
   _updateCallback() {
-    _refreshPeriodicValues();
+    _targetUpdateTime = null;
+    _updateRefreshRateAndPlainTime();
+    refreshUpdateTimeStep();
     if (update()) {
-      _updateNext(_updateTime);
+      _updateNext();
     }
   }
 
   bool update() {
-    _updateTime = currentTime;
     bool active = false;
     for (var transitionState in _transitions) {
       updateTransition(transitionState);
@@ -616,6 +680,9 @@ class _Registry {
   static Iterable<_TransitionState> getForContext(BuildContext context) =>
       _contextToTransitions[context];
 
+  static bool contextIsRegistered(BuildContext context) =>
+      _contextToTransitions.containsKey(context);
+
   static Iterable<_TransitionState> all() => _keyToTransition.values;
 
   static register(_TransitionState transitionState) {
@@ -636,33 +703,53 @@ class _Registry {
           .add(transitionState);
     }
     if (transitionState.context != null) {
-      _associateTransitionToContext(transitionState.context, transitionState);
+      _contextToTransitions
+          .putIfAbsent(transitionState.context, _createEmptySet)
+          .add(transitionState);
     }
   }
 
-  static void _associateTransitionToContext(
-      FloopBuildContext context, _TransitionState transitionState) {
-    assert(transitionState.key != null && context != null);
-    var contextKeys = _contextToTransitions[context];
-    if (contextKeys == null) {
-      contextKeys = Set();
-      _contextToTransitions[context] = contextKeys;
-      context.addUnmountCallback(() => unregisterContext(context));
-    }
-    contextKeys.add(transitionState);
-  }
+  // static void _associateTransitionToContext(
+  //     FloopBuildContext context, _TransitionState transitionState) {
+  //   assert(transitionState.key != null && context != null);
+  //   var contextKeys = _contextToTransitions[context];
+  //   if (contextKeys == null) {
+  //     contextKeys = Set();
+  //     _contextToTransitions[context] = contextKeys;
+  //   }
+  //   contextKeys.add(transitionState);
+  // }
 
   static unregister(_TransitionState transitionState) {
     assert(transitionState != null);
     _keyToTransition.remove(transitionState.key);
     _tagToTransitions[transitionState.tag]?.remove(transitionState);
     _contextToTransitions[transitionState.context]?.remove(transitionState);
-    transitionState.dispose();
   }
 
-  static unregisterContext(BuildContext context) {
-    _contextToTransitions.remove(context)?.forEach(unregister);
+  // static Iterable<_TransitionState> _removeContext(BuildContext context) {
+  //   assert(_contextToTransitions.containsKey(context));
+  //   return _contextToTransitions.remove(context);
+  // }
+
+  static Iterable<_TransitionState> unregisterContext(BuildContext context) {
+    return _contextToTransitions.remove(context);
   }
+
+  // static _unregisterKey(Object key) {
+  //   assert(_keyToTransition.containsKey(key));
+  //   _keyToTransition.remove(key);
+  // }
+
+  // static _unregisterFromKeyAndTag(_TransitionState transitionState) {
+  //   assert(_keyToTransition.containsKey(transitionState.key));
+  //   _keyToTransition.remove(transitionState.key);
+  //   if (transitionState.tag != null) {
+  //     assert(transitionState.tag != null &&
+  //         _tagToTransitions[transitionState.tag].contains(transitionState));
+  //     _tagToTransitions[transitionState.tag].remove(transitionState);
+  //   }
+  // }
 }
 
 /// Disposes the transition. [_Registry.unregister] gets called at some point.
@@ -687,12 +774,12 @@ class _TransitionState with FastHashCode {
 
   // static Iterable<_TransitionState> all() => _keyToTransition.values;
 
-  static ObservedMap<Object, double> _keyToRatio = ObservedMap();
+  // static ObservedMap<Object, double> _keyToRatio = ObservedMap();
 
   /// Variables saved as storage for external use (avoids creating extra maps).
   final Object key;
   final String tag;
-  final BuildContext context;
+  final FloopBuildContext context;
   _TransitionGroupUpdater group;
 
   /// State variables
@@ -724,8 +811,7 @@ class _TransitionState with FastHashCode {
         // TransitionsConfig_initialized is written just to reference it, otherwise
         // the compiler tree shaking might leave the variable out and config is
         // never initialized. This is a hack.
-        shiftedMillis =
-            TransitionsConfig._initialize ?? TransitionsConfig.referenceClock();
+        shiftedMillis = TransitionsConfig._initialize ?? 0
   //  {
   // if (_keyToRatio.containsKey(key)) {
   //   assert(() {
@@ -743,6 +829,9 @@ class _TransitionState with FastHashCode {
   // _keyToRatio[key] = 0;
   // _keyToTransition[key] = this;
   // }
+  {
+    _Registry.register(this);
+  }
 
   bool matches(String refTag, BuildContext refContext) =>
       (refTag == null || tag == refTag) &&
@@ -810,14 +899,11 @@ class _TransitionState with FastHashCode {
     }
   }
 
+  /// Invoked when the transition is not going to be used again.
   dispose() {
     assert(_status != _Status.defunct);
-    // _keyToRatio.remove(key);
     observedRatio.dispose();
-    assert(() {
-      _status = _Status.defunct;
-      return true;
-    }());
+    _status = _Status.defunct;
   }
 
   int lastUpdateElapsedMillis = 0;
