@@ -143,19 +143,13 @@ class CircleProperties {
   Offset targetPosition;
 
   CircleProperties([double diameter = diameter])
-      : id = _ids,
-        name = 'circle$_ids',
+      : name = 'circle$_ids',
         backKey = 'circle${_ids}back0',
         _count = 'circle${_ids}count',
         _pos = 'circle${_ids}pos',
         _color = 'circle${_ids}color',
-        _diameter = diameter {
-    _ids++;
-    floop['circleWidgets'] = circleWidgets
-      ..add(InteractiveCircle(
-        this,
-        key: ValueKey(id),
-      ));
+        _diameter = diameter,
+        id = _ids++ {
     count = 0;
     color = Colors.white;
   }
@@ -165,7 +159,7 @@ class CircleProperties {
   int get count => floop[_count];
   set count(int val) => floop[_count] = val;
 
-  get position => floop[_pos];
+  Offset get position => floop[_pos];
   set position(Offset newPos) => floop[_pos] = newPos;
 
   Color get color => floop[_color];
@@ -190,6 +184,11 @@ spawnCircle(Offset offset, Size maxSpace) {
   circle.targetPosition = randomPosition(maxSpace.width, maxSpace.height);
   circle.baseColor = Colors.white;
 
+  floop['circleWidgets'] = circleWidgets
+    ..add(InteractiveCircle(
+      circle,
+      key: ValueKey(circle.id),
+    ));
   transitionBack(circle, true);
 }
 

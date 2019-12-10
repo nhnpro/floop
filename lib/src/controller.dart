@@ -115,7 +115,7 @@ class ObservedController {
   }
 
   static void disablePostponeNotifications() {
-    assert(_postponeChangeNotifications);
+    // assert(_postponeChangeNotifications);
     _postponeChangeNotifications = false;
   }
 

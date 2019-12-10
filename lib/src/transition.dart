@@ -361,7 +361,7 @@ abstract class Transitions {
   }
 
   static _resumePeriodicUpdates(_TransitionState t) {
-    t.update();
+    // t.update();
   }
 
   /// Pauses transitions.
@@ -406,6 +406,12 @@ abstract class Transitions {
   }
 
   static _restart(_TransitionState t) => _resumePeriodicUpdates(t..restart());
+
+  static reset({Object key, BuildContext context}) {
+    _applyToTransitions(_reset, key, context);
+  }
+
+  static _reset(_TransitionState t) => _resumePeriodicUpdates(t..reset());
 
   /// Shifts the transition by `shiftTimeMillis`.
   ///
@@ -727,9 +733,6 @@ class _TransitionState with FastHashCode {
   double setProgressRatio(double ratio) => observedRatio.value = ratio;
   double get lastSetProgressRatio => observedRatio.value;
 
-  // double setProgressRatio(double ratio) => _keyToRatio[key] = ratio;
-  // double get lastSetProgressRatio => _keyToRatio[key];
-
   _TransitionState(
     this.key,
     this.durationMillis, [
@@ -780,11 +783,20 @@ class _TransitionState with FastHashCode {
   int get currentTimeStep => updater.currentTimeStep;
 
   int get elapsedMillis {
-    var elapsed = (_pauseTime ?? currentTimeStep) + shiftedMillis;
-    if (repeatAfterMillis != null) {
-      if (elapsed > aggregatedDuration) {
-        elapsed = (elapsed - aggregatedDuration) %
-            (aggregatedDuration + repeatAfterMillis);
+    var elapsed = (_pauseTime ?? lastUpdateTimeStep) + shiftedMillis;
+    if (repeatAfterMillis != null && elapsed > aggregatedDuration) {
+      if (repeatAfterMillis < 0) {
+        // If repeatAfterMillis is negative, the transition starts advanced,
+        // such that it always reaches its end value.
+        final duration = aggregatedDuration;
+        elapsed -= duration;
+        // Starting from the third cycle the repeat time needs to be added.
+        if (elapsed > duration) {
+          elapsed =
+              -repeatAfterMillis + elapsed % (duration + repeatAfterMillis);
+        }
+      } else {
+        elapsed %= aggregatedDuration + repeatAfterMillis;
       }
     }
     return elapsed;
@@ -794,7 +806,7 @@ class _TransitionState with FastHashCode {
       ((timeMillis - delayMillis) / durationMillis).clamp(0, 1).toDouble();
 
   pause() {
-    _pauseTime = lastUpdateTime;
+    _pauseTime = lastUpdateTimeStep;
   }
 
   resume() {
@@ -807,7 +819,7 @@ class _TransitionState with FastHashCode {
 
   reset() {
     if (isPaused) {
-      _pauseTime = 0;
+      _pauseTime = currentTimeStep;
     }
     shiftedMillis = -currentTimeStep;
     update();
@@ -835,7 +847,7 @@ class _TransitionState with FastHashCode {
     }());
   }
 
-  int lastUpdateTime = 0;
+  int lastUpdateTimeStep = 0;
 
   activate() {
     _status = _Status.active;
@@ -850,29 +862,32 @@ class _TransitionState with FastHashCode {
   }
 
   _updateStatusAndScheduleUpdate() {
-    if (lastUpdateTime >= aggregatedDuration) {
+    if (elapsedMillis >= aggregatedDuration) {
       if (isActive) {
         _repeatOrDeactivate();
       }
     } else if (!isActive) {
       _status = _Status.active;
-      // updater.add(this);
-      // activate();
     }
+    // print('is paused $isPaused progress ratio: ${lastSetProgressRatio}');
     if (shouldKeepUpdating) {
       updater.scheduleUpdate(this);
     }
   }
 
+  _updateProgressRatio() {
+    double ratio = computeProgressRatio(elapsedMillis);
+    setProgressRatio(ratio);
+  }
+
   /// Updates the transition state and returns the new progress ratio.
-  double update() {
+  void update() {
     assert(_status != _Status.defunct);
     // lastUpdateElapsedMillis = computeElapsedMillis(clock.currentTimeStep);
-    lastUpdateTime = elapsedMillis;
-    double ratio = computeProgressRatio(lastUpdateTime);
-    setProgressRatio(ratio);
+    lastUpdateTimeStep = currentTimeStep;
+    _updateProgressRatio();
     _updateStatusAndScheduleUpdate();
-    return ratio;
+    // return ratio;
   }
 }
 
@@ -892,13 +907,13 @@ class _TransitionEvalState extends _TransitionState {
             repeatAfterMillis, tag);
 
   @override
-  double update([int referenceTimeMillis]) {
-    double ratio = super.update();
-    evaluate(ratio);
+  void update([int referenceTimeMillis]) {
+    // double ratio = super.update();
+    evaluate(lastSetProgressRatio);
     if (!isActive) {
       dispose();
     }
-    return ratio;
+    // return ratio;
   }
 }
 
