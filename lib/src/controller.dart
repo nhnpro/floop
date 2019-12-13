@@ -1,3 +1,4 @@
+import 'package:floop/src/flutter_import.dart' show debugPrint;
 import 'package:meta/meta.dart';
 
 /// Interface required by [ObservedController] to notify changes in observeds.
@@ -7,8 +8,14 @@ abstract class ObservedListener implements FastHashCode {
   @protected
   Set<ObservedNotifier> notifiers;
 
+  /// Handles a change notified by an [ObservedNotifier].
+  ///
+  /// `postponeEventHandling` advices the listener to postpone the event
+  /// handling. For example when an [ObservedValue] is being set for the first
+  /// time this flag is sometimes used.
   @protected
-  onObservedChange(ObservedNotifier observed);
+  onObservedChange(ObservedNotifier notifier,
+      [bool postponeEventHandling = false]);
 }
 
 /// Interface necessary by [ObservedController] to register and notify
@@ -105,40 +112,47 @@ class ObservedController {
     _currentNotifiers = previousNotifiers..clear();
   }
 
-  static bool _postponeChangeNotifications = false;
+  /// Flag that prevents notification events from triggering an assertion error
+  /// when listening.
+  static bool debugAllowNotificationsWhenListening = false;
 
-  static bool get isPostponingChangeNotifications =>
-      _postponeChangeNotifications;
+  // static bool get allowNotifyWhenListening =>
+  //     _allowNotifyWhenListening;
 
-  static void postponeNotifications() {
-    _postponeChangeNotifications = true;
-  }
+  // static void suggestPostponeNotificationHandling() {
+  //   _allowNotifyWhenListening = true;
+  // }
 
-  static void disablePostponeNotifications() {
-    // assert(_postponeChangeNotifications);
-    _postponeChangeNotifications = false;
-  }
+  // static void stopSuggestingPostponingNotificationHandling() {
+  //   // assert(_postponeChangeNotifications);
+  //   _allowNotifyWhenListening = false;
+  // }
 
-  static final Set<ObservedNotifier> postponedNotifiers = Set();
+  // static final Set<ObservedNotifier> postponedNotifiers = Set();
 
-  static notifyChangeToListeners(ObservedNotifier notifier) {
+  static notifyChangeToListeners(ObservedNotifier notifier,
+      [bool advicePostponing = false]) {
     assert(() {
-      if (isListening) {
-        print('Error: `${activeListener}` is listening (building) while '
-            'setting value of the [ObservedNotifier] $notifier. '
+      if (isListening &&
+          !advicePostponing &&
+          !debugAllowNotificationsWhenListening) {
+        debugPrint(
+            'Error: `${activeListener}` is listening (a widget is building) '
+            'while setting value of the [ObservedNotifier] $notifier. '
             '[Observed] instances like [ObservedMap] cannot be modified '
-            'from within a build method. In [FloopWidget] classes, '
-            'initContext can be used to initialize values of observeds.');
+            'from within a build method.\n'
+            'In [FloopWidget] classes, initContext can be used to initialize '
+            'values of observeds.');
         assert(false);
       }
       return true;
     }());
-    if (_postponeChangeNotifications) {
-      postponedNotifiers.add(notifier);
-      return;
-    }
+    // if (_postponeChangeNotifications) {
+    //   postponedNotifiers.add(notifier);
+    //   return;
+    // }
     for (var listener in notifier.listeners) {
-      listener.onObservedChange(notifier);
+      listener.onObservedChange(notifier, advicePostponing);
     }
   }
 
@@ -210,8 +224,16 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
   ObservedListener get activeListener => ObservedController._activeListener;
   bool get controllerIsListening => ObservedController.isListening;
 
+  // Set<ObservedListener> _listeners;
+  // @protected
+  // Set<ObservedListener> get listeners => _listeners ??= Set();
+  // @protected
+  // set listeners(Set<ObservedListener> listeners) => _listeners = listeners;
+
   @protected
   Set<ObservedListener> listeners;
+
+  bool get hasRegisteredListeners => listeners != null && listeners.isNotEmpty;
 
   void notifyRead() {
     assert(_debugStatus != ObservedStatus.defunct);
@@ -220,17 +242,23 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
     }
   }
 
-  void notifyChange() {
+  void notifyChange([bool postponeNotificationHandling = false]) {
     assert(_debugStatus != ObservedStatus.defunct);
-    if (listeners != null && listeners.isNotEmpty) {
-      assert(_debugStatus == ObservedStatus.active);
-      ObservedController.notifyChangeToListeners(this);
+    if (listeners != null) {
+      if (listeners.isNotEmpty) {
+        ObservedController.notifyChangeToListeners(
+            this, postponeNotificationHandling);
+      } else if (postponeNotificationHandling) {
+        ObservedController.notifyChangeToListeners(this, true);
+      }
     }
   }
 
   void forgetListeners() {
     assert(_debugStatus != ObservedStatus.defunct);
-    ObservedController.unsubscribeNotifier(this);
+    if (hasRegisteredListeners) {
+      ObservedController.unsubscribeNotifier(this);
+    }
   }
 
   /// Dispose can be invoked when this notifier is not going to be used again.

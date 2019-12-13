@@ -5,25 +5,7 @@ import './controller.dart';
 
 typedef BuilderFunction = Widget Function(BuildContext, [dynamic, dynamic]);
 
-class FloopBuilder0 {
-  final BuilderFunction builder;
-
-  FloopBuilder0(this.builder);
-
-  Widget call(BuildContext context) {
-    return builder(context);
-  }
-}
-
-class FloopBuilder1 {
-  final BuilderFunction builder;
-
-  FloopBuilder1(this.builder);
-
-  Widget call(BuildContext context, extraArg) {
-    return builder(context, extraArg);
-  }
-}
+// TODO: FloopBuilder, wrapper function that causes a builder to listen.
 
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
@@ -31,7 +13,16 @@ mixin DisposableWidget on Widget {
   /// Useful to override for initializing values in an [ObservedMap], or any
   /// other resources that are related only to `context`.
   ///
+  /// During the widget tree build cycle [initContext] and [disposeContext] are
+  /// methods where it is safe to write values in and [ObservadMap] or
+  /// [ObservedValue].
+  ///
   /// Default implementation is no-op, it's not necessary to call super.
+  ///
+  /// See also:
+  ///
+  ///  * [disposeContext] invoked when the context is unmounted.
+  ///  * [DynamicWidget.initDyn] invoked when the dyn member created.
   @protected
   void initContext(BuildContext context) {}
 
@@ -51,8 +42,10 @@ mixin DisposableWidget on Widget {
 /// changes detected to [ObservedMap] instances read during the build.
 /// Example: `MyWidget extends StatelessWidget with Floop {...}`.
 mixin Floop on StatelessWidget implements DisposableWidget {
+  @override
   void disposeContext(BuildContext context) {}
 
+  @override
   void initContext(BuildContext context) {}
 
   @override
@@ -67,63 +60,121 @@ abstract class FloopWidget extends StatelessWidget with Floop {
   const FloopWidget({Key key}) : super(key: key);
 }
 
-abstract class FloopBuildContext extends BuildContext {
+abstract class FloopBuildContext extends BuildContext
+    implements ObservedListener {
   void addUnmountCallback(VoidCallback callback);
 }
 
-mixin FloopElement on Element implements FloopBuildContext, ObservedListener {}
+mixin FloopElement on Element implements FloopBuildContext {}
 
 mixin FloopElementMixin on Element implements FloopElement {
-  static void _observedChangeCallback([_]) {
-    assert(ObservedController.postponedNotifiers.isNotEmpty);
-    assert(!ObservedController.isPostponingChangeNotifications == false);
-    ObservedController.postponedNotifiers
-        .forEach(ObservedController.notifyChangeToListeners);
-    ObservedController.postponedNotifiers.clear();
-  }
-
-  static bool _shouldCreatePostFrameCallback;
-
   // Value used to register when the postponed notifications callback was
   // created. This is used a security mechanism in case a callback fails and
   // the posponed observeds are not updated.
-  static Duration _postponeFrameTimeStamp;
+  static Duration _referenceFrameTimeStamp;
 
-  static void _startPosponingObservedNotifications() {
-    ObservedController.postponeNotifications();
-    _shouldCreatePostFrameCallback =
-        ObservedController.postponedNotifiers.isEmpty ||
-            _postponeFrameTimeStamp !=
-                WidgetsBinding.instance.currentSystemFrameTimeStamp;
+  static _updateReferenceFrameTimeStamp() {
+    _referenceFrameTimeStamp =
+        WidgetsBinding.instance.currentSystemFrameTimeStamp;
   }
 
-  static void _finishPosponingObservedNotifications() {
-    ObservedController.disablePostponeNotifications();
-    if (_shouldCreatePostFrameCallback &&
-        ObservedController.postponedNotifiers.isNotEmpty) {
-      _postponeFrameTimeStamp =
+  /// This method is necessary to prevent Flutter assertions error when
+  /// invoking markNeedsBuild on the elements.
+  static _debugRemoveInactiveElementsFromPostponedList() {
+    _postponedElementsForMarking.retainWhere((element) => element._debugActive);
+  }
+
+  static void _notifyingCallback([_]) {
+    assert(() {
+      _debugRemoveInactiveElementsFromPostponedList();
+      return true;
+    }());
+    // Set postponing to false in case there was an error and the value didn't
+    // set back to false.
+    shouldPostponeMarking = false;
+    _updateReferenceFrameTimeStamp();
+    _postponedElementsForMarking.forEach((e) => e.markNeedsBuild());
+    _postponedElementsForMarking.clear();
+  }
+
+  static _createMarkNeedsBuildCallback() {
+    _updateReferenceFrameTimeStamp();
+    WidgetsBinding.instance.scheduleFrameCallback(_notifyingCallback);
+  }
+
+  static final Set<FloopElementMixin> _postponedElementsForMarking = Set();
+
+  static bool get _shouldCreateMarkNeedsBuildCallback =>
+      _postponedElementsForMarking.isEmpty ||
+      _referenceFrameTimeStamp !=
           WidgetsBinding.instance.currentSystemFrameTimeStamp;
-      WidgetsBinding.instance.addPostFrameCallback(_observedChangeCallback);
+
+  /// During mounting or unmounting Observed values could change. The
+  /// change notifications are postponed until the frame finishes rendering.
+  static void postponeMarking(FloopElementMixin element) {
+    assert(element != null);
+    if (_shouldCreateMarkNeedsBuildCallback) {
+      _createMarkNeedsBuildCallback();
     }
+    _postponedElementsForMarking.add(element);
   }
+
+  static bool shouldPostponeMarking;
 
   DisposableWidget get disposableWidget => widget;
 
   void mount(Element parent, dynamic newSlot) {
-    _startPosponingObservedNotifications();
+    // _startPostponingObservedNotifications();
+    shouldPostponeMarking = true;
     disposableWidget.initContext(this);
     super.mount(parent, newSlot);
-    _finishPosponingObservedNotifications();
+    shouldPostponeMarking = false;
+    assert(() {
+      _debugActivate();
+      return true;
+    }());
+    // _finishPostponingObservedNotifications();
   }
+
+  _debugActivate() {
+    _debugActive = true;
+  }
+
+  activate() {
+    assert(!_debugActive);
+    assert(() {
+      _debugActivate();
+      return true;
+    }());
+    super.activate();
+  }
+
+  _debugDeactivate() {
+    _debugActive = false;
+  }
+
+  deactivate() {
+    super.deactivate();
+    assert(() {
+      _debugDeactivate();
+      return true;
+    }());
+  }
+
+  /// Used keep track of the Elements status in debug mode. The [Element]
+  /// `_active` field is private.
+  bool _debugActive = false;
 
   @override
   void unmount() {
-    _startPosponingObservedNotifications();
+    shouldPostponeMarking = true;
+    // _startPostponingObservedNotifications();
     ObservedController.unsubscribeListener(this);
     _unmountCallbacks.forEach((cb) => cb());
     super.unmount();
     disposableWidget.disposeContext(this);
-    _finishPosponingObservedNotifications();
+    // _finishPostponingObservedNotifications();
+    shouldPostponeMarking = false;
   }
 
   final Set<VoidCallback> _unmountCallbacks = Set();
@@ -136,10 +187,13 @@ mixin FloopElementMixin on Element implements FloopElement {
   Set<ObservedNotifier> notifiers;
 
   @protected
-  onObservedChange(ObservedNotifier notifier) {
-    assert(!ObservedController.isPostponingChangeNotifications);
+  onObservedChange(ObservedNotifier notifier, [bool postpone = false]) {
     assert(notifiers.contains(notifier));
-    markNeedsBuild();
+    if (shouldPostponeMarking || postpone) {
+      postponeMarking(this);
+    } else {
+      markNeedsBuild();
+    }
   }
 }
 
@@ -247,9 +301,13 @@ abstract class DynamicWidget extends FloopWidget {
   ///
   /// Normally the widget is automatically initialized, but it can be useful
   /// to initialize it using [forceInit] when the widget is created outside
-  /// of a [build] method. In those cases, if the widget has not yet been
-  /// initialized and it is used to replace an existing widget, it will copy
-  /// the [dyn] member of the old widget. If that behavior is undesired,
+  /// of a [build] method and it is desired to pre-set its state.
+  ///
+  /// An initialized widget can be to replace an active [DynamicWidget] with
+  /// one with another that has it's own [dyn]. For example sometimes the same widget
+  /// is stored in different states and a parent widget switches them when
+  /// certain events trigger.
+  ///
   /// invoke [forceInit] when the widget is created to initialize it's own
   /// [dyn] member.
   forceInit() {
@@ -259,6 +317,17 @@ abstract class DynamicWidget extends FloopWidget {
   _init() {
     _dyn.map = ObservedMap();
     initDyn();
+  }
+
+  /// Invoked on mount of the context.
+  ///
+  /// It invokes [initDyn] when the [dyn] member of the widget is null.
+  @mustCallSuper
+  @protected
+  void initContext(BuildContext context) {
+    if (dyn == null) {
+      _init();
+    }
   }
 
   @override
@@ -273,12 +342,5 @@ class DynamicWidgetElement extends StatelessElementFloop {
   update(DynamicWidget newWidget) {
     newWidget._dyn.map ??= widget._dyn.map;
     super.update(newWidget);
-  }
-
-  void mount(Element parent, dynamic newSlot) {
-    if (widget.dyn == null) {
-      widget._init();
-    }
-    super.mount(parent, newSlot);
   }
 }

@@ -1,4 +1,8 @@
 import 'dart:collection';
+
+import 'package:floop/src/flutter_import.dart';
+import 'package:floop/src/time.dart';
+
 import './controller.dart';
 
 /// Dynamic values provider to widgets.
@@ -9,6 +13,20 @@ import './controller.dart';
 /// `floop` is just instance of [ObservedMap], other [ObservedMap] objects
 /// can be instantiated and will also provide dynamic values to widgets.
 final ObservedMap<Object, dynamic> floop = ObservedMap();
+
+/// An object that keeps a dynamic value.
+abstract class DynValue<V> implements Observed, ValueWrapper<V> {
+  factory DynValue.of([V initialValue]) => ObservedValue(initialValue);
+
+  /// Sets the value without triggering updates to subscribed elements.
+  setSilently(V newValue);
+
+  /// Retrieves the value without notifying a value retrieval.
+  getValueSilently();
+}
+
+/// A map that stores dynamic values.
+class DynMap extends ObservedMap {}
 
 class Observed = Object with ObservedNotifierMixin, FastHashCode;
 
@@ -29,7 +47,8 @@ class ValueWrapper<T> {
   ValueWrapper([this.value]);
 }
 
-class ObservedValue<T> extends Observed implements ValueWrapper<T> {
+@protected
+class ObservedValue<T> extends Observed implements DynValue<T> {
   T _value;
   ObservedValue([T initialValue]) : _value = initialValue;
 
@@ -45,14 +64,78 @@ class ObservedValue<T> extends Observed implements ValueWrapper<T> {
     }
   }
 
-  /// Sets the value without triggering updates to subscribed elements.
   setSilently(T newValue) {
     _value = newValue;
   }
 
-  /// Retrieves the value without notifying a value retrieval.
   getValueSilently() {
     return _value;
+  }
+}
+
+/// An observed value that notifies value changes with a frequency restriction.
+///
+/// It notify of changes to ObservedListeners (like Floop widgets) at most
+/// once in any time interval of length `minTimeBetweenNotificationsMicros`.
+///
+/// If not enough time has passed since the last notification, an asynchronous
+/// notification callback is created. if there is no registered callback.
+class TimeCappedObservedValue<T> extends ObservedValue<T> {
+  int _lastNotifyTime;
+
+  /// Minimun time between change notifications in microseconds.
+  int microsecondsBetweenNotifications;
+
+  /// Creates an observed value that will not notify of changes more than once
+  /// in `minTimeBetweenNotifications`.
+  ///
+  /// If a value change occurs when it's not allowed to notify of changes, an
+  /// asynchronous callback to notify after `minTimeBetweenNotifications`
+  /// has elapsed since the last notification is created.
+  ///
+  TimeCappedObservedValue(Duration minTimeBetweenNotifications,
+      [T initialValue])
+      : microsecondsBetweenNotifications =
+            minTimeBetweenNotifications.inMicroseconds,
+        _lastNotifyTime =
+            microseconds() - minTimeBetweenNotifications.inMicroseconds,
+        super(initialValue);
+
+  int get minMicrosecondsToNextNotifyChange {
+    if (_lastNotifyTime == null) {
+      return null;
+    }
+    return _lastNotifyTime + microsecondsBetweenNotifications - microseconds();
+  }
+
+  _notifyChange([bool postpone = true]) {
+    _lastNotifyTime = microseconds();
+    _notifyLocked = false;
+    super.notifyChange(postpone);
+  }
+
+  _delayedNotifyChange(int delayedMicros) {
+    Future.delayed(Duration(microseconds: delayedMicros), _notifyChange);
+  }
+
+  bool _notifyLocked = false;
+
+  notifyChange([bool postpone = false]) {
+    // print(
+    //     'lastNotifyTime: $_lastNotifyTime, minTimeToNextNotifyChange: $minMicrosecondsToNextNotifyChange');
+    int timeToNextNotify = minMicrosecondsToNextNotifyChange;
+    if (_notifyLocked) {
+      if (timeToNextNotify < -microsecondsBetweenNotifications) {
+        print('something went wrong, no notification');
+        _notifyChange(postpone);
+      }
+    } else if (timeToNextNotify > 0) {
+      _notifyLocked = true;
+      // _lastNotifyTime = null;
+      _delayedNotifyChange(timeToNextNotify);
+    } else {
+      _notifyChange(postpone);
+    }
   }
 }
 
@@ -64,28 +147,43 @@ class ObservedValue<T> extends Observed implements ValueWrapper<T> {
 class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
   final Map<K, ObservedValue<V>> _keyToValue = Map();
 
-  // Map used to observe keys that were accessed but have not been set.
+  // Stores keys that were accessed but have not been set (phantom keys).
   final Map<K, ObservedValue<V>> _unexistingKeyToNullValue = Map();
 
   ObservedMap() : super();
 
-  ObservedMap.of(Map map) {
-    addAll(map);
+  ObservedMap.of(Map<K, V> map) {
+    for (var entry in map.entries) {
+      _keyToValue[entry.key] = ObservedValue(entry.value);
+    }
   }
 
-  /// Retrieves the `value` of `key`. When invoked from within a [build]
-  /// method, the context being built gets subscribed to
-  /// the key in order to rebuild when the key value changes.
+  /// Retrieves the value of `key`. When invoked from within a [build] method,
+  /// the context gets subscribed to the key and rebuilds on value changes.
   V operator [](Object key) {
     if (controllerIsListening) {
       // Returns the value if it exists. If it doesn't, add the key to the
-      // map of the retrieved but unset keys. This is necessary to update the
-      // listener in case the key is set later.
+      // map of the retrieved but unset keys (phantom keys). This is necessary
+      // to update the listener in case the key is set later.
       return (_keyToValue[key] ??
               _unexistingKeyToNullValue.putIfAbsent(key, () => ObservedValue()))
           .value;
     }
     return _keyToValue[key]?.value;
+    // final dyn = getDynValue(key);
+    // if (key == 0) {
+    //   print('retrieving value for $key, dyn: $dyn');
+    // }
+    // return dyn?.value;
+  }
+
+  /// Retrieved the underlying DynValue that keeps the value for the key.
+  ///
+  /// This method is intended for internal use, but it is exposed for special
+  /// uses cases. `operator []` should suffice regular uses cases.
+  @protected
+  DynValue<V> getDynValue(Object key) {
+    return _keyToValue[key] ?? _unexistingKeyToNullValue[key];
   }
 
   /// Returns the keys of this [ObservedMap], retrieved from an internal
@@ -102,16 +200,6 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     return _keyToValue.keys;
   }
 
-  // _setValueFirstTime(Key key, V value) {
-  //   observedValue = _unexistingKeyToNullValue.remove(key);
-  //   if (observedValue == null) {
-  //     _keyToValue[key] = ObservedValue(value);
-  //   } else {
-  //     _keyToValue[key] = observedValue;
-  //     observedValue.value = value;
-  //   }
-  // }
-
   _setValue(K key, V value) {
     var observedValue = _keyToValue[key];
     if (observedValue == null) {
@@ -119,7 +207,7 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
       if (observedValue == null) {
         _keyToValue[key] = ObservedValue(value);
       } else {
-        _keyToValue[key] = observedValue..value = value;
+        _keyToValue[key] = observedValue;
         observedValue.value = value;
       }
     } else {
@@ -143,22 +231,25 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     _setValue(key, convert(value));
   }
 
-  /// Sets the `value` of the `key` exactly as it is given.
+  /// Sets the `value` for the `key` exactly as it is given.
   ///
   /// [Element] updates can be avoided by passing `triggerUpdates` as false.
+  ///
+  /// See also:
+  ///  * [notifyListenersOfKey] to force a value change notification.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
     if (triggerUpdates) {
       _setValue(key, value);
       return;
     }
-    var observedValue =
-        _keyToValue[key] ?? _unexistingKeyToNullValue.remove(key);
+    var observedValue = _keyToValue[key];
     if (observedValue != null) {
       assert(!_unexistingKeyToNullValue.containsKey(key));
       observedValue.setSilently(value);
     } else {
       observedValue = _unexistingKeyToNullValue.remove(key) ?? ObservedValue();
-      _keyToValue[key] = observedValue..setSilently(value);
+      observedValue.setSilently(value);
+      _keyToValue[key] = observedValue;
     }
   }
 
@@ -187,11 +278,22 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     var value;
     if (observedValue != null) {
       value = observedValue.value;
-      observedValue.dispose();
       if (triggerUpdates) {
         observedValue.notifyChange();
       }
+      observedValue.dispose();
     }
     return value;
+  }
+
+  /// Forces a value change notification to the listeners of the key.
+  ///
+  /// If `postponeNotificationHandling` is true, widget rebuilds will be
+  /// triggered after a new frame finishes rendering.
+  notifyListenersOfKey(K key, {bool postponeNotificationHandling = false}) {
+    final observed = getDynValue(key);
+    if (observed != null) {
+      observed.notifyChange(postponeNotificationHandling);
+    }
   }
 }
