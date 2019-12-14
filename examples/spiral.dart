@@ -11,11 +11,17 @@ const rotationTag = 'rotationTag';
 const imageTag = 'imageTag';
 const spiralTag = 'spiralTag';
 
+const transientTag = 'transientTransitionsTag';
+
 const imageHeight = 200.0;
 const imageWidth = 300.0;
 
 class Dyn {
   static final dyn = ObservedMap();
+
+  static SpiralingWidget get dragStartWidget => dyn[#dragStartWidget];
+  static set dragStartWidget(SpiralingWidget widget) =>
+      dyn[#dragStartWidget] = widget;
 
   static List<Widget> get spiralingWidgets =>
       (dyn[#spiralImages] ??= List<Widget>()).cast<Widget>();
@@ -28,8 +34,11 @@ class Dyn {
   static bool get optionsBarPaused => dyn[#optionsBarPaused] ??= false;
   static set optionsBarPaused(bool paused) => dyn[#optionsBarPaused] = paused;
 
-  static Object get expandingKey => dyn[#expandingKey];
-  static set expandingKey(Object key) => dyn[#expandingKey] = key;
+  static SizeInteraction get expanding => dyn[#expandingKey];
+  static set expanding(SizeInteraction key) => dyn[#expandingKey] = key;
+
+  static Offset get dragPosition => dyn[#dragPosition];
+  static set dragPosition(Offset position) => dyn[#dragPosition] = position;
 }
 
 void main() {
@@ -46,6 +55,7 @@ const tagsMap = {
   colorTag: 'Color',
   imageTag: 'Image',
   spiralTag: 'Spiral',
+  rotationTag: 'Rotation',
 };
 
 nextTag() {
@@ -60,12 +70,7 @@ nextTag() {
 }
 
 tagAsName([tag]) {
-  return const {
-        colorTag: 'Color',
-        imageTag: 'Image',
-        spiralTag: 'Spiral',
-      }[tag ?? Dyn.activeTag] ??
-      'All';
+  return tagsMap[tag ?? Dyn.activeTag] ?? 'All';
 }
 
 class Spiral extends StatelessWidget with Floop {
@@ -78,47 +83,30 @@ class Spiral extends StatelessWidget with Floop {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: ListTile(
           title: Text(
             'Playback tageting: ${targetTransitions} transitions',
             style: Theme.of(context).primaryTextTheme.body1,
-            // style: TextStyle(
-            //   color: Theme.of(context).primaryTextTheme.display1.color,
-            // ),
-            // textScaleFactor: 0.8,
           ),
-          subtitle: Text('Click to change transition type'),
           onTap: nextTag,
         ),
-        // actions: <Widget>[
-        //   Container(
-        //     alignment: Alignment.centerLeft,
-        //     width: 155,
-        //     padding: EdgeInsets.only(top: 10, bottom: 10, right: 10),
-        //     child: SizedBox.expand(
-        //       child: RaisedButton(
-        //         shape: RoundedRectangleBorder(),
-        //         elevation: 5.0,
-        //         visualDensity: VisualDensity.standard,
-        //         color: Colors.lightGreenAccent[100],
-        //         child: Text(
-        //           '${targetTransitions} transitions',
-        //           style: TextStyle(
-        //               // backgroundColor: Colors.lightGreen,
-        //               // color: Colors.red,
-        //               // fontSize: 100,
-        //               ),
-        //         ),
-        //         onPressed: () => nextTag(),
-        //       ),
-        //     ),
-        //   ),
-        // ],
       ),
       body: Stack(
         children: [
+          Positioned.fill(
+            child: GestureDetector(
+                onTap: () => {
+                      if (Dyn.expanding != null)
+                        {
+                          Dyn.expanding.contract(),
+                        }
+                      // Transitions.cancel(tag: transientTag),
+                      // print('cancel $transientTag'),
+                    }),
+          ),
           Align(
             alignment: Alignment.topLeft,
             child: Text(
@@ -129,6 +117,35 @@ class Spiral extends StatelessWidget with Floop {
               alignment: Alignment.topRight,
               child: Text(
                   'Refresh rate: ${Transitions.currentRefreshRateAsDynamicValue()?.toStringAsFixed(2)}')),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              alignment: Alignment.centerLeft,
+              width: 155,
+              height: 60,
+              padding: EdgeInsets.only(top: 10, bottom: 10, right: 10),
+              child: SizedBox.expand(
+                child: RaisedButton(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15)),
+                  elevation: 5.0,
+                  color: theme.buttonColor,
+                  // visualDensity: VisualDensity.standard,
+                  // color: Colors.lightGreen[300],
+                  child: Text(
+                    '${targetTransitions}',
+                    // style: theme.primaryTextTheme.caption,
+                    // style: TextStyle(
+                    // backgroundColor: Colors.lightGreen,
+                    // color: Colors.red,
+                    // fontSize: 100,
+                    // ),
+                  ),
+                  onPressed: () => nextTag(),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -157,26 +174,63 @@ void removeSpiralingWidget(Key key) {
   Dyn.spiralingWidgets = widgets;
 }
 
+void putWidgetOnTop(Key key) {
+  Widget targetWidget;
+  var widgets = Dyn.spiralingWidgets.toList();
+  widgets.removeWhere((widget) {
+    if (widget.key == key) {
+      targetWidget = widget;
+      return true;
+    }
+    return false;
+  });
+  widgets.add(targetWidget);
+  Dyn.spiralingWidgets = widgets;
+}
+
+Alignment positionToAlignment(Offset offset, Size size) {
+  var alignment = Alignment.topLeft +
+      Alignment(offset.dx / size.width, offset.dy / size.height) * 2;
+  print('$alignment');
+  return alignment;
+}
+
 class SpiralingWidget extends StatelessWidget with Floop {
   static const minSize = 10.0;
   static const growSize = 100.0;
 
   static const largeSize = Size(imageWidth, imageHeight);
 
-  double get size {}
+  static Size referenceSize = Size(0, 0);
 
   final Widget child;
   SpiralingWidget({Key key, @required this.child}) : super(key: key);
+
+  // A key to use in a transition.
+  String get tKey => '$SpiralingWidget$key';
 
   @override
   Widget build(BuildContext context) {
     // The spiral animation transition.
     var t = transition(20000, repeatAfterMillis: 3000, tag: spiralTag);
+    final spiralAlignment = computeSpiralAlignment(t);
+    final restorePositionProgress = transitionOf(tKey);
+    Alignment alignment;
+    if (Dyn.dragStartWidget?.tKey == tKey) {
+      alignment = positionToAlignment(Dyn.dragPosition, referenceSize);
+    } else if (restorePositionProgress != null) {
+      // print('restoring position $restorePositionProgress');
+      alignment = positionToAlignment(Dyn.dragPosition, referenceSize);
+      alignment =
+          Alignment.lerp(alignment, spiralAlignment, restorePositionProgress);
+    } else {
+      alignment = spiralAlignment;
+    }
+    // alignment = spiralAlignment;
     final size = minSize + t * growSize;
-    // + longPressSize * (transitionOf(key) ?? 0.0);
     return Positioned.fill(
       child: Align(
-        alignment: spiralAlignment(t),
+        alignment: alignment,
         child: GestureDetector(
           // child: ImageCircle(t),
           child: SizeInteraction(
@@ -185,39 +239,52 @@ class SpiralingWidget extends StatelessWidget with Floop {
             normalSize: Size(size, size),
             extraSize: largeSize - Size(size, size),
           ),
-          // child: Container(
-          //   child: child,
-          //   alignment: Alignment.center,
-          //   height: size,
-          //   width: size,
-          // ),
-          onTap: () => {
+          onDoubleTap: () => {
             Transitions.resumeOrPause(
                 context: context, applyToChildContextsTransitions: true),
           },
-          // onDoubleTap: () {
-          //   // if (transitionOf(key) != null) {
-          //   //   Transitions.cancel(key: key);
-          //   // } else {
-          //   //   // Because the transition is created by a callback outside of the
-          //   //   // build method, the transition needs to be identied with a key
-          //   //   // such that it can be referenced from within the build method.
-          //   //   Dyn.expandingKey = key;
-          //   //   print('Long press detected on $context');
-          //   //   transition(2000, key: key, context: context);
-          //   // }
-          // },
-          onDoubleTap: () => removeSpiralingWidget(key),
-          onLongPress: () {},
+          onTap: () => {
+            putWidgetOnTop(key),
+          },
+          // onLongPress: () => removeSpiralingWidget(key),
           onLongPressUp: () {
             // Transitions.cancel(key: dyn);
           },
-          // onPanDown: (_) {
-          //   transition(3000, key: dyn);
-          // },
-          // onPanEnd: (_) {
-          //   Transitions.cancel(key: dyn);
-          // },
+          onPanDown: (details) {
+            Transitions.cancel(key: tKey);
+            // Dyn.dragStartWidget = this;
+            // print('Pan down: ');
+            referenceSize = context.size;
+            var position = spiralAlignment.alongSize(referenceSize);
+            Dyn.dragPosition =
+                // spiralAlignment.alongSize(Offset.zero & context.size);
+                spiralAlignment.alongSize(referenceSize);
+            print('start alignment: $spiralAlignment');
+            Dyn.dragPosition = details.localPosition;
+            // Dyn.dragPosition = position;
+          },
+          onPanCancel: () {
+            // print('Pan cancel');
+            // Dyn.dragPosition = null;
+          },
+          onPanUpdate: (details) {
+            if (Dyn.dragPosition == null) {
+              print('Null drag position');
+              return;
+            }
+            Dyn.dragStartWidget = this;
+            // Keep updating referenceSize in case the app changes it's layout.
+            referenceSize = context.size;
+            Dyn.dragPosition += details.delta;
+            // print('${Dyn.dragPosition}');
+          },
+          onPanEnd: (_) {
+            Dyn.dragStartWidget = null;
+            // Transition without context is deleted when it finishes.
+            transition(3000, key: tKey);
+            // .(size, rect).
+            // Transitions.cancel(key: tKey);
+          },
         ),
       ),
     );
@@ -235,19 +302,48 @@ class SizeInteraction extends StatelessWidget with Floop {
       @required this.extraSize})
       : super(key: key);
 
-  double get lerpValue {
-    var t = transitionOf(key);
-    if (t != null && Dyn.expandingKey == null) {
-      // If expandingKey is null, the widget should shrink.
-      t = 1 - t;
-    }
-    return t ?? 0;
-  }
+  // double get lerpValue {
+  //   var t = transitionOf(tKey);
+  //   if (t != null && Dyn.expanding == null) {
+  //     // If expandingKey is null, the widget should shrink.
+  //     // t = 1 - t;
+  //   }
+  //   return t ?? 0;
+  // }
+
+  double get lerpValue => transitionOf(tKey) ?? 0.0;
+
+  // A key to use in a transition.
+  String get tKey => '$SizeInteraction$key';
 
   Size get size => normalSize + extraSize * lerpValue;
 
+  expand(BuildContext context) {
+    // The transition needs to be identied with a key such that it can be
+    // referenced from within the build method.
+    //
+    // The transition is bound to the context to prevent it from being deleted
+    // when it finishes. This way the widget remains large.
+    transition(700, key: tKey, bindContext: context, tag: transientTag);
+    Dyn.expanding = this;
+  }
+
+  contract() {
+    final lastExpandingLerpValue = transitionOf(tKey) ?? 0;
+    // Cancel deletes the transition. At most one transition can be
+    // registered with a certain key at any given time.
+    Transitions.cancel(key: tKey);
+    // Context is not provided so that the transition is deleted when
+    // it finishes.
+    transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: tKey);
+    // transition(500, key: tKey);
+    // null expandingKey is used to represent a shrinking transition.
+    Dyn.expanding = null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // final t = lerpValue;
     final size = this.size;
     return Container(
       width: size.width,
@@ -264,28 +360,56 @@ class SizeInteraction extends StatelessWidget with Floop {
       clipBehavior: Clip.antiAlias,
       child: DefererGestureDetector(
         child: child,
-        onLongPress: () {
-          // Because the transition is created by a callback outside of the
-          // build method, the transition needs to be identied with a key
-          // such that it can be referenced from within the build method.
-          //
-          // The context parameter is pased so that the transition is not
-          // deleted after it finishes.
-
-          Dyn.expandingKey = key;
-          transition(1000, key: key, context: context);
+        onTap: () {
+          var expanding = Dyn.expanding;
+          if (expanding == null) {
+            expand(context);
+          } else if (expanding.tKey == tKey) {
+            contract();
+          } else {
+            expanding.contract();
+            expand(context);
+          }
         },
-        onLongPressUp: () {
-          // Cancel deletes the transition. At most one transition can
-          // be registered with a certain key at any given time.
-          Transitions.cancel(key: key);
-          // Create a new transition with the same key, but shorter time and
-          // without providing context, such that it is deleted when finished.
-          transition(500, key: key);
-          // null expandingKey is used to represent a shrinking transition.
-          Dyn.expandingKey = null;
-        },
+        // onLongPress: () {
+        //   // The transition needs to be identied with a key such that it can be
+        //   // referenced from within the build method.
+        //   //
+        //   // The context parameter is passed to bind the transition to the
+        //   // context. Transitions without context are deleted when they finish.
+        //   // Dyn.expanding = key;
+        //   transition(700, key: tKey, bindContext: context, tag: transientTag);
+        //   Dyn.expanding = tKey;
+        // },
+        // onLongPressUp: () {
+        //   final lastExpandingLerpValue = transitionOf(tKey);
+        //   // print('Last value $lastValue');
+        //   // Cancel deletes the transition. At most one transition can be
+        //   // registered with a certain key at any given time.
+        //   Transitions.cancel(key: tKey);
+        //   // Context is not provided so that the transition is deleted when
+        //   // it finishes.
+        //   transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue,
+        //       key: tKey);
+        //   // transition(500, key: tKey);
+        //   // null expandingKey is used to represent a shrinking transition.
+        //   Dyn.expanding = null;
+        // },
       ),
+      // onDoubleTap: () {
+      //   // Because the transition is created by a callback outside of the
+      //   // build method, the transition needs to be identied with a key
+      //   // so that it can be referenced.
+      //   if(transitionOf(key)!=null) {
+      //     Transitions.cancel(key: key);
+      //     transition(250, key: key);
+      //   } else {
+      //     // The context parameter is pased so that the transition is not
+      //     // deleted after it finishes.
+      //     Dyn.expandingKey = key;
+      //     transition(700, key: key, context: context);
+      //   }
+      // },
 
       // DefererGestureDetector(
 
@@ -424,12 +548,12 @@ class ImageCircle extends DynamicWidget {
         onTap: () {
           baseColor = transitionedColor;
           color = randomColor();
-          Transitions.restart(context: context);
+          Transitions.reset(context: context);
         });
   }
 }
 
-Alignment spiralAlignment(double t) {
+Alignment computeSpiralAlignment(double t) {
   var a = 0.1; // a constant
   var b = 0.1; // another constant
   var h = 0.01 * b / (a * sqrt(1 + b * b));
@@ -544,7 +668,12 @@ class RandomImage extends DynamicWidget {
     fetchAndLoadImage();
   }
 
-  loadImage() {}
+  loadImage() {
+    image = Image.memory(
+      lastFetchedImageBytes,
+      fit: BoxFit.cover,
+    );
+  }
 
   Widget get image => dyn[#image];
   set image(Widget widget) => dyn[#image] = widget;
@@ -567,13 +696,24 @@ class RandomImage extends DynamicWidget {
     }
   }
 
+  double get rotationAngle =>
+      2 *
+      pi *
+      transition(1000,
+          delayMillis: 5000, repeatAfterMillis: -2000, tag: rotationTag);
+
   @override
   Widget build(BuildContext context) {
     return DefererGestureDetector(
       child: image == null
           ? null
-          : Opacity(opacity: transition(3000, tag: imageTag), child: image),
-      onTap: () async {
+          : Opacity(
+              opacity: transition(3000, tag: imageTag),
+              child: Transform.rotate(
+                child: image,
+                angle: rotationAngle,
+              )),
+      onLongPress: () async {
         await fetchAndLoadImage();
         Transitions.reset(context: context);
       },

@@ -37,8 +37,10 @@ class PerspectiveLayout extends StatelessWidget with Floop {
             var oldOffset = floop['offset'];
             transitionEval(
               3000,
-              (ratio) =>
-                  floop['offset'] = Offset.lerp(oldOffset, Offset.zero, ratio),
+              (ratio) {
+                floop['offset'] = Offset.lerp(oldOffset, Offset.zero, ratio);
+                return ratio;
+              },
               key: Key('resetOffset'),
             );
           },
@@ -61,10 +63,13 @@ class PerspectiveLayout extends StatelessWidget with Floop {
           Transitions.cancelAll();
           transitionEval(
             3000,
-            (x) => floop['rotate'] = Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateX(x * 2 * pi)
-              ..rotateY(x * 2 * pi),
+            (x) {
+              floop['rotate'] = Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateX(x * 2 * pi)
+                ..rotateY(x * 2 * pi);
+              return x;
+            },
             key: Key('rotate'),
           );
         },

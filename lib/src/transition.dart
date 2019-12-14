@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:floop/src/time.dart';
 import 'package:floop/transition.dart';
@@ -21,57 +20,58 @@ const _largeInt = 1 << 62 | 1 << 53 | (1 << 31) | (1 << 30);
 /// Returns the current progess value of the transition registered to `key` if
 /// it exists, `null` otherwise.
 double transitionOf(Object key) {
-  return _Registry.getForKey(key)?.lastSetProgressRatio;
+  return _Registry.getForKey(key)?.lastSetValue;
 }
 
-/// Returns a number that transitions from 0 to 1 inclusive in `durationMillis`
-/// milliseconds when invoked from inside a [build] method, automatically
-/// rebuilding the widget as the transition progresses.
+/// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
+///
+/// Intended to be invoked mainly from within Floop widgets [build]. Input
+/// parameters should remain constant on every rebuild.
 ///
 /// `durationMillis` must not be null.
 ///
 /// `refreshPeriodicityMillis` is the periodicity at which the transition
-/// attempts to update it's progress (the context rebuilds). Defaults to
-/// [TransitionsConfig.refreshPeriodicityMillis].
+/// attempts to update it's progress.
 ///
-/// The transition can be delayed by `delayMillis`.
+/// The transition can start after a delay of `delayMillis`.
 ///
-/// The transition will repeat after `repeatAfterMillis`. By default it will
-/// not repeat.
+/// If provided, the transition will repeat after `repeatAfterMillis`.
 ///
-/// A `key` can be specified to uniquely identify the transition and reference
-/// it with [transitionOf] or to apply operations through [Transitions] API.
-/// If `key` is non null and a transition registered to `key` exists, the
-/// existing transition's value is returned. When invoked outside of a widget's
-/// [build] method, `key` must specified.
+/// A `key` uniquely identifies a transition. When invoked outside of a [build]
+/// method `key` must be specified.
 ///
-/// `tag` is similar to `key` but it is not unique. Many transitions can have
-/// the same tag. They are only useful to apply operations through
-/// [Transitions] API.
+/// `tag` can be specified to identify transitions non uniquely.
 ///
-/// When `key` is not provided, transitions are internally identified by all
-/// the other input parameters. If any input parameter is different on a
-/// context rebuild, a new transition will be created.
+/// Transitions can be referenced using the `key` or `tag` to apply operations
+/// to them through [Transitions] or retrieve the value with [transitionOf].
 ///
-/// References to transitions created from within build methods are kept until
-/// the build context is disposed or they are canceled through [Transitions]
-/// API. Until they are disposed their clock keeps running even after they
-/// have reached their full duration (number reaches 1).
+/// `bindContext` binds the transitions to the context. It defaults to the
+/// [BuildContext] being built.
 ///
-/// [transitionEval] is a more flexibile function for creating transitions from
-/// outside build methods. It accepts an evaluate function that is invoked
-/// every time the transition updates its progress.
+/// Details:
 ///
-/// This method does not work inside builders, like [LayoutBuilder], as
-/// builders build outside of the encompassing build method.
-/// A workaround is to use a `var t = transition(...)` in the body of the
-/// [build] method and then reference the var from within the builder body.
-/// Another alternative is to define the transition with a key and then
-/// reference it with [transitionOf].
+///  * If no `bindContext` is provided, the transition is deleted as soon as it
+///    finishes, otherwise it is deleted when `bindContext` unmounts.
+///
+///  * The default refresh periodicity for transitions can be set in
+///    [TransitionsConfig.refreshPeriodicityMillis].
+///
+///  * If `key` is non null and a transition registered to `key` exists, the
+///    existing transition's value is returned.
+///
+///  * When `key` is not provided, transitions are identified by all other
+///    input parameters. If any input parameter is different on a context
+///    rebuild, a new transition will be created. Input parameters should
+///    not be changing on rebuilds or it will create infinite rebuild cycles.
+///
+///  * This method does not work inside builders, like [LayoutBuilder], as
+///    builders build outside of the encompassing [build] method. A workaround
+///    is to use a `var t = transition(...)` in the body of the [build] method
+///    and then reference the var from within the builder function.
 ///
 /// Example:
 ///
-/// ```dart
+/// ```
 /// class MyWidget extends StatelessWidget with Floop {
 ///   ...
 ///
@@ -79,21 +79,26 @@ double transitionOf(Object key) {
 ///   Widget build(BuildContext context, MyButtonState state) {
 ///     double t = transition(5000);
 ///     return ...
-///         Text('T is at $t and Y is at: ${floop['y']}'),
+///         Text('T is at $t'),
 ///         ...
-///         ...onPressed: () => transitionEval(3000, evaluate: (t) => floop['y'] = t),
+///         ...onPressed: () => Transitions.restart(context: context),
 ///         ...
 ///     ...
 ///   }
 /// }
 /// ```
 ///
-/// In the example above, `x` transitions from 0 to 1 in five seconds when it
-/// builds and `floop['y']` transitions from 0 to 1 in three seconds when there
-/// is a click event. The `Text` widget will always display the updated values.
+/// In the example above, `x` transitions from 0 to 1 in five seconds and when
+/// there is a click event the transition is restarted. The `Text` widget will
+/// always display the updated value.
 ///
-/// Created transitions references get cleared automatically when the
-/// corresponding build context gets unmounted.
+/// See also:
+///  * [Transitions], an API to modify the ongoing transitions state.
+///  * [transitionEval] a more versatile function for creating transitions from
+///    outside build methods.
+///  * [transitionOf] to retrieve the value of ongoing transitions.
+///  * [Repeater.transition] to create custom transitions objects that are not
+///    synchronized and not connected to the [Transitions] API.
 double transition(
   int durationMillis, {
   int refreshPeriodicityMillis,
@@ -101,10 +106,10 @@ double transition(
   int repeatAfterMillis,
   Object key,
   Object tag,
-  FloopBuildContext context,
+  FloopBuildContext bindContext,
 }) {
-  context ??= ObservedController.activeListener;
-  final bool canCreate = context != null || key != null;
+  bindContext ??= ObservedController.activeListener;
+  final bool canCreate = (bindContext != null) || key != null;
   assert(() {
     if (durationMillis == null) {
       print('Error: [transition] was invoked with `durationMillis` as null. '
@@ -123,7 +128,7 @@ double transition(
   }());
   if (canCreate && key == null) {
     key = _createKey(
-      context,
+      bindContext,
       durationMillis,
       refreshPeriodicityMillis,
       delayMillis,
@@ -137,59 +142,71 @@ double transition(
   }
   assert(canCreate != null || transitionState != null);
   if (transitionState == null) {
-    // _addKeyToContext(key, context);
-    // transitionState = Transitions._newContextTransition(
-    //     context,
-    //     key,
-    //     durationMillis,
-    //     refreshPeriodicityMillis,
-    //     delayMillis,
-    //     repeatAfterMillis,
-    //     tag);
     transitionState = _Transition(key, durationMillis, refreshPeriodicityMillis,
-        delayMillis, repeatAfterMillis, tag, context);
-
-    // _Transitions.addContextTransition(
-    //     context, transitionState, refreshPeriodicityMillis);
+        delayMillis, repeatAfterMillis, tag, bindContext);
   }
-  assert(transitionState.lastSetProgressRatio != null);
-  return transitionState.lastSetProgressRatio;
+  assert(transitionState.lastSetValue != null);
+  return transitionState.lastSetValue;
 }
 
-/// Transitions a number from 0 to 1 inclusive in `durationMillis` milliseconds,
-/// invoking `evaluate` with the number as parameter on every update.
+/// Creates a transition that returns the evaluation of it's progress ratio by
+/// the function `evaluate`.
 ///
-/// Returns the key of the existing or created transition. The key can be used
-/// to reference the transition from [transitionOf] or [Transitions].
+/// Should not be invoked from within a Floop widget's [build] method.
 ///
 /// `durationMillis` and `evaluate` must not be null.
 ///
-/// `refreshPeriodicityMillis` is the periodicity in milliseconds at which the
-/// transition refreshes it's value and invokes evaluate. Defaults to
-/// [TransitionsConfig.refreshPeriodicityMillis]
+/// Refer to [transition] for full description about the parameters.
 ///
-/// The transition can be delayed by `delayMillis` milliseconds.
+/// It is suggested to provide `bindContext`. Bound transitions are
+/// automatically deleted when the context unmounts. Otherwise (if not
+/// careful) unreferenced long or repeating transitions will keep running
+/// indefinitely in the background.
 ///
-/// If `key` is null or no transition is registered to `key`, a new transition
-/// is created. Otherwise no operation is done. The key of the created or
-/// existing transition is always returned. A new key is created in case `key`
-/// is null.
+/// Example:
 ///
-/// Once the transition finishes, all references to it get cleared.
+/// ```
+/// class MyWidget extends StatelessWidget with Floop {
+///   ...
+///   static int _clicks = 0;
 ///
-/// This function cannot be invoked from within a widget's [build].
-/// Refer to [transition] for that use case.
+///   @override
+///   Widget build(BuildContext context, MyButtonState state) {
+///     int t = (transitionOf(#key) ?? 0.0).toInt();
+///     return ...
+///         Text('Total clicks is... $t'),
+///         ...
+///         ...onPressed: () {
+///              final clicks = _clicks++;
+///              Transitions.cancel(key: #key);
+///              transitionEval(5000, (r) => r * clicks, key: #key,
+///                  bindContext: bindContext, repeatAfterMillis: 1000);
+///              }
+///            },
+///         ...
+///     ...
+///   }
+/// }
+/// ```
 ///
-/// See [Repeater.transition] to create more customized transitions.
+/// In the example above when there is a click event, a new repeating
+/// transition is created whose `evaluate` function scales the value to the
+/// current number of clicks. On every click event the evaluate function
+/// changes (because clicks increases), therefore the old transitions is
+/// canceled in order to register a new one.
+///
+/// See also:
+///  * [transition]
+///  * [Transitions.cancelAll] to delete all registered transitions.
 Object transitionEval(
   int durationMillis,
   RatioEvaluator evaluate, {
+  FloopBuildContext bindContext,
   int refreshPeriodicityMillis,
   int delayMillis = 0,
   int repeatAfterMillis,
   Object key,
   Object tag,
-  FloopBuildContext context,
 }) {
   assert(() {
     if (ObservedController.isListening) {
@@ -210,8 +227,15 @@ Object transitionEval(
   }
   key ??= _createKey();
   if (transitionState == null) {
-    transitionState = _TransitionEvalState(key, durationMillis, evaluate,
-        refreshPeriodicityMillis, delayMillis, repeatAfterMillis, tag, context);
+    transitionState = _TransitionEval(
+        key,
+        durationMillis,
+        evaluate,
+        refreshPeriodicityMillis,
+        delayMillis,
+        repeatAfterMillis,
+        tag,
+        bindContext);
   }
   return key;
 }
@@ -362,9 +386,9 @@ abstract class Transitions {
   }
 
   /// Reverts the state of transitions.
-  /// 
+  ///
   /// `tag`, `key` and `context` can be specified to filter transitions.
-  /// 
+  ///
   /// If `applyToChildContextsTransitions` is set, the operation will also
   /// be applied to all child contexts transitions. This makes the function
   /// considerable more expensive.
@@ -455,20 +479,20 @@ abstract class Transitions {
 }
 
 Iterable<_Transition> _filter(Object tag, BuildContext context) {
-  // return _Registry.allTransitions()
-  //     .where((transitionState) => transitionState.matches(tag, context));
-  Iterable<_Transition> transitions;
-  if (tag != null && context != null) {
-    transitions = _Registry.getForContext(context)
-        ?.where((transitionState) => transitionState.tag == tag);
-  } else if (tag != null) {
-    transitions = _Registry.getForTag(tag);
-  } else if (context != null) {
-    transitions = _Registry.getForContext(context);
-  } else {
-    transitions = _Registry.allTransitions();
-  }
-  return transitions ?? const [];
+  return _Registry.allTransitions()
+      .where((transitionState) => transitionState.matches(tag, context));
+  // Iterable<_Transition> transitions;
+  // if (tag != null && context != null) {
+  //   transitions = _Registry.getForContext(context)
+  //       ?.where((transitionState) => transitionState.tag == tag);
+  // } else if (tag != null) {
+  //   transitions = _Registry.getForTag(tag);
+  // } else if (context != null) {
+  //   transitions = _Registry.getForContext(context);
+  // } else {
+  //   transitions = _Registry.allTransitions();
+  // }
+  // return transitions ?? const [];
 }
 
 int _minDepth(int depth, Element element) {
@@ -486,33 +510,40 @@ int _sort(Element a, Element b) {
   return 0;
 }
 
-Iterable<Element> _getAllBranchElements(Iterable<Element> referenceElements) {
+Iterable<Element> _getAllChildElements(Iterable<Element> referenceElements) {
   // final referenceElements = [for (var t in transitions) t.context as Element];
   final resultSet = referenceElements.toSet();
 
   final minAncestorDepth = referenceElements.fold(_largeInt, _minDepth);
-  var visitingTargetsIter = _Registry.allRegisteredContexts()
+  var childrenCandidatesIterable = _Registry.allRegisteredContexts()
       .cast<Element>()
       .where((ele) => ele.depth > minAncestorDepth && !resultSet.contains(ele))
       .toList()
         ..sort(_sort)
         ..reversed;
-  final visitingTargets = visitingTargetsIter.toSet();
+  final childrenCandidates = childrenCandidatesIterable.toSet();
+  final visited = Set<Element>();
 
   // Visits ancesostors and adds registered children to result.
   _visitAncestors(Element child) {
-    if (!visitingTargets.contains(child)) {
+    // if (!visitingTargets.contains(child)) {
+    //   return;
+    // }
+    assert((child as FloopBuildContext).active);
+    if (visited.contains(child)) {
       return;
     }
-    var candidates = <Element>[];
+    visited.add(child);
+    var candidates = <Element>[child];
     child.visitAncestorElements((ancestor) {
-      assert(child.depth >= minAncestorDepth);
-      if (visitingTargets.remove(ancestor)) {
-        candidates.add(ancestor);
-      }
       if (resultSet.contains(ancestor)) {
         resultSet.addAll(candidates);
         return false;
+      }
+      assert(child.depth >= minAncestorDepth);
+      visited.add(ancestor);
+      if (childrenCandidates.remove(ancestor)) {
+        candidates.add(ancestor);
       }
       if (ancestor.depth == minAncestorDepth) {
         return false;
@@ -521,21 +552,8 @@ Iterable<Element> _getAllBranchElements(Iterable<Element> referenceElements) {
     });
   }
 
-  visitingTargetsIter.forEach(_visitAncestors);
+  childrenCandidatesIterable.forEach(_visitAncestors);
   return resultSet;
-}
-
-void _applyToTransitions(
-    Function(_Transition) apply, Object key, BuildContext context,
-    [Object tag]) {
-  if (key != null) {
-    final transitionState = _Registry.getForKey(key);
-    if (transitionState != null && transitionState.matches(tag, context)) {
-      apply(_Registry.getForKey(key));
-    }
-  } else {
-    _filter(tag, context).forEach(apply);
-  }
 }
 
 void _applyToAllChildContextTransitions(
@@ -555,10 +573,25 @@ void _applyToAllChildContextTransitions(
   } else {
     transitions = _filter(tag, context);
   }
-  var branchElements =
-      _getAllBranchElements([for (var t in transitions) t.context as Element]);
-  ;
-  branchElements.forEach(_apply);
+  final elements = <Element>[
+    for (var t in transitions)
+      if (t.context != null && t.context.active) t.context as Element
+  ];
+  var childElements = _getAllChildElements(elements);
+  childElements.forEach(_apply);
+}
+
+void _applyToTransitions(
+    Function(_Transition) apply, Object key, BuildContext context,
+    [Object tag]) {
+  if (key != null) {
+    final transitionState = _Registry.getForKey(key);
+    if (transitionState != null && transitionState.matches(tag, context)) {
+      apply(_Registry.getForKey(key));
+    }
+  } else {
+    _filter(tag, context).forEach(apply);
+  }
 }
 
 Set<T> _createEmptySet<T>() => Set();
@@ -619,7 +652,7 @@ abstract class _Registry {
     _tagToTransitions[transitionState.tag]?.remove(transitionState);
   }
 
-  static unregisterContext(BuildContext context) {
+  static Iterable<_Transition> unregisterContext(BuildContext context) {
     return _contextToTransitions.remove(context);
   }
 }
@@ -652,7 +685,7 @@ class _SynchronousUpdater {
     return updater;
   }
 
-  var _transitionsToUpdate = List<_Transition>();
+  var _transitionsToUpdate = Set<_Transition>();
 
   _SynchronousUpdater(periodicityMillis)
       : _periodicityMillis = (periodicityMillis ??= 0) {
@@ -703,7 +736,7 @@ class _SynchronousUpdater {
 
   /// Number of frames per second (with updated transition progress).
   ObservedValue<double> _observedRefreshRate =
-      TimeCappedObservedValue(Duration(milliseconds: 500), 0);
+      TimedDynValue(Duration(milliseconds: 500), 0);
   double get refreshRate => _observedRefreshRate.value;
   set refreshRate(double rate) => _observedRefreshRate.value = rate;
 
@@ -792,7 +825,7 @@ class _SynchronousUpdater {
   update() {
     // print('updating transitions with periodicity $periodicityMillis[ms]');
     final transitions = _transitionsToUpdate;
-    _transitionsToUpdate = List();
+    _transitionsToUpdate = Set();
     assert(_transitionsToUpdate.isEmpty);
     try {
       // Disallow transitions from scheduling update callbacks
@@ -840,7 +873,7 @@ class _Transition with FastHashCode {
   final ObservedValue<double> observedRatio = ObservedValue(0);
 
   double setProgressRatio(double ratio) => observedRatio.value = ratio;
-  double get lastSetProgressRatio => observedRatio.value;
+  double get lastSetValue => observedRatio.value;
 
   _Transition(
     this.key,
@@ -868,7 +901,6 @@ class _Transition with FastHashCode {
       (refTag == null || tag == refTag) &&
       (refContext == null || context == refContext);
 
-  // int cycleMillis;
   int shiftedMillis = 0;
   int _pauseTime;
 
@@ -918,7 +950,7 @@ class _Transition with FastHashCode {
       shiftedMillis += _pauseTime - currentTimeStep;
       _pauseTime = null;
     }
-    _updateStatusAndScheduleUpdate();
+    _updateStatus();
   }
 
   reset() {
@@ -970,7 +1002,7 @@ class _Transition with FastHashCode {
     }
   }
 
-  _updateStatusAndScheduleUpdate() {
+  _updateStatus() {
     if (elapsedMillis >= aggregatedDuration) {
       if (isActive) {
         _repeatOrDeactivate();
@@ -978,13 +1010,15 @@ class _Transition with FastHashCode {
     } else if (!isActive) {
       _status = _Status.active;
     }
-    // print('is paused $isPaused progress ratio: ${lastSetProgressRatio}');
+  }
+
+  _scheduleNextUpdate() {
     if (shouldKeepUpdating) {
       updater.scheduleUpdate(this);
     }
   }
 
-  _updateProgressRatio() {
+  _updateValues() {
     double ratio = computeProgressRatio(elapsedMillis);
     setProgressRatio(ratio);
   }
@@ -992,24 +1026,34 @@ class _Transition with FastHashCode {
   /// Updates the transition state and returns the new progress ratio.
   void update() {
     assert(_status != _Status.defunct);
-    // lastUpdateElapsedMillis = computeElapsedMillis(clock.currentTimeStep);
-    lastUpdateTimeStep = currentTimeStep;
-    _updateProgressRatio();
-    _updateStatusAndScheduleUpdate();
-    // return ratio;
     if (!isActive && context == null) {
-      // If the transition has no context it has to be disposed, otherwise
-      // there is no mechanism that will unregister them later other than a
-      // manual call to `Transistions.cancelAll()`.
       dispose();
+      return;
     }
+    lastUpdateTimeStep = currentTimeStep;
+    _scheduleNextUpdate();
+    _updateStatus();
+    _updateValues();
   }
 }
 
-class _TransitionEvalState extends _Transition {
+class _TransitionEval extends _Transition {
   final RatioEvaluator evaluate;
 
-  _TransitionEvalState(
+  double _value = 0;
+  double get lastSetValue {
+    // Invoked to activate the dynamic value.
+    super.lastSetValue;
+    return _value;
+  }
+
+  setProgressRatio(double ratio) {
+    super.setProgressRatio(ratio);
+    _value = evaluate(ratio);
+    return ratio;
+  }
+
+  _TransitionEval(
     key,
     durationMillis, [
     this.evaluate,
@@ -1021,11 +1065,13 @@ class _TransitionEvalState extends _Transition {
   ]) : super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
             repeatAfterMillis, tag, context);
 
-  @override
-  void update([int referenceTimeMillis]) {
-    super.update();
-    evaluate(lastSetProgressRatio);
-  }
+  // @override
+  // void update() {
+  //   super.update();
+  //   if(isActive) {
+  //     _value = evaluate(super.lastSetValue);
+  //   }
+  // }
 }
 
 class _MultiKey extends LocalKey {
@@ -1053,7 +1099,7 @@ class _MultiKey extends LocalKey {
   int get hashCode => _hash;
 }
 
-typedef RatioEvaluator = Function(double elapsedToDurationRatio);
+typedef RatioEvaluator = double Function(double elapsedToDurationRatio);
 typedef ValueCallback<V> = V Function(V transitionValue);
 
 Key _createKey(

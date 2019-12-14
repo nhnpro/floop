@@ -10,9 +10,10 @@ import './controller.dart';
 /// Read values like reading from any [Map] within a widget's build method
 /// and the widget will automatically rebuild on changes to the values read.
 ///
-/// `floop` is just instance of [ObservedMap], other [ObservedMap] objects
-/// can be instantiated and will also provide dynamic values to widgets.
-final ObservedMap<Object, dynamic> floop = ObservedMap();
+/// See also:
+///
+///  * [DynMap]
+final DynMap<Object, dynamic> floop = DynMap();
 
 /// An object that keeps a dynamic value.
 abstract class DynValue<V> implements Observed, ValueWrapper<V> {
@@ -25,8 +26,12 @@ abstract class DynValue<V> implements Observed, ValueWrapper<V> {
   getValueSilently();
 }
 
-/// A map that stores dynamic values.
-class DynMap extends ObservedMap {}
+/// A special [Map] implementation that provides dynamic values to widgets.
+///
+/// Retrieving values from a [DynMap] instance within a Floop widget's build
+/// method will trigger automatic rebuilds of the [BuildContext] on changes to
+/// any of the values retrieved.
+class DynMap<K, V> extends ObservedMap<K, V> {}
 
 class Observed = Object with ObservedNotifierMixin, FastHashCode;
 
@@ -73,14 +78,14 @@ class ObservedValue<T> extends Observed implements DynValue<T> {
   }
 }
 
-/// An observed value that notifies value changes with a frequency restriction.
+/// An dynamic value that notifies value changes with a frequency restriction.
 ///
-/// It notify of changes to ObservedListeners (like Floop widgets) at most
+/// Changes to notifications to listeners (e.g. Floop widgets) at most
 /// once in any time interval of length `minTimeBetweenNotificationsMicros`.
 ///
 /// If not enough time has passed since the last notification, an asynchronous
-/// notification callback is created. if there is no registered callback.
-class TimeCappedObservedValue<T> extends ObservedValue<T> {
+/// notification callback is created.
+class TimedDynValue<T> extends ObservedValue<T> {
   int _lastNotifyTime;
 
   /// Minimun time between change notifications in microseconds.
@@ -93,8 +98,7 @@ class TimeCappedObservedValue<T> extends ObservedValue<T> {
   /// asynchronous callback to notify after `minTimeBetweenNotifications`
   /// has elapsed since the last notification is created.
   ///
-  TimeCappedObservedValue(Duration minTimeBetweenNotifications,
-      [T initialValue])
+  TimedDynValue(Duration minTimeBetweenNotifications, [T initialValue])
       : microsecondsBetweenNotifications =
             minTimeBetweenNotifications.inMicroseconds,
         _lastNotifyTime =
@@ -121,17 +125,13 @@ class TimeCappedObservedValue<T> extends ObservedValue<T> {
   bool _notifyLocked = false;
 
   notifyChange([bool postpone = false]) {
-    // print(
-    //     'lastNotifyTime: $_lastNotifyTime, minTimeToNextNotifyChange: $minMicrosecondsToNextNotifyChange');
     int timeToNextNotify = minMicrosecondsToNextNotifyChange;
     if (_notifyLocked) {
       if (timeToNextNotify < -microsecondsBetweenNotifications) {
-        print('something went wrong, no notification');
         _notifyChange(postpone);
       }
     } else if (timeToNextNotify > 0) {
       _notifyLocked = true;
-      // _lastNotifyTime = null;
       _delayedNotifyChange(timeToNextNotify);
     } else {
       _notifyChange(postpone);

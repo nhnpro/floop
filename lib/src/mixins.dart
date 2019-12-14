@@ -3,10 +3,6 @@ import 'package:floop/floop.dart';
 import './flutter_import.dart';
 import './controller.dart';
 
-typedef BuilderFunction = Widget Function(BuildContext, [dynamic, dynamic]);
-
-// TODO: FloopBuilder, wrapper function that causes a builder to listen.
-
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
   ///
@@ -63,6 +59,12 @@ abstract class FloopWidget extends StatelessWidget with Floop {
 abstract class FloopBuildContext extends BuildContext
     implements ObservedListener {
   void addUnmountCallback(VoidCallback callback);
+
+  /// Whether the context is active.
+  ///
+  /// This is intended to make public Flutter _active member. It only works in
+  /// debug mode, in release mode it should return always true.
+  bool get active;
 }
 
 mixin FloopElement on Element implements FloopBuildContext {}
@@ -81,7 +83,7 @@ mixin FloopElementMixin on Element implements FloopElement {
   /// This method is necessary to prevent Flutter assertions error when
   /// invoking markNeedsBuild on the elements.
   static _debugRemoveInactiveElementsFromPostponedList() {
-    _postponedElementsForMarking.retainWhere((element) => element._debugActive);
+    _postponedElementsForMarking.retainWhere((element) => element.active);
   }
 
   static void _notifyingCallback([_]) {
@@ -109,7 +111,7 @@ mixin FloopElementMixin on Element implements FloopElement {
       _referenceFrameTimeStamp !=
           WidgetsBinding.instance.currentSystemFrameTimeStamp;
 
-  /// During mounting or unmounting Observed values could change. The
+  /// During mounting or unmounting dynamic values could change. The
   /// change notifications are postponed until the frame finishes rendering.
   static void postponeMarking(FloopElementMixin element) {
     assert(element != null);
@@ -123,6 +125,7 @@ mixin FloopElementMixin on Element implements FloopElement {
 
   DisposableWidget get disposableWidget => widget;
 
+  @override
   void mount(Element parent, dynamic newSlot) {
     // _startPostponingObservedNotifications();
     shouldPostponeMarking = true;
@@ -140,6 +143,7 @@ mixin FloopElementMixin on Element implements FloopElement {
     _debugActive = true;
   }
 
+  @override
   activate() {
     assert(!_debugActive);
     assert(() {
@@ -149,21 +153,32 @@ mixin FloopElementMixin on Element implements FloopElement {
     super.activate();
   }
 
-  _debugDeactivate() {
-    _debugActive = false;
-  }
+  // debugDeactivated() {
+  //   _debugActive = false;
+  //   super.debugDeactivated();
+  // }
 
+  @override
   deactivate() {
     super.deactivate();
     assert(() {
-      _debugDeactivate();
+      // debugDeactivate();
       return true;
     }());
   }
 
   /// Used keep track of the Elements status in debug mode. The [Element]
-  /// `_active` field is private.
+  /// `_debugActive` field is private.
   bool _debugActive = false;
+
+  bool get active {
+    bool active = true;
+    assert(() {
+      active = _debugActive;
+      return true;
+    }());
+    return active;
+  }
 
   @override
   void unmount() {
