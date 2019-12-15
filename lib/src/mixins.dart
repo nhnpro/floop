@@ -127,7 +127,6 @@ mixin FloopElementMixin on Element implements FloopElement {
 
   @override
   void mount(Element parent, dynamic newSlot) {
-    // _startPostponingObservedNotifications();
     shouldPostponeMarking = true;
     disposableWidget.initContext(this);
     super.mount(parent, newSlot);
@@ -136,7 +135,6 @@ mixin FloopElementMixin on Element implements FloopElement {
       _debugActivate();
       return true;
     }());
-    // _finishPostponingObservedNotifications();
   }
 
   _debugActivate() {
@@ -153,16 +151,15 @@ mixin FloopElementMixin on Element implements FloopElement {
     super.activate();
   }
 
-  // debugDeactivated() {
-  //   _debugActive = false;
-  //   super.debugDeactivated();
-  // }
+  _debugDeactivate() {
+    _debugActive = false;
+  }
 
   @override
   deactivate() {
     super.deactivate();
     assert(() {
-      // debugDeactivate();
+      _debugDeactivate();
       return true;
     }());
   }
@@ -183,12 +180,10 @@ mixin FloopElementMixin on Element implements FloopElement {
   @override
   void unmount() {
     shouldPostponeMarking = true;
-    // _startPostponingObservedNotifications();
     ObservedController.unsubscribeListener(this);
     _unmountCallbacks.forEach((cb) => cb());
     super.unmount();
     disposableWidget.disposeContext(this);
-    // _finishPostponingObservedNotifications();
     shouldPostponeMarking = false;
   }
 

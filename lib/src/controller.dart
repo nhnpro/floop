@@ -23,9 +23,14 @@ abstract class ObservedListener implements FastHashCode {
 ///
 /// Implemented by [Observed], [ObservedValue] and [ObservedMap].
 abstract class ObservedNotifier implements FastHashCode {
+  /// Set used by the controller to store the listeners of the notifier.
   @protected
   Set<ObservedListener> listeners;
+
+  /// Notifies the controller about a read event.
   notifyRead();
+
+  /// Notifies the listeners about a change event.
   notifyChange();
 }
 
@@ -223,12 +228,6 @@ abstract class ObservedNotifierMixin implements ObservedNotifier {
 
   ObservedListener get activeListener => ObservedController._activeListener;
   bool get controllerIsListening => ObservedController.isListening;
-
-  // Set<ObservedListener> _listeners;
-  // @protected
-  // Set<ObservedListener> get listeners => _listeners ??= Set();
-  // @protected
-  // set listeners(Set<ObservedListener> listeners) => _listeners = listeners;
 
   @protected
   Set<ObservedListener> listeners;

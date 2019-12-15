@@ -23,7 +23,7 @@ abstract class DynValue<V> implements Observed, ValueWrapper<V> {
   setSilently(V newValue);
 
   /// Retrieves the value without notifying a value retrieval.
-  getValueSilently();
+  getSilently();
 }
 
 /// A special [Map] implementation that provides dynamic values to widgets.
@@ -73,7 +73,7 @@ class ObservedValue<T> extends Observed implements DynValue<T> {
     _value = newValue;
   }
 
-  getValueSilently() {
+  getSilently() {
     return _value;
   }
 }

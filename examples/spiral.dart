@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:floop/floop.dart';
 import 'package:floop/transition.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,17 +11,32 @@ const colorTag = 'colorTag';
 const rotationTag = 'rotationTag';
 const imageTag = 'imageTag';
 const spiralTag = 'spiralTag';
+const growTag = 'circleGrowTag';
 
 const transientTag = 'transientTransitionsTag';
 
 const imageHeight = 200.0;
 const imageWidth = 300.0;
 
+const trashBin = TrashBin();
+
+ThemeData theme;
+
 class Dyn {
   static final dyn = ObservedMap();
 
-  static SpiralingWidget get dragStartWidget => dyn[#dragStartWidget];
-  static set dragStartWidget(SpiralingWidget widget) =>
+  // Static values.
+
+  // This value is set from the interaction event handlers.
+  static Size stackCanvasSize = Size.zero;
+
+  // Dynamic values.
+
+  static bool get trashBinActive => dyn[#trashBinActive] ??= false;
+  static set trashBinActive(bool active) => dyn[#trashBinActive] = active;
+
+  static SpiralingWidget get dragWidget => dyn[#dragStartWidget];
+  static set dragWidget(SpiralingWidget widget) =>
       dyn[#dragStartWidget] = widget;
 
   static List<Widget> get spiralingWidgets =>
@@ -34,15 +50,14 @@ class Dyn {
   static bool get optionsBarPaused => dyn[#optionsBarPaused] ??= false;
   static set optionsBarPaused(bool paused) => dyn[#optionsBarPaused] = paused;
 
-  static SizeInteraction get expanding => dyn[#expandingKey];
-  static set expanding(SizeInteraction key) => dyn[#expandingKey] = key;
+  static ExpandInteraction get expandingWidget => dyn[#expandingKey];
+  static set expandingWidget(ExpandInteraction key) => dyn[#expandingKey] = key;
 
-  static Offset get dragPosition => dyn[#dragPosition];
-  static set dragPosition(Offset position) => dyn[#dragPosition] = position;
+  // static Alignment get dragAlignment => dyn[#dragPosition];
+  // static set dragAlignment(Alignment position) => dyn[#dragPosition] = position;
 }
 
 void main() {
-  // floop['circleWidgets'] = circleWidgets;
   runApp(MaterialApp(
       title: 'Spiral',
       theme: ThemeData(
@@ -74,6 +89,36 @@ tagAsName([tag]) {
 }
 
 class Spiral extends StatelessWidget with Floop {
+  static int _totalSpawned = 0;
+
+  static void spawnSpiralingWidget() {
+    var widgets = Dyn.spiralingWidgets.toList();
+    widgets.add(
+        SpiralingWidget(key: ValueKey(_totalSpawned++), child: ImageCircle()));
+    Dyn.spiralingWidgets = widgets;
+  }
+
+  static void deleteSpiralingWidget(Key key) {
+    var widgets = Dyn.spiralingWidgets.toList();
+    widgets.removeWhere((widget) => widget.key == key);
+    // print('deleting widget ${widget.key}, $widgets');
+    Dyn.spiralingWidgets = widgets;
+  }
+
+  static void putWidgetOnTop(Key key) {
+    Widget targetWidget;
+    var widgets = Dyn.spiralingWidgets.toList();
+    widgets.removeWhere((widget) {
+      if (widget.key == key) {
+        targetWidget = widget;
+        return true;
+      }
+      return false;
+    });
+    widgets.add(targetWidget);
+    Dyn.spiralingWidgets = widgets;
+  }
+
   @override
   void initContext(BuildContext context) {
     Dyn.spiralingWidgets ??= List();
@@ -83,30 +128,20 @@ class Spiral extends StatelessWidget with Floop {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: ListTile(
           title: Text(
             'Playback tageting: ${targetTransitions} transitions',
-            style: Theme.of(context).primaryTextTheme.body1,
+            style: theme.primaryTextTheme.body1,
           ),
           onTap: nextTag,
         ),
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: GestureDetector(
-                onTap: () => {
-                      if (Dyn.expanding != null)
-                        {
-                          Dyn.expanding.contract(),
-                        }
-                      // Transitions.cancel(tag: transientTag),
-                      // print('cancel $transientTag'),
-                    }),
-          ),
+          Positioned.fill(child: const ActionCanceler()),
           Align(
             alignment: Alignment.topLeft,
             child: Text(
@@ -116,35 +151,13 @@ class Spiral extends StatelessWidget with Floop {
           Align(
               alignment: Alignment.topRight,
               child: Text(
-                  'Refresh rate: ${Transitions.currentRefreshRateAsDynamicValue()?.toStringAsFixed(2)}')),
+                  'Refresh rate: ${Transitions.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
           Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              alignment: Alignment.centerLeft,
-              width: 155,
-              height: 60,
-              padding: EdgeInsets.only(top: 10, bottom: 10, right: 10),
-              child: SizedBox.expand(
-                child: RaisedButton(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15)),
-                  elevation: 5.0,
-                  color: theme.buttonColor,
-                  // visualDensity: VisualDensity.standard,
-                  // color: Colors.lightGreen[300],
-                  child: Text(
-                    '${targetTransitions}',
-                    // style: theme.primaryTextTheme.caption,
-                    // style: TextStyle(
-                    // backgroundColor: Colors.lightGreen,
-                    // color: Colors.red,
-                    // fontSize: 100,
-                    // ),
-                  ),
-                  onPressed: () => nextTag(),
-                ),
-              ),
-            ),
+              alignment: Alignment.bottomCenter,
+              child: const SelectTransitionButton()),
+          Align(
+            alignment: TrashBin.alignment,
+            child: const TrashBin(),
           ),
         ],
       ),
@@ -159,43 +172,144 @@ class Spiral extends StatelessWidget with Floop {
   }
 }
 
-int _totalSpawned = 0;
+class ActionCanceler extends StatelessWidget {
+  const ActionCanceler();
 
-void spawnSpiralingWidget() {
-  var widgets = Dyn.spiralingWidgets.toList();
-  widgets.add(
-      SpiralingWidget(key: ValueKey(_totalSpawned++), child: ImageCircle()));
-  Dyn.spiralingWidgets = widgets;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(onTap: () {
+      if (Dyn.expandingWidget != null) {
+        Dyn.expandingWidget.contract();
+      }
+    });
+  }
 }
 
-void removeSpiralingWidget(Key key) {
-  var widgets = Dyn.spiralingWidgets.toList()
-    ..removeWhere((widget) => widget.key == key);
-  Dyn.spiralingWidgets = widgets;
+class SelectTransitionButton extends StatelessWidget with Floop {
+  const SelectTransitionButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.centerLeft,
+      width: 155,
+      height: 60,
+      padding: EdgeInsets.only(top: 10, bottom: 10, right: 10),
+      child: SizedBox.expand(
+        child: RaisedButton(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 5.0,
+          color: theme.buttonTheme.colorScheme.onPrimary,
+          textTheme: theme.buttonTheme.textTheme,
+          child: Text(
+            '${tagAsName()}',
+          ),
+          onPressed: () => nextTag(),
+        ),
+      ),
+    );
+  }
 }
 
-void putWidgetOnTop(Key key) {
-  Widget targetWidget;
-  var widgets = Dyn.spiralingWidgets.toList();
-  widgets.removeWhere((widget) {
-    if (widget.key == key) {
-      targetWidget = widget;
-      return true;
+class TrashBin extends StatelessWidget with Floop {
+  static const trashBinSize = 32.0;
+  static const trashBinPadding = 15.0;
+  static const interactionSize = trashBinSize + trashBinPadding;
+
+  static final alignment = Alignment.bottomLeft;
+
+  static Alignment get limitAligment =>
+      Alignment.bottomLeft +
+      offsetDeltaToAlignmentDelta(
+          Offset(TrashBin.interactionSize, -TrashBin.interactionSize),
+          Dyn.stackCanvasSize);
+
+  static get trashBinKey => #trashBin;
+
+  const TrashBin();
+
+  bool get active => Dyn.trashBinActive;
+
+  bool alignmentWithinDeletionBounds(Alignment alignment) {
+    return (alignment.x < limitAligment.x && alignment.y > limitAligment.y);
+  }
+
+  activate() {
+    Dyn.trashBinActive = true;
+    transition(700, key: trashBinKey);
+  }
+
+  deactivate() {
+    // final newDuration = colorTransition;
+    Transitions.cancel(key: trashBinKey);
+    Dyn.trashBinActive = false;
+  }
+
+  double get lerpValue {
+    double value = transitionOf(trashBinKey);
+    if (value == null && active) {
+      value = 1.0;
     }
-    return false;
-  });
-  widgets.add(targetWidget);
-  Dyn.spiralingWidgets = widgets;
+    return value ?? 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // final color = Theme.of(context).iconTheme.color;
+    return Container(
+      padding: EdgeInsets.all(15),
+      child: IconButton(
+        icon: Icon(
+          Icons.delete,
+          color: Color.lerp(Colors.grey[400], Colors.red, lerpValue),
+        ),
+        iconSize: 32,
+      ),
+    );
+  }
 }
 
-Alignment positionToAlignment(Offset offset, Size size) {
-  var alignment = Alignment.topLeft +
+Alignment offsetDeltaToAlignmentDelta(Offset offset, Size size) {
+  // var alignment = Alignment.topLeft +
+  //     Alignment(offset.dx / size.width, offset.dy / size.height) * 2;
+  // print('$alignment');
+  final alignment =
       Alignment(offset.dx / size.width, offset.dy / size.height) * 2;
-  print('$alignment');
   return alignment;
 }
 
-class SpiralingWidget extends StatelessWidget with Floop {
+Alignment offsetToAlignment(Offset offset, Size size) {
+  var alignment = Alignment.topLeft +
+      Alignment(offset.dx / size.width, offset.dy / size.height) * 2;
+  // final alignment =
+  //     Alignment(offset.dx / size.width, offset.dy / size.height) * 2;
+  return alignment;
+}
+
+// class SpiralingWidget extends StatelessWidget with Floop {
+class SpiralingWidget extends DynamicWidget {
+  static final spiralAlignments = computeSpiralAlignments();
+
+  static List<Alignment> computeSpiralAlignments() {
+    final alignments = List<Alignment>(1000);
+    var a = 0.1; // a constant
+    var b = 0.1; // another constant
+    var h = 0.01 * b / (a * sqrt(1 + b * b));
+    var theta = 0.0;
+    for (int i = 0; i < 1000; i++) {
+      theta = log(h + exp(b * theta)) / b;
+      var pX = a * cos(theta) * exp(b * theta);
+      var pY = a * sin(theta) * exp(b * theta);
+      alignments[i] = Alignment(pX.clamp(-1.0, 1.0), pY.clamp(-1.0, 1.0));
+    }
+    return alignments;
+  }
+
+  getSpiralAlignment(double t) {
+    return spiralAlignments[(t * 1000).toInt().clamp(0, 999)];
+  }
+
   static const minSize = 10.0;
   static const growSize = 100.0;
 
@@ -206,115 +320,256 @@ class SpiralingWidget extends StatelessWidget with Floop {
   final Widget child;
   SpiralingWidget({Key key, @required this.child}) : super(key: key);
 
-  // A key to use in a transition.
-  String get tKey => '$SpiralingWidget$key';
+  // Object get tKey => '$SpiralingWidget$key';
+
+  Offset get dragOffset => dyn[#dragOffset];
+  set dragOffset(Offset offset) => dyn[#dragOffset] = offset;
+
+  Alignment get dragAlignment => dyn[#dragAlignment];
+  set dragAlignment(Alignment drag) => dyn[#dragAlignment] = drag;
+
+  // Alignment get spiralAlignment => dyn[#spiralAlignment];
+  // set spiralAlignment(Alignment spiral) => dyn[#spiralAlignment] = spiral;
+
+  /// The key used to reference the move back animation.
+  Object get moveBackKey => 'moveBack$SpiralingWidget$key';
+
+  /// The key used to reference the delete animation.
+  Object get deleteKey => 'delete$SpiralingWidget$key';
+
+  double get deleteProgress => transitionOf(deleteKey) ?? 0.0;
+
+  /// The evaluation function used to trigger the widget delete operation once
+  /// the delete transition finishes.
+  double deleteEvaluate(double progressRatio) {
+    if (progressRatio == 1) {
+      // When the ratio is 1 the transition has finished.
+      Spiral.deleteSpiralingWidget(key);
+    }
+    return progressRatio;
+  }
+
+  void moveBack() {
+    Dyn.dragWidget = null;
+    // A transition without context is deleted when it finishes.
+    transition(3000, key: moveBackKey);
+  }
+
+  delete(BuildContext context) {
+    assert(trashBin.active);
+    // The context is bound, such that the transition is persistant.
+    transitionEval(1500, deleteEvaluate, key: deleteKey, bindContext: context);
+    trashBin.deactivate();
+  }
+
+  Alignment computeCurrentAlignment(double progress) {
+    final moveBackProgress = transitionOf(moveBackKey);
+    final beeingDragged = Dyn.dragWidget?.key == key;
+    Alignment alignment;
+    if (moveBackProgress != null) {
+      alignment = Alignment.lerp(
+          dragAlignment, getSpiralAlignment(progress), moveBackProgress);
+    } else if (!beeingDragged && deleteProgress == 0.0) {
+      alignment = getSpiralAlignment(progress);
+    } else {
+      alignment = dragAlignment;
+    }
+    return alignment;
+  }
 
   @override
   Widget build(BuildContext context) {
     // The spiral animation transition.
     var t = transition(20000, repeatAfterMillis: 3000, tag: spiralTag);
-    final spiralAlignment = computeSpiralAlignment(t);
-    final restorePositionProgress = transitionOf(tKey);
-    Alignment alignment;
-    if (Dyn.dragStartWidget?.tKey == tKey) {
-      alignment = positionToAlignment(Dyn.dragPosition, referenceSize);
-    } else if (restorePositionProgress != null) {
-      // print('restoring position $restorePositionProgress');
-      alignment = positionToAlignment(Dyn.dragPosition, referenceSize);
-      alignment =
-          Alignment.lerp(alignment, spiralAlignment, restorePositionProgress);
-    } else {
-      alignment = spiralAlignment;
-    }
-    // alignment = spiralAlignment;
+    final currentAlignment = computeCurrentAlignment(t);
     final size = minSize + t * growSize;
     return Positioned.fill(
       child: Align(
-        alignment: alignment,
-        child: GestureDetector(
-          // child: ImageCircle(t),
-          child: SizeInteraction(
-            key: key,
-            child: child,
-            normalSize: Size(size, size),
-            extraSize: largeSize - Size(size, size),
+        alignment: currentAlignment,
+        child: Opacity(
+          opacity: 1.0 - deleteProgress,
+          child: GestureDetector(
+            child: ExpandInteraction(
+              key: key,
+              child: child,
+              normalSize: Size(size, size),
+              extraSize: largeSize - Size(size, size),
+            ),
+            onDoubleTap: () => {
+              Transitions.resumeOrPause(
+                  context: context, applyToChildContextsTransitions: true),
+            },
+            onTap: () => {
+              Spiral.putWidgetOnTop(key),
+            },
+            // onLongPress: () => removeSpiralingWidget(key),
+            onLongPressUp: () {
+              // Transitions.cancel(key: dyn);
+            },
+            onPanDown: (details) {
+              Dyn.stackCanvasSize = context.size;
+              dragOffset = currentAlignment.alongSize(context.size);
+              dragAlignment = currentAlignment;
+              if (Dyn.expandingWidget?.key == key) {
+                Dyn.expandingWidget.contract();
+              }
+            },
+            onPanUpdate: (details) {
+              if (transitionOf(deleteKey) != null) {
+                // Widget being deleted.
+                return;
+              }
+              dragOffset += details.delta;
+              Transitions.cancel(key: moveBackKey);
+              Dyn.dragWidget = this;
+              // Keep updating referenceSize in case the app changes it's layout.
+              Dyn.stackCanvasSize = context.size;
+              final newAlignment = dragAlignment +
+                  offsetDeltaToAlignmentDelta(
+                      details.delta, Dyn.stackCanvasSize);
+              if (trashBin.alignmentWithinDeletionBounds(newAlignment)) {
+                trashBin.activate();
+              } else {
+                trashBin.deactivate();
+              }
+              dragAlignment = newAlignment;
+            },
+            onPanEnd: (_) {
+              if (trashBin.active) {
+                delete(context);
+              } else {
+                moveBack();
+              }
+            },
           ),
-          onDoubleTap: () => {
-            Transitions.resumeOrPause(
-                context: context, applyToChildContextsTransitions: true),
-          },
-          onTap: () => {
-            putWidgetOnTop(key),
-          },
-          // onLongPress: () => removeSpiralingWidget(key),
-          onLongPressUp: () {
-            // Transitions.cancel(key: dyn);
-          },
-          onPanDown: (details) {
-            Transitions.cancel(key: tKey);
-            // Dyn.dragStartWidget = this;
-            // print('Pan down: ');
-            referenceSize = context.size;
-            var position = spiralAlignment.alongSize(referenceSize);
-            Dyn.dragPosition =
-                // spiralAlignment.alongSize(Offset.zero & context.size);
-                spiralAlignment.alongSize(referenceSize);
-            print('start alignment: $spiralAlignment');
-            Dyn.dragPosition = details.localPosition;
-            // Dyn.dragPosition = position;
-          },
-          onPanCancel: () {
-            // print('Pan cancel');
-            // Dyn.dragPosition = null;
-          },
-          onPanUpdate: (details) {
-            if (Dyn.dragPosition == null) {
-              print('Null drag position');
-              return;
-            }
-            Dyn.dragStartWidget = this;
-            // Keep updating referenceSize in case the app changes it's layout.
-            referenceSize = context.size;
-            Dyn.dragPosition += details.delta;
-            // print('${Dyn.dragPosition}');
-          },
-          onPanEnd: (_) {
-            Dyn.dragStartWidget = null;
-            // Transition without context is deleted when it finishes.
-            transition(3000, key: tKey);
-            // .(size, rect).
-            // Transitions.cancel(key: tKey);
-          },
         ),
       ),
     );
   }
 }
 
-class SizeInteraction extends StatelessWidget with Floop {
+/// Defined to react on general widgets.
+revertTransientTransitions(Key key) {
+  if (Dyn.expandingWidget?.key == key) {
+    Dyn.expandingWidget.contract();
+  }
+}
+
+class DragInteraction extends DynamicWidget {
+  static BuildContext refereceContext;
+
+  final Widget child;
+  final Alignment alignment;
+
+  DragInteraction({this.child, this.alignment});
+
+  Alignment get dragAlignment => dyn[#dragAlignment];
+  set dragAlignment(Alignment drag) => dyn[#dragAlignment] = drag;
+
+  /// The key used to reference the move back animation.
+  Object get moveBackKey => 'moveBack$SpiralingWidget$key';
+
+  /// The key used to reference the delete animation.
+  Object get deleteKey => 'delete$SpiralingWidget$key';
+
+  double get deleteProgress => transitionOf(deleteKey) ?? 0.0;
+
+  /// The evaluation function used to trigger the widget delete operation once
+  /// the delete transition finishes.
+  double deleteEvaluate(double progressRatio) {
+    if (progressRatio == 1) {
+      // When the ratio is 1 the transition is finished.
+      Spiral.deleteSpiralingWidget(key);
+    }
+    return progressRatio;
+  }
+
+  void moveBack() {
+    Dyn.dragWidget = null;
+    // A transition without context is automatically deleted when it finishes.
+    transition(3000, key: moveBackKey);
+  }
+
+  delete(BuildContext context) {
+    assert(trashBin.active);
+    // bindContext is provided to make the transition persists.
+    transitionEval(1500, deleteEvaluate, key: deleteKey, bindContext: context);
+    trashBin.deactivate();
+  }
+
+  void updateDragAlignment(DragUpdateDetails details) {
+    if (transitionOf(deleteKey) != null) {
+      // Widget being deleted.
+      return;
+    }
+    Transitions.cancel(key: moveBackKey);
+    // Dyn.dragWidget = this;
+    // Keep updating referenceSize in case the app changes it's layout.
+    Dyn.stackCanvasSize = refereceContext.size;
+    final newAlignment = dragAlignment +
+        offsetDeltaToAlignmentDelta(details.delta, Dyn.stackCanvasSize);
+    if (trashBin.alignmentWithinDeletionBounds(newAlignment)) {
+      trashBin.activate();
+    } else {
+      trashBin.deactivate();
+    }
+    dragAlignment = newAlignment;
+  }
+
+  Alignment interactiveAlignment() {
+    final moveBackProgress = transitionOf(moveBackKey);
+    final beingDragged = Dyn.dragWidget?.key == key;
+    Alignment resultAlignment;
+    if (moveBackProgress != null) {
+      resultAlignment =
+          Alignment.lerp(dragAlignment, alignment, moveBackProgress);
+    } else if (beingDragged || deleteProgress == 0.0) {
+      resultAlignment = dragAlignment;
+    }
+    return resultAlignment;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentAlignment = interactiveAlignment() ?? alignment;
+    return Align(
+      alignment: currentAlignment,
+      child: DefererGestureDetector(
+        child: child,
+        onPanDown: (details) {
+          refereceContext = context;
+          Dyn.stackCanvasSize = context.size;
+          dragAlignment = currentAlignment;
+          revertTransientTransitions(key);
+        },
+        onPanUpdate: updateDragAlignment,
+        onPanEnd: (_) {
+          if (trashBin.active) {
+            delete(context);
+          } else {
+            moveBack();
+          }
+        },
+      ),
+    );
+  }
+}
+
+class ExpandInteraction extends StatelessWidget with Floop {
   final Widget child;
   final Size normalSize;
   final Offset extraSize;
-  const SizeInteraction(
+  const ExpandInteraction(
       {@required key,
       this.child,
       @required this.normalSize,
       @required this.extraSize})
       : super(key: key);
 
-  // double get lerpValue {
-  //   var t = transitionOf(tKey);
-  //   if (t != null && Dyn.expanding == null) {
-  //     // If expandingKey is null, the widget should shrink.
-  //     // t = 1 - t;
-  //   }
-  //   return t ?? 0;
-  // }
-
-  double get lerpValue => transitionOf(tKey) ?? 0.0;
+  double get lerpValue => transitionOf(sizeKey) ?? 0.0;
 
   // A key to use in a transition.
-  String get tKey => '$SizeInteraction$key';
+  String get sizeKey => '$ExpandInteraction$key';
 
   Size get size => normalSize + extraSize * lerpValue;
 
@@ -324,21 +579,20 @@ class SizeInteraction extends StatelessWidget with Floop {
     //
     // The transition is bound to the context to prevent it from being deleted
     // when it finishes. This way the widget remains large.
-    transition(700, key: tKey, bindContext: context, tag: transientTag);
-    Dyn.expanding = this;
+    transition(700, key: sizeKey, bindContext: context, tag: transientTag);
+    Dyn.expandingWidget = this;
   }
 
   contract() {
-    final lastExpandingLerpValue = transitionOf(tKey) ?? 0;
+    final lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
     // Cancel deletes the transition. At most one transition can be
     // registered with a certain key at any given time.
-    Transitions.cancel(key: tKey);
+    Transitions.cancel(key: sizeKey);
     // Context is not provided so that the transition is deleted when
     // it finishes.
-    transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: tKey);
-    // transition(500, key: tKey);
+    transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: sizeKey);
     // null expandingKey is used to represent a shrinking transition.
-    Dyn.expanding = null;
+    Dyn.expandingWidget = null;
   }
 
   @override
@@ -361,84 +615,13 @@ class SizeInteraction extends StatelessWidget with Floop {
       child: DefererGestureDetector(
         child: child,
         onTap: () {
-          var expanding = Dyn.expanding;
-          if (expanding == null) {
-            expand(context);
-          } else if (expanding.tKey == tKey) {
-            contract();
-          } else {
-            expanding.contract();
+          var expanding = Dyn.expandingWidget;
+          if (expanding?.sizeKey != sizeKey) {
             expand(context);
           }
+          expanding?.contract();
         },
-        // onLongPress: () {
-        //   // The transition needs to be identied with a key such that it can be
-        //   // referenced from within the build method.
-        //   //
-        //   // The context parameter is passed to bind the transition to the
-        //   // context. Transitions without context are deleted when they finish.
-        //   // Dyn.expanding = key;
-        //   transition(700, key: tKey, bindContext: context, tag: transientTag);
-        //   Dyn.expanding = tKey;
-        // },
-        // onLongPressUp: () {
-        //   final lastExpandingLerpValue = transitionOf(tKey);
-        //   // print('Last value $lastValue');
-        //   // Cancel deletes the transition. At most one transition can be
-        //   // registered with a certain key at any given time.
-        //   Transitions.cancel(key: tKey);
-        //   // Context is not provided so that the transition is deleted when
-        //   // it finishes.
-        //   transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue,
-        //       key: tKey);
-        //   // transition(500, key: tKey);
-        //   // null expandingKey is used to represent a shrinking transition.
-        //   Dyn.expanding = null;
-        // },
       ),
-      // onDoubleTap: () {
-      //   // Because the transition is created by a callback outside of the
-      //   // build method, the transition needs to be identied with a key
-      //   // so that it can be referenced.
-      //   if(transitionOf(key)!=null) {
-      //     Transitions.cancel(key: key);
-      //     transition(250, key: key);
-      //   } else {
-      //     // The context parameter is pased so that the transition is not
-      //     // deleted after it finishes.
-      //     Dyn.expandingKey = key;
-      //     transition(700, key: key, context: context);
-      //   }
-      // },
-
-      // DefererGestureDetector(
-
-      //   child: Container(
-      //     child: child,
-      //     alignment: Alignment.center,
-      //     height: size,
-      //     width: size,
-      //   ),
-      //   onTap: () => {
-      //     Transitions.resumeOrPause(context: context),
-      //   },
-      //   onDoubleTap: () {
-      //     if (transitionOf(key) != null) {
-      //       Transitions.cancel(key: key);
-      //     } else {
-      //       // Because the transition is created by a callback outside of the
-      //       // build method, the transition needs to be identied with a key
-      //       // such that it can be referenced from within the build method.
-      //       Dyn.expandingKey = key;
-      //       print('Long press detected on $context');
-      //       transition(2000, key: key, context: context);
-      //     }
-      //   },
-      //   onLongPress: () {},
-      //   onLongPressUp: () {
-      //     // Transitions.cancel(key: dyn);
-      //   },
-      // ),
     );
   }
 }
@@ -553,20 +736,6 @@ class ImageCircle extends DynamicWidget {
   }
 }
 
-Alignment computeSpiralAlignment(double t) {
-  var a = 0.1; // a constant
-  var b = 0.1; // another constant
-  var h = 0.01 * b / (a * sqrt(1 + b * b));
-  var theta = 0.0;
-  for (int i = 0; i < 1000 * t; i++) {
-    theta = log(h + exp(b * theta)) / b;
-  }
-  var pX = a * cos(theta) * exp(b * theta);
-  var pY = a * sin(theta) * exp(b * theta);
-  // print('Position for $t: x is $pX, y is $pY ');
-  return Alignment(pX.clamp(-1.0, 1.0), pY.clamp(-1.0, 1.0));
-}
-
 class PlaybackOptions extends FloopWidget {
   Widget get titleWidget => Text('${tagAsName() ?? 'All'}');
 
@@ -644,11 +813,6 @@ Future<Uint8List> fetchAndUpdateImage(
   try {
     _fetchLocked.add(lockObject); // locks the fetching function
     final response = await http.get(url);
-    // final image = Image.memory(
-    //   response.bodyBytes,
-    //   fit: BoxFit.cover,
-    // );
-    print('Fetched image');
     return response.bodyBytes;
   } catch (e) {
     return null;
@@ -663,10 +827,20 @@ class RandomImage extends DynamicWidget {
   RandomImage();
 
   initDyn() async {
-    // imageBytes = emptyBytes;
-    lastFetchedImageBytes = await fetchAndUpdateImage(dyn);
+    // dyn member is persistant over rebuilds.
+    dyn[#lockKey] = Object();
+    lastFetchedImageBytes = await fetchAndUpdateImage(lockKey);
     fetchAndLoadImage();
   }
+
+  Object get lockKey => dyn[#lockKey];
+
+  Widget get image => dyn[#image];
+  set image(Widget widget) => dyn[#image] = widget;
+
+  Uint8List get lastFetchedImageBytes =>
+      Uint8List.fromList(dyn[#imageBytes]?.cast<int>());
+  set lastFetchedImageBytes(Uint8List bytes) => dyn[#imageBytes] = bytes;
 
   loadImage() {
     image = Image.memory(
@@ -675,21 +849,9 @@ class RandomImage extends DynamicWidget {
     );
   }
 
-  Widget get image => dyn[#image];
-  set image(Widget widget) => dyn[#image] = widget;
-
-  // Uint8List get imageBytes => Uint8List.fromList(dyn[#imageBytes].cast<int>());
-  Uint8List get lastFetchedImageBytes =>
-      Uint8List.fromList(dyn[#imageBytes]?.cast<int>());
-  set lastFetchedImageBytes(Uint8List bytes) => dyn[#imageBytes] = bytes;
-
-  // Widget heroImage => Hero(
-  //           child: image,
-  //           tag: context,
-  //         );
   fetchAndLoadImage() async {
     image = null;
-    final imageBytes = await fetchAndUpdateImage(dyn);
+    final imageBytes = await fetchAndUpdateImage(lockKey);
     if (imageBytes != null) {
       lastFetchedImageBytes = imageBytes;
       loadImage();
@@ -717,46 +879,9 @@ class RandomImage extends DynamicWidget {
         await fetchAndLoadImage();
         Transitions.reset(context: context);
       },
-      // onDoubleTap: () {
-      // Navigator.of(context).push(AlertDialog(
-      //   content: GestureDetector(
-      //       child: Image.memory(lastFetchedImageBytes),
-      //       onTap: () {
-      //         // Navigator.pop(context);
-      //         Navigator.pop(context);
-      //       });
-      // }));
-      // if (image != null) {
-      // showDialog(
-      //     context: context,
-      //     builder: (context) {
-      //       return GestureDetector(
-      //           child: Hero(
-      //             tag: dyn,
-      //             child: Image.memory(
-      //               lastFetchedImageBytes,
-      //             ),
-      //           ),
-      //           onTap: () {
-      //             Navigator.of(context).pop();
-      //           });
-      //     });
-      // }
-      // },
     );
   }
 }
-
-// class PopUpScreen extends StatelessWidget {
-//   final Widget child;
-//   PopUpScreen({this.child}): super();
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return
-//   }
-
-// }
 
 Color randomColor() {
   const blend = 0xFA000000;
@@ -782,7 +907,7 @@ enum Gesture {
   onPanEnd,
 }
 
-typedef GestureCallback = void Function([dynamic]);
+typedef GestureCallback = void Function(dynamic);
 
 /// Gesture detector that propagates the gesture to ancestor gesture detectors.
 class DefererGestureDetector extends GestureDetector {
@@ -858,14 +983,6 @@ class DefererGestureDetector extends GestureDetector {
         ancestorGestureDetectorContext = ancestor;
         return false;
       }
-      // if (ancestorGestureDetectorContext != null) {
-      //   // Stop if a regular GestureDetector was previously found.
-      //   return false;
-      // }
-      // if (ancestor.widget is GestureDetector) {
-      //   // Not stop yet, it could be wrapped by a DerererGestureDetector.
-      //   ancestorGestureDetectorContext = ancestor;
-      // }
       return true;
     });
     return ancestorGestureDetectorContext;
@@ -893,669 +1010,5 @@ class DefererGestureDetector extends GestureDetector {
       onPanUpdate: createGestureCallback(context, Gesture.onPanUpdate),
       onPanEnd: createGestureCallback(context, Gesture.onPanEnd),
     );
-
-    // onTap: onTap == null
-    //     ? null
-    //     : () {
-    //         triggerAndPropageteGestureToParent(context, Gesture.onTap);
-    //         onTap();
-    //       },
-    // onDoubleTap: onDoubleTap == null
-    //     ? null
-    //     : () {
-    //         triggerAndPropageteGestureToParent(
-    //             context, Gesture.onDoubleTap);
-    //         onDoubleTap();
-    //       },
-    // onLongPress: onLongPress == null
-    //     ? null
-    //     : () {
-    //         triggerAndPropageteGestureToParent(
-    //             context, Gesture.onLongPress);
-    //         onLongPress();
-    //       },
-    // onLongPressUp: onLongPressUp == null
-    //     ? null
-    //     : () {
-    //         triggerAndPropageteGestureToParent(
-    //             context, Gesture.onLongPressUp);
-    //         onLongPressUp();
-    //       },
-    // onPanDown: onPanDown == null
-    //     ? null
-    //     : (dragDetails) {
-    //         triggerAndPropageteGestureToParent(context, Gesture.onPanDown);
-    //         onPanDown();
-    //       },
-    // onPanUpdate: onPanUpdate == null
-    //     ? null
-    //     : (dragDetails) {
-    //         triggerAndPropageteGestureToParent(
-    //             context, Gesture.onPanUpdate);
-    //         onPanUpdate();
-    //       },
-    // onPanEnd: onPanEnd == null
-    //     ? null
-    //     : (dragDetails) {
-    //         triggerAndPropageteGestureToParent(context, Gesture.onPanEnd);
-    //         onPanEnd();
-    //       });
   }
 }
-
-// class GestureDetector extends StatelessWidget {
-//   GestureDetector({
-//     Key key,
-//     this.child,
-//     this.onTapDown,
-//     this.onTapUp,
-//     this.onTap,
-//     this.onTapCancel,
-//     this.onSecondaryTapDown,
-//     this.onSecondaryTapUp,
-//     this.onSecondaryTapCancel,
-//     this.onDoubleTap,
-//     this.onLongPress,
-//     this.onLongPressStart,
-//     this.onLongPressMoveUpdate,
-//     this.onLongPressUp,
-//     this.onLongPressEnd,
-//     this.onVerticalDragDown,
-//     this.onVerticalDragStart,
-//     this.onVerticalDragUpdate,
-//     this.onVerticalDragEnd,
-//     this.onVerticalDragCancel,
-//     this.onHorizontalDragDown,
-//     this.onHorizontalDragStart,
-//     this.onHorizontalDragUpdate,
-//     this.onHorizontalDragEnd,
-//     this.onHorizontalDragCancel,
-//     this.onForcePressStart,
-//     this.onForcePressPeak,
-//     this.onForcePressUpdate,
-//     this.onForcePressEnd,
-//     this.onPanDown,
-//     this.onPanStart,
-//     this.onPanUpdate,
-//     this.onPanEnd,
-//     this.onPanCancel,
-//     this.onScaleStart,
-//     this.onScaleUpdate,
-//     this.onScaleEnd,
-//     this.behavior,
-//     this.excludeFromSemantics = false,
-//     this.dragStartBehavior = DragStartBehavior.start,
-//   })  : assert(excludeFromSemantics != null),
-//         assert(dragStartBehavior != null),
-//         assert(() {
-//           final bool haveVerticalDrag = onVerticalDragStart != null ||
-//               onVerticalDragUpdate != null ||
-//               onVerticalDragEnd != null;
-//           final bool haveHorizontalDrag = onHorizontalDragStart != null ||
-//               onHorizontalDragUpdate != null ||
-//               onHorizontalDragEnd != null;
-//           final bool havePan =
-//               onPanStart != null || onPanUpdate != null || onPanEnd != null;
-//           final bool haveScale = onScaleStart != null ||
-//               onScaleUpdate != null ||
-//               onScaleEnd != null;
-//           if (havePan || haveScale) {
-//             if (havePan && haveScale) {
-//               throw FlutterError.fromParts(<DiagnosticsNode>[
-//                 ErrorSummary('Incorrect GestureDetector arguments.'),
-//                 ErrorDescription(
-//                     'Having both a pan gesture recognizer and a scale gesture recognizer is redundant; scale is a superset of pan.'),
-//                 ErrorHint('Just use the scale gesture recognizer.')
-//               ]);
-//             }
-//             final String recognizer = havePan ? 'pan' : 'scale';
-//             if (haveVerticalDrag && haveHorizontalDrag) {
-//               throw FlutterError.fromParts(<DiagnosticsNode>[
-//                 ErrorSummary('Incorrect GestureDetector arguments.'),
-//                 ErrorDescription(
-//                     'Simultaneously having a vertical drag gesture recognizer, a horizontal drag gesture recognizer, and a $recognizer gesture recognizer '
-//                     'will result in the $recognizer gesture recognizer being ignored, since the other two will catch all drags.')
-//               ]);
-//             }
-//           }
-//           return true;
-//         }()),
-//         super(key: key);
-
-//   /// The widget below this widget in the tree.
-//   ///
-//   /// {@macro flutter.widgets.child}
-//   final Widget child;
-
-//   /// A pointer that might cause a tap with a primary button has contacted the
-//   /// screen at a particular location.
-//   ///
-//   /// This is called after a short timeout, even if the winning gesture has not
-//   /// yet been selected. If the tap gesture wins, [onTapUp] will be called,
-//   /// otherwise [onTapCancel] will be called.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureTapDownCallback onTapDown;
-
-//   /// A pointer that will trigger a tap with a primary button has stopped
-//   /// contacting the screen at a particular location.
-//   ///
-//   /// This triggers immediately before [onTap] in the case of the tap gesture
-//   /// winning. If the tap gesture did not win, [onTapCancel] is called instead.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureTapUpCallback onTapUp;
-
-//   /// A tap with a primary button has occurred.
-//   ///
-//   /// This triggers when the tap gesture wins. If the tap gesture did not win,
-//   /// [onTapCancel] is called instead.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   ///  * [onTapUp], which is called at the same time but includes details
-//   ///    regarding the pointer position.
-//   final GestureTapCallback onTap;
-
-//   /// The pointer that previously triggered [onTapDown] will not end up causing
-//   /// a tap.
-//   ///
-//   /// This is called after [onTapDown], and instead of [onTapUp] and [onTap], if
-//   /// the tap gesture did not win.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureTapCancelCallback onTapCancel;
-
-//   /// A pointer that might cause a tap with a secondary button has contacted the
-//   /// screen at a particular location.
-//   ///
-//   /// This is called after a short timeout, even if the winning gesture has not
-//   /// yet been selected. If the tap gesture wins, [onSecondaryTapUp] will be
-//   /// called, otherwise [onSecondaryTapCancel] will be called.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kSecondaryButton], the button this callback responds to.
-//   final GestureTapDownCallback onSecondaryTapDown;
-
-//   /// A pointer that will trigger a tap with a secondary button has stopped
-//   /// contacting the screen at a particular location.
-//   ///
-//   /// This triggers in the case of the tap gesture winning. If the tap gesture
-//   /// did not win, [onSecondaryTapCancel] is called instead.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kSecondaryButton], the button this callback responds to.
-//   final GestureTapUpCallback onSecondaryTapUp;
-
-//   /// The pointer that previously triggered [onSecondaryTapDown] will not end up
-//   /// causing a tap.
-//   ///
-//   /// This is called after [onSecondaryTapDown], and instead of
-//   /// [onSecondaryTapUp], if the tap gesture did not win.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kSecondaryButton], the button this callback responds to.
-//   final GestureTapCancelCallback onSecondaryTapCancel;
-
-//   /// The user has tapped the screen with a primary button at the same location
-//   /// twice in quick succession.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureTapCallback onDoubleTap;
-
-//   /// Called when a long press gesture with a primary button has been recognized.
-//   ///
-//   /// Triggered when a pointer has remained in contact with the screen at the
-//   /// same location for a long period of time.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   ///  * [onLongPressStart], which has the same timing but has gesture details.
-//   final GestureLongPressCallback onLongPress;
-
-//   /// Called when a long press gesture with a primary button has been recognized.
-//   ///
-//   /// Triggered when a pointer has remained in contact with the screen at the
-//   /// same location for a long period of time.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   ///  * [onLongPress], which has the same timing but without the gesture details.
-//   final GestureLongPressStartCallback onLongPressStart;
-
-//   /// A pointer has been drag-moved after a long press with a primary button.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureLongPressMoveUpdateCallback onLongPressMoveUpdate;
-
-//   /// A pointer that has triggered a long-press with a primary button has
-//   /// stopped contacting the screen.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   ///  * [onLongPressEnd], which has the same timing but has gesture details.
-//   final GestureLongPressUpCallback onLongPressUp;
-
-//   /// A pointer that has triggered a long-press with a primary button has
-//   /// stopped contacting the screen.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   ///  * [onLongPressUp], which has the same timing but without the gesture
-//   ///    details.
-//   final GestureLongPressEndCallback onLongPressEnd;
-
-//   /// A pointer has contacted the screen with a primary button and might begin
-//   /// to move vertically.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragDownCallback onVerticalDragDown;
-
-//   /// A pointer has contacted the screen with a primary button and has begun to
-//   /// move vertically.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragStartCallback onVerticalDragStart;
-
-//   /// A pointer that is in contact with the screen with a primary button and
-//   /// moving vertically has moved in the vertical direction.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragUpdateCallback onVerticalDragUpdate;
-
-//   /// A pointer that was previously in contact with the screen with a primary
-//   /// button and moving vertically is no longer in contact with the screen and
-//   /// was moving at a specific velocity when it stopped contacting the screen.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragEndCallback onVerticalDragEnd;
-
-//   /// The pointer that previously triggered [onVerticalDragDown] did not
-//   /// complete.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragCancelCallback onVerticalDragCancel;
-
-//   /// A pointer has contacted the screen with a primary button and might begin
-//   /// to move horizontally.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragDownCallback onHorizontalDragDown;
-
-//   /// A pointer has contacted the screen with a primary button and has begun to
-//   /// move horizontally.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragStartCallback onHorizontalDragStart;
-
-//   /// A pointer that is in contact with the screen with a primary button and
-//   /// moving horizontally has moved in the horizontal direction.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragUpdateCallback onHorizontalDragUpdate;
-
-//   /// A pointer that was previously in contact with the screen with a primary
-//   /// button and moving horizontally is no longer in contact with the screen and
-//   /// was moving at a specific velocity when it stopped contacting the screen.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragEndCallback onHorizontalDragEnd;
-
-//   /// The pointer that previously triggered [onHorizontalDragDown] did not
-//   /// complete.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragCancelCallback onHorizontalDragCancel;
-
-//   /// A pointer has contacted the screen with a primary button and might begin
-//   /// to move.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragDownCallback onPanDown;
-
-//   /// A pointer has contacted the screen with a primary button and has begun to
-//   /// move.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragStartCallback onPanStart;
-
-//   /// A pointer that is in contact with the screen with a primary button and
-//   /// moving has moved again.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragUpdateCallback onPanUpdate;
-
-//   /// A pointer that was previously in contact with the screen with a primary
-//   /// button and moving is no longer in contact with the screen and was moving
-//   /// at a specific velocity when it stopped contacting the screen.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragEndCallback onPanEnd;
-
-//   /// The pointer that previously triggered [onPanDown] did not complete.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [kPrimaryButton], the button this callback responds to.
-//   final GestureDragCancelCallback onPanCancel;
-
-//   /// The pointers in contact with the screen have established a focal point and
-//   /// initial scale of 1.0.
-//   final GestureScaleStartCallback onScaleStart;
-
-//   /// The pointers in contact with the screen have indicated a new focal point
-//   /// and/or scale.
-//   final GestureScaleUpdateCallback onScaleUpdate;
-
-//   /// The pointers are no longer in contact with the screen.
-//   final GestureScaleEndCallback onScaleEnd;
-
-//   /// The pointer is in contact with the screen and has pressed with sufficient
-//   /// force to initiate a force press. The amount of force is at least
-//   /// [ForcePressGestureRecognizer.startPressure].
-//   ///
-//   /// Note that this callback will only be fired on devices with pressure
-//   /// detecting screens.
-//   final GestureForcePressStartCallback onForcePressStart;
-
-//   /// The pointer is in contact with the screen and has pressed with the maximum
-//   /// force. The amount of force is at least
-//   /// [ForcePressGestureRecognizer.peakPressure].
-//   ///
-//   /// Note that this callback will only be fired on devices with pressure
-//   /// detecting screens.
-//   final GestureForcePressPeakCallback onForcePressPeak;
-
-//   /// A pointer is in contact with the screen, has previously passed the
-//   /// [ForcePressGestureRecognizer.startPressure] and is either moving on the
-//   /// plane of the screen, pressing the screen with varying forces or both
-//   /// simultaneously.
-//   ///
-//   /// Note that this callback will only be fired on devices with pressure
-//   /// detecting screens.
-//   final GestureForcePressUpdateCallback onForcePressUpdate;
-
-//   /// The pointer is no longer in contact with the screen.
-//   ///
-//   /// Note that this callback will only be fired on devices with pressure
-//   /// detecting screens.
-//   final GestureForcePressEndCallback onForcePressEnd;
-
-//   /// How this gesture detector should behave during hit testing.
-//   ///
-//   /// This defaults to [HitTestBehavior.deferToChild] if [child] is not null and
-//   /// [HitTestBehavior.translucent] if child is null.
-//   final HitTestBehavior behavior;
-
-//   /// Whether to exclude these gestures from the semantics tree. For
-//   /// example, the long-press gesture for showing a tooltip is
-//   /// excluded because the tooltip itself is included in the semantics
-//   /// tree directly and so having a gesture to show it would result in
-//   /// duplication of information.
-//   final bool excludeFromSemantics;
-
-//   /// Determines the way that drag start behavior is handled.
-//   ///
-//   /// If set to [DragStartBehavior.start], gesture drag behavior will
-//   /// begin upon the detection of a drag gesture. If set to
-//   /// [DragStartBehavior.down] it will begin when a down event is first detected.
-//   ///
-//   /// In general, setting this to [DragStartBehavior.start] will make drag
-//   /// animation smoother and setting it to [DragStartBehavior.down] will make
-//   /// drag behavior feel slightly more reactive.
-//   ///
-//   /// By default, the drag start behavior is [DragStartBehavior.start].
-//   ///
-//   /// Only the [onStart] callbacks for the [VerticalDragGestureRecognizer],
-//   /// [HorizontalDragGestureRecognizer] and [PanGestureRecognizer] are affected
-//   /// by this setting.
-//   ///
-//   /// See also:
-//   ///
-//   ///  * [DragGestureRecognizer.dragStartBehavior], which gives an example for the different behaviors.
-//   final DragStartBehavior dragStartBehavior;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final Map<Type, GestureRecognizerFactory> gestures =
-//         <Type, GestureRecognizerFactory>{};
-
-//     if (onTapDown != null ||
-//         onTapUp != null ||
-//         onTap != null ||
-//         onTapCancel != null ||
-//         onSecondaryTapDown != null ||
-//         onSecondaryTapUp != null ||
-//         onSecondaryTapCancel != null) {
-//       gestures[AllowMultipleGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<AllowMultipleGestureRecognizer>(
-//         () => AllowMultipleGestureRecognizer(debugOwner: this),
-//         (TapGestureRecognizer instance) {
-//           instance
-//             ..onTapDown = onTapDown
-//             ..onTapUp = onTapUp
-//             ..onTap = onTap
-//             ..onTapCancel = onTapCancel
-//             ..onSecondaryTapDown = onSecondaryTapDown
-//             ..onSecondaryTapUp = onSecondaryTapUp
-//             ..onSecondaryTapCancel = onSecondaryTapCancel;
-//         },
-//       );
-//     }
-
-//     if (onDoubleTap != null) {
-//       gestures[DoubleTapGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
-//         () => DoubleTapGestureRecognizer(debugOwner: this),
-//         (DoubleTapGestureRecognizer instance) {
-//           instance..onDoubleTap = onDoubleTap;
-//         },
-//       );
-//     }
-
-//     if (onLongPress != null ||
-//         onLongPressUp != null ||
-//         onLongPressStart != null ||
-//         onLongPressMoveUpdate != null ||
-//         onLongPressEnd != null) {
-//       gestures[LongPressGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
-//         () => LongPressGestureRecognizer(debugOwner: this),
-//         (LongPressGestureRecognizer instance) {
-//           instance
-//             ..onLongPress = onLongPress
-//             ..onLongPressStart = onLongPressStart
-//             ..onLongPressMoveUpdate = onLongPressMoveUpdate
-//             ..onLongPressEnd = onLongPressEnd
-//             ..onLongPressUp = onLongPressUp;
-//         },
-//       );
-//     }
-
-//     if (onVerticalDragDown != null ||
-//         onVerticalDragStart != null ||
-//         onVerticalDragUpdate != null ||
-//         onVerticalDragEnd != null ||
-//         onVerticalDragCancel != null) {
-//       gestures[VerticalDragGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<VerticalDragGestureRecognizer>(
-//         () => VerticalDragGestureRecognizer(debugOwner: this),
-//         (VerticalDragGestureRecognizer instance) {
-//           instance
-//             ..onDown = onVerticalDragDown
-//             ..onStart = onVerticalDragStart
-//             ..onUpdate = onVerticalDragUpdate
-//             ..onEnd = onVerticalDragEnd
-//             ..onCancel = onVerticalDragCancel
-//             ..dragStartBehavior = dragStartBehavior;
-//         },
-//       );
-//     }
-
-//     if (onHorizontalDragDown != null ||
-//         onHorizontalDragStart != null ||
-//         onHorizontalDragUpdate != null ||
-//         onHorizontalDragEnd != null ||
-//         onHorizontalDragCancel != null) {
-//       gestures[HorizontalDragGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
-//         () => HorizontalDragGestureRecognizer(debugOwner: this),
-//         (HorizontalDragGestureRecognizer instance) {
-//           instance
-//             ..onDown = onHorizontalDragDown
-//             ..onStart = onHorizontalDragStart
-//             ..onUpdate = onHorizontalDragUpdate
-//             ..onEnd = onHorizontalDragEnd
-//             ..onCancel = onHorizontalDragCancel
-//             ..dragStartBehavior = dragStartBehavior;
-//         },
-//       );
-//     }
-
-//     if (onPanDown != null ||
-//         onPanStart != null ||
-//         onPanUpdate != null ||
-//         onPanEnd != null ||
-//         onPanCancel != null) {
-//       gestures[PanGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
-//         () => PanGestureRecognizer(debugOwner: this),
-//         (PanGestureRecognizer instance) {
-//           instance
-//             ..onDown = onPanDown
-//             ..onStart = onPanStart
-//             ..onUpdate = onPanUpdate
-//             ..onEnd = onPanEnd
-//             ..onCancel = onPanCancel
-//             ..dragStartBehavior = dragStartBehavior;
-//         },
-//       );
-//     }
-
-//     if (onScaleStart != null || onScaleUpdate != null || onScaleEnd != null) {
-//       gestures[ScaleGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
-//         () => ScaleGestureRecognizer(debugOwner: this),
-//         (ScaleGestureRecognizer instance) {
-//           instance
-//             ..onStart = onScaleStart
-//             ..onUpdate = onScaleUpdate
-//             ..onEnd = onScaleEnd;
-//         },
-//       );
-//     }
-
-//     if (onForcePressStart != null ||
-//         onForcePressPeak != null ||
-//         onForcePressUpdate != null ||
-//         onForcePressEnd != null) {
-//       gestures[ForcePressGestureRecognizer] =
-//           GestureRecognizerFactoryWithHandlers<ForcePressGestureRecognizer>(
-//         () => ForcePressGestureRecognizer(debugOwner: this),
-//         (ForcePressGestureRecognizer instance) {
-//           instance
-//             ..onStart = onForcePressStart
-//             ..onPeak = onForcePressPeak
-//             ..onUpdate = onForcePressUpdate
-//             ..onEnd = onForcePressEnd;
-//         },
-//       );
-//     }
-
-//     return RawGestureDetector(
-//       gestures: gestures,
-//       behavior: behavior,
-//       excludeFromSemantics: excludeFromSemantics,
-//       child: child,
-//     );
-//   }
-
-//   @override
-//   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-//     super.debugFillProperties(properties);
-//     properties.add(
-//         EnumProperty<DragStartBehavior>('startBehavior', dragStartBehavior));
-//   }
-// }
-
-// class MultiGestureDetector extends StatelessWidget {
-//   final Widget child;
-//   final VoidCallback onTap;
-//   MultiGestureDetector({this.child, this.onTap});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return RawGestureDetector(
-//       child: child,
-//       gestures: {
-//         AllowMultipleGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-//             AllowMultipleGestureRecognizer>(
-//           () => AllowMultipleGestureRecognizer(),
-//           (AllowMultipleGestureRecognizer instance) {
-//             instance.onTap = onTap;
-//           },
-//         )
-//       },
-//     );
-//   }
-// }
-
-// class AllowMultipleGestureRecognizer extends TapGestureRecognizer {
-//   AllowMultipleGestureRecognizer({Object debugOwner})
-//       : super(debugOwner: debugOwner);
-
-//   @override
-//   void rejectGesture(int pointer) {
-//     try {
-//       acceptGesture(pointer);
-//     } catch (e) {
-//       super.rejectGesture(pointer);
-//     }
-//   }
-// }

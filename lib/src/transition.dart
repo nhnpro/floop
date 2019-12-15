@@ -25,7 +25,7 @@ double transitionOf(Object key) {
 
 /// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
 ///
-/// Intended to be invoked mainly from within Floop widgets [build]. Input
+/// Specially designed to be invoked from within Floop widgets [build]. Input
 /// parameters should remain constant on every rebuild.
 ///
 /// `durationMillis` must not be null.
@@ -45,8 +45,8 @@ double transitionOf(Object key) {
 /// Transitions can be referenced using the `key` or `tag` to apply operations
 /// to them through [Transitions] or retrieve the value with [transitionOf].
 ///
-/// `bindContext` binds the transitions to the context. It defaults to the
-/// [BuildContext] being built.
+/// `bindContext` binds the transitions to the context. Inside [build] methods
+/// it defaults to the [BuildContext] being built.
 ///
 /// Details:
 ///
@@ -159,9 +159,9 @@ double transition(
 /// Refer to [transition] for full description about the parameters.
 ///
 /// It is suggested to provide `bindContext`. Bound transitions are
-/// automatically deleted when the context unmounts. Otherwise (if not
-/// careful) unreferenced long or repeating transitions will keep running
-/// indefinitely in the background.
+/// automatically deleted when the context unmounts. Otherwise (if not careful)
+/// unreferenced long or repeating transitions will keep running indefinitely
+/// in the background until they are canceled with [Transition.cancelAll].
 ///
 /// Example:
 ///
@@ -210,12 +210,12 @@ Object transitionEval(
 }) {
   assert(() {
     if (ObservedController.isListening) {
-      print('Error: should not invoke [transitionEval] while a Floop Widget '
-          'is building. Use [transition]` instead.');
+      print('Error: should not invoke [transitionEval] while a Floop widget '
+          'is building. Use [transition] instead.');
       return false;
     }
     if (durationMillis == null || evaluate == null) {
-      print('Error: bad inputs for [transitionEval], durationMillis or '
+      print('Error: bad inputs for [transitionEval], durationMillis and '
           'evaluate cannot be null.');
       return false;
     }
@@ -339,32 +339,30 @@ abstract class Transitions {
     _refreshAll();
   }
 
-  /// Returns the measured frames per second of transitions. This value is
-  /// Floop dynamic.
+  /// Returns the frames per second read from a Floop dynamic value.
   ///
-  /// It targets the refresh rate in Herz of transitions with periodicity
-  /// `refreshPeriodicityMillis` if provided, otherwise it returns this value
-  /// for the default refresh periodicity. The default periodicity
-  /// should target [TransitionsConfig.refreshPeriodicityMillis].
+  /// It targets the refresh rate for transitions with periodicity
+  /// `refreshPeriodicityMillis` if provided, otherwise it returns it for the
+  /// default [TransitionsConfig.refreshPeriodicityMillis].
   ///
-  /// `null` is returned if no transitions have been created for the provided
-  /// refresh periodicity.
-  ///
-  /// Because the value is dyanamic it will automatically update a Floop widget
-  /// that retrieves it during its build.
+  /// Returns `null` if no transitions have been created for the periodicity.
   ///
   /// If the Flutter engine is not under stress, the refresh rate should be
   /// close to the inverse of the refresh periodicty. For example if the
-  /// periodicity is 50 milliseconds, the refreh rate should be 20 Hz.
-  static double currentRefreshRateAsDynamicValue(
-      [int refreshPeriodicityMillis]) {
+  /// periodicity is 50 milliseconds, the refreh rate should be around 20 Hz.
+  ///
+  /// See also:
+  ///  *
+  static double currentRefreshRateDynamic([int refreshPeriodicityMillis]) {
     return _SynchronousUpdater.getForPeriodicity(refreshPeriodicityMillis)
         ?.refreshRate;
   }
 
-  // static _resumePeriodicUpdates(_TransitionState t) {
-  //   // t.update();
-  // }
+  static currentRefreshRate([int refreshPeriodicityMillis]) {
+    _SynchronousUpdater._periodicityToUpdater[refreshPeriodicityMillis ?? 0]
+        ?._observedRefreshRate
+        ?.getSilently();
+  }
 
   /// Pauses transitions.
   ///
@@ -473,26 +471,25 @@ abstract class Transitions {
   }
 
   static _cancel(_Transition t) {
-    t.observedRatio.notifyChange();
     t.cancel();
   }
 }
 
 Iterable<_Transition> _filter(Object tag, BuildContext context) {
-  return _Registry.allTransitions()
-      .where((transitionState) => transitionState.matches(tag, context));
-  // Iterable<_Transition> transitions;
-  // if (tag != null && context != null) {
-  //   transitions = _Registry.getForContext(context)
-  //       ?.where((transitionState) => transitionState.tag == tag);
-  // } else if (tag != null) {
-  //   transitions = _Registry.getForTag(tag);
-  // } else if (context != null) {
-  //   transitions = _Registry.getForContext(context);
-  // } else {
-  //   transitions = _Registry.allTransitions();
-  // }
-  // return transitions ?? const [];
+  // return _Registry.allTransitions()
+  //     .where((transitionState) => transitionState.matches(tag, context));
+  Iterable<_Transition> transitions;
+  if (tag != null && context != null) {
+    transitions = _Registry.getForContext(context)
+        ?.where((transitionState) => transitionState.tag == tag);
+  } else if (tag != null) {
+    transitions = _Registry.getForTag(tag);
+  } else if (context != null) {
+    transitions = _Registry.getForContext(context);
+  } else {
+    transitions = _Registry.allTransitions();
+  }
+  return transitions ?? const [];
 }
 
 int _minDepth(int depth, Element element) {
@@ -515,14 +512,22 @@ Iterable<Element> _getAllChildElements(Iterable<Element> referenceElements) {
   final resultSet = referenceElements.toSet();
 
   final minAncestorDepth = referenceElements.fold(_largeInt, _minDepth);
-  var childrenCandidatesIterable = _Registry.allRegisteredContexts()
-      .cast<Element>()
-      .where((ele) => ele.depth > minAncestorDepth && !resultSet.contains(ele))
-      .toList()
-        ..sort(_sort)
-        ..reversed;
+  var childrenCandidatesIterable = (_Registry.allRegisteredContexts()
+          .cast<Element>()
+          .where(
+              (ele) => ele.depth > minAncestorDepth && !resultSet.contains(ele))
+          .toList()
+            ..sort(_sort))
+      .reversed;
+  assert(() {
+    childrenCandidatesIterable = childrenCandidatesIterable
+        .where((element) => (element as FloopElement).active);
+    return true;
+  }());
   final childrenCandidates = childrenCandidatesIterable.toSet();
   final visited = Set<Element>();
+
+  // Prevents Flutter assertion error.
 
   // Visits ancesostors and adds registered children to result.
   _visitAncestors(Element child) {
@@ -573,9 +578,8 @@ void _applyToAllChildContextTransitions(
   } else {
     transitions = _filter(tag, context);
   }
-  final elements = <Element>[
-    for (var t in transitions)
-      if (t.context != null && t.context.active) t.context as Element
+  var elements = <Element>[
+    for (var t in transitions) if (t.context != null) t.context as Element
   ];
   var childElements = _getAllChildElements(elements);
   childElements.forEach(_apply);
@@ -590,6 +594,8 @@ void _applyToTransitions(
       apply(_Registry.getForKey(key));
     }
   } else {
+    // final filtered = _filter(tag, context);
+    // print('Filtered transition legnth: ${filtered.length}');
     _filter(tag, context).forEach(apply);
   }
 }
@@ -718,16 +724,18 @@ class _SynchronousUpdater {
   /// The time used by the transitions to measure their progress.
   int _timeStep;
 
-  /// The synchronized clock time.
+  /// The synchronized clock time for this updater.
   ///
-  /// It is a multiple of the periodicity and it only updates after a new
-  /// frame has rendered.
+  /// It will only change after a new frame has been rendered.
   int get currentTimeStep {
     if (newFrameWasRendered()) {
       _timeStep = truncateTime(TransitionsConfig.referenceClock());
     }
     return _timeStep;
   }
+
+  int get nextUpdateMinWaitTime =>
+      periodicityMillis - (lastFrameUpdateTimeStamp - _lastUpdateTimeStamp);
 
   /// The target update time for the next update.
   ///
@@ -740,15 +748,16 @@ class _SynchronousUpdater {
   double get refreshRate => _observedRefreshRate.value;
   set refreshRate(double rate) => _observedRefreshRate.value = rate;
 
-  /// This time stamp is used to record whether or not an update callback is
-  /// queued before a new frame is rendered. If the app slows down, the updates
-  /// will slow down accordingly.
-  Duration _referenceTimeStamp;
+  /// Records the last Flutter frame time stamp when an update was performed.
+  int _lastUpdateTimeStamp = 0;
 
-  Duration get lastFrameUpdateTimeStamp =>
-      WidgetsBinding.instance.currentSystemFrameTimeStamp;
+  // Duration get lastUpdateTimeStamp => _lastUpdateTimeStamp;
 
-  bool newFrameWasRendered() => _referenceTimeStamp != lastFrameUpdateTimeStamp;
+  int get lastFrameUpdateTimeStamp =>
+      WidgetsBinding.instance.currentSystemFrameTimeStamp.inMilliseconds;
+
+  bool newFrameWasRendered() =>
+      _lastUpdateTimeStamp != lastFrameUpdateTimeStamp;
 
   /// Whether a future update is scheduled.
   ///
@@ -782,7 +791,7 @@ class _SynchronousUpdater {
   }
 
   _delayedUpdate() {
-    if (_referenceTimeStamp == lastFrameUpdateTimeStamp) {
+    if (_lastUpdateTimeStamp == lastFrameUpdateTimeStamp) {
       // Do not update yet if no new frame has been rendered since last update.
       // This will happen for small periodicities.
       WidgetsBinding.instance.scheduleFrameCallback(_updateCallback);
@@ -795,9 +804,10 @@ class _SynchronousUpdater {
   /// for Flutter to render a new frame. The second one in [_delayedUpdate]
   /// waits for the time remaining. This ensures that the refresh rate
   /// corresponds to the UI refresh rate.
-  _scheduleUpdate() {
-    _targetUpdateTime = _lastStopwatchTime + periodicityMillis;
-    _referenceTimeStamp = lastFrameUpdateTimeStamp;
+  _scheduleUpdate([int waitTime]) {
+    waitTime ??= nextUpdateMinWaitTime;
+    _targetUpdateTime = _lastStopwatchTime + waitTime;
+    _lastUpdateTimeStamp = lastFrameUpdateTimeStamp;
     final timeToNextUpdate = _targetUpdateTime - _lastStopwatchTime;
     Future.delayed(Duration(milliseconds: timeToNextUpdate), _delayedUpdate);
   }
@@ -815,7 +825,6 @@ class _SynchronousUpdater {
 
   _updateCallback([_]) {
     _targetUpdateTime = null;
-    _updateRefreshRateAndPlainTime();
     update();
   }
 
@@ -826,15 +835,17 @@ class _SynchronousUpdater {
     // print('updating transitions with periodicity $periodicityMillis[ms]');
     final transitions = _transitionsToUpdate;
     _transitionsToUpdate = Set();
-    assert(_transitionsToUpdate.isEmpty);
+    _updateRefreshRateAndPlainTime();
     try {
       // Disallow transitions from scheduling update callbacks
       lockUpdateScheduling = true;
       for (var transitionState in transitions) {
-        transitionState.update();
+        transitionState
+          // ..notifyChange()
+          ..update();
       }
       if (_transitionsToUpdate.isNotEmpty) {
-        _scheduleUpdate();
+        _scheduleUpdate(periodicityMillis);
       }
     } finally {
       lockUpdateScheduling = false;
@@ -850,11 +861,11 @@ enum _Status {
 
 class _Transition with FastHashCode {
   static cancelContextTransitions(BuildContext context) {
-    _Registry.unregisterContext(context)..forEach(_cancel);
+    _Registry.unregisterContext(context)..forEach(_disposeTransition);
   }
 
-  static _cancel(_Transition transitionState) {
-    transitionState.cancel();
+  static _disposeTransition(_Transition transitionState) {
+    transitionState.dispose();
   }
 
   /// Variables saved as storage for external use (avoids creating extra maps).
@@ -872,8 +883,11 @@ class _Transition with FastHashCode {
 
   final ObservedValue<double> observedRatio = ObservedValue(0);
 
-  double setProgressRatio(double ratio) => observedRatio.value = ratio;
-  double get lastSetValue => observedRatio.value;
+  double setProgressRatio(double ratio) =>
+      observedRatio.value = ratio; //observedRatio.setSilently(ratio);
+  double get lastSetProgressRatio => observedRatio.getSilently();
+
+  double get lastSetValue => observedRatio.value.clamp(0.0, 1.0);
 
   _Transition(
     this.key,
@@ -913,33 +927,44 @@ class _Transition with FastHashCode {
   /// when it finishes (reaches its max duration).
   bool get isPaused => _pauseTime != null;
 
+  bool get shouldDispose => !isActive && context == null;
+
   /// Whether this transition should keep updating periodically.
   bool get shouldKeepUpdating => isActive && !isPaused;
 
+  /// The updater time. It updates asynchronously.
   int get currentTimeStep => updater.currentTimeStep;
 
-  int get elapsedMillis {
-    var elapsed = (_pauseTime ?? lastUpdateTimeStep) + shiftedMillis;
-    if (repeatAfterMillis != null && elapsed > aggregatedDuration) {
-      if (repeatAfterMillis < 0) {
-        // If repeatAfterMillis is negative, the transition starts advanced,
-        // such that it always reaches its end value.
-        final duration = aggregatedDuration;
-        elapsed -= duration;
-        // Starting from the third cycle the repeat time needs to be added.
-        if (elapsed > duration) {
-          elapsed =
-              -repeatAfterMillis + elapsed % (duration + repeatAfterMillis);
-        }
-      } else {
-        elapsed %= aggregatedDuration + repeatAfterMillis;
+  int _repeatTime(int elapsed) {
+    if (repeatAfterMillis < 0) {
+      // If repeatAfterMillis is negative, the transition starts advanced,
+      // such that it always reaches its end value.
+      final duration = aggregatedDuration;
+      elapsed -= duration;
+      // Starting from the third cycle the repeat time needs to be added.
+      if (elapsed > duration) {
+        elapsed = -repeatAfterMillis + elapsed % (duration + repeatAfterMillis);
       }
+    } else {
+      elapsed %= aggregatedDuration + repeatAfterMillis;
     }
     return elapsed;
   }
 
-  double computeProgressRatio(int timeMillis) =>
-      ((timeMillis - delayMillis) / durationMillis).clamp(0, 1).toDouble();
+  int get elapsedMillis {
+    var elapsed = (_pauseTime ?? lastUpdateTimeStep) + shiftedMillis;
+    if (repeatAfterMillis != null && elapsed > aggregatedDuration) {
+      elapsed = _repeatTime(elapsed);
+    }
+    return elapsed;
+  }
+
+  /// Observed values are set silently, the synchronous updater should trigger
+  /// value change notifications using this method.
+  notifyChange() => observedRatio.notifyChange();
+
+  double computeAbsoluteProgressRatio(int timeMillis) =>
+      (timeMillis - delayMillis) / durationMillis;
 
   pause() {
     _pauseTime = lastUpdateTimeStep;
@@ -947,10 +972,12 @@ class _Transition with FastHashCode {
 
   resume() {
     if (isPaused) {
+      // print('pause time: $_pauseTime, current time: $currentTimeStep');
       shiftedMillis += _pauseTime - currentTimeStep;
       _pauseTime = null;
+      update();
+      // print('resuming time: $elapsedMillis ');
     }
-    _updateStatus();
   }
 
   reset() {
@@ -974,13 +1001,14 @@ class _Transition with FastHashCode {
   }
 
   cancel() {
-    updater.cancelScheduledUpdates(this);
+    notifyChange();
     dispose();
   }
 
   /// Invoked when the transition is not going to be used again.
   dispose() {
     assert(_status != _Status.defunct);
+    updater.cancelScheduledUpdates(this);
     observedRatio.dispose();
     _Registry.unregister(this);
     assert(() {
@@ -1003,37 +1031,35 @@ class _Transition with FastHashCode {
   }
 
   _updateStatus() {
-    if (elapsedMillis >= aggregatedDuration) {
-      if (isActive) {
-        _repeatOrDeactivate();
-      }
+    if (lastSetProgressRatio > 1) {
+      _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
     }
   }
 
   _scheduleNextUpdate() {
-    if (shouldKeepUpdating) {
-      updater.scheduleUpdate(this);
-    }
+    updater.scheduleUpdate(this);
   }
 
-  _updateValues() {
-    double ratio = computeProgressRatio(elapsedMillis);
+  _updateValue() {
+    double ratio = computeAbsoluteProgressRatio(elapsedMillis);
     setProgressRatio(ratio);
   }
 
-  /// Updates the transition state and returns the new progress ratio.
+  /// Updates the transition state.
   void update() {
     assert(_status != _Status.defunct);
-    if (!isActive && context == null) {
-      dispose();
-      return;
-    }
     lastUpdateTimeStep = currentTimeStep;
-    _scheduleNextUpdate();
+    _updateValue();
     _updateStatus();
-    _updateValues();
+    if (shouldDispose) {
+      dispose();
+    } else {
+      if (shouldKeepUpdating) {
+        _scheduleNextUpdate();
+      }
+    }
   }
 }
 
@@ -1042,15 +1068,9 @@ class _TransitionEval extends _Transition {
 
   double _value = 0;
   double get lastSetValue {
-    // Invoked to activate the dynamic value.
-    super.lastSetValue;
+    // Invoked to activate a dynamic value read.
+    observedRatio.notifyRead();
     return _value;
-  }
-
-  setProgressRatio(double ratio) {
-    super.setProgressRatio(ratio);
-    _value = evaluate(ratio);
-    return ratio;
   }
 
   _TransitionEval(
@@ -1064,6 +1084,12 @@ class _TransitionEval extends _Transition {
     FloopBuildContext context,
   ]) : super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
             repeatAfterMillis, tag, context);
+
+  setProgressRatio(double ratio) {
+    super.setProgressRatio(ratio);
+    _value = evaluate(ratio.clamp(0.0, 1.0));
+    return ratio;
+  }
 
   // @override
   // void update() {
