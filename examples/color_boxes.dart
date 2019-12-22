@@ -9,7 +9,7 @@ void main() {
 }
 
 class Dyn {
-  static final _dyn = ObservedMap();
+  static final _dyn = DynMap();
 
   static int get selectedBoxId => _dyn[#selectedBoxId];
   static set selectedBoxId(int id) => _dyn[#selectedBoxId] = id;

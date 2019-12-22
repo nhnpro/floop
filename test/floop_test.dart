@@ -22,7 +22,7 @@ class MockObservedListener extends Mock implements ObservedListener {
 }
 
 void subscribeKeyToListener(
-    ObservedMap observed, Object key, ObservedListener element) {
+    DynMap observed, Object key, ObservedListener element) {
   ObservedController.startListening(element);
   // observed[key] ??= UniqueKey();
   observed[key];
@@ -30,12 +30,12 @@ void subscribeKeyToListener(
 }
 
 void main() {
-  ObservedMap observedMap;
+  DynMap observedMap;
 
   setUp(() {
     ObservedController.debugReset();
     assert(ObservedController.debugSubscribedListenersCount == 0);
-    observedMap = ObservedMap();
+    observedMap = DynMap();
     observedMap.addAll({'tasks': tasks});
   });
 
@@ -45,7 +45,7 @@ void main() {
       expect(observedMap['tasks'], equals(tasks));
       expect(observedMap['tasks'][0]['id'], equals(1));
       expect(observedMap['tasks'], isList);
-      expect(observedMap['tasks'][1], isInstanceOf<ObservedMap>());
+      expect(observedMap['tasks'][1], isInstanceOf<DynMap>());
     });
 
     test('set operations', () {

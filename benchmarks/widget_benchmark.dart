@@ -64,7 +64,7 @@ void prepareAndRunBenchmarks(int numberOfReads, WidgetCreator createRefWidget,
 
   print('----Using ${ObservedController}----');
 
-  map = ObservedMap.of(map);
+  map = DynMap.of(map);
   element =
       createFloopWidget(createValueReader(map, numberOfReads)).createElement();
   var floopTime = runBenchmarkFunction(element);

@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'package:floop/src/flutter_import.dart';
+import 'package:meta/meta.dart';
 import 'package:floop/src/time.dart';
 
 import './controller.dart';
@@ -8,16 +8,16 @@ import './controller.dart';
 /// Dynamic values provider to widgets.
 ///
 /// Read values like reading from any [Map] within a widget's build method
-/// and the widget will automatically rebuild on changes to the values read.
+/// and the widget will automatically rebuild on changes to the values.
 ///
 /// See also:
 ///
-///  * [DynMap]
+///  * [DynValue] for a single dynamic value.
 final DynMap<Object, dynamic> floop = DynMap();
 
 /// An object that keeps a dynamic value.
 abstract class DynValue<V> implements Observed, ValueWrapper<V> {
-  factory DynValue.of([V initialValue]) => ObservedValue(initialValue);
+  factory DynValue([V initialValue]) => ObservedValue(initialValue);
 
   /// Sets the value without triggering updates to subscribed elements.
   setSilently(V newValue);
@@ -31,7 +31,10 @@ abstract class DynValue<V> implements Observed, ValueWrapper<V> {
 /// Retrieving values from a [DynMap] instance within a Floop widget's build
 /// method will trigger automatic rebuilds of the [BuildContext] on changes to
 /// any of the values retrieved.
-class DynMap<K, V> extends ObservedMap<K, V> {}
+class DynMap<K, V> extends ObservedMap<K, V> {
+  DynMap() : super();
+  DynMap.of(Map<K, V> map) : super.of(map);
+}
 
 class Observed = Object with ObservedNotifierMixin, FastHashCode;
 
@@ -170,17 +173,12 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
           .value;
     }
     return _keyToValue[key]?.value;
-    // final dyn = getDynValue(key);
-    // if (key == 0) {
-    //   print('retrieving value for $key, dyn: $dyn');
-    // }
-    // return dyn?.value;
   }
 
   /// Retrieved the underlying DynValue that keeps the value for the key.
   ///
-  /// This method is intended for internal use, but it is exposed for special
-  /// uses cases. `operator []` should suffice regular uses cases.
+  /// This method is intended for internal use. `operator []` should suffice
+  /// traditional uses cases.
   @protected
   DynValue<V> getDynValue(Object key) {
     return _keyToValue[key] ?? _unexistingKeyToNullValue[key];

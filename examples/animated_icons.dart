@@ -6,7 +6,7 @@ import 'package:floop/floop.dart';
 import 'constants.dart';
 
 // Create your own store from ObservedMap instead of using `floop` (it's the same)
-Map<String, dynamic> store = ObservedMap();
+Map<String, dynamic> store = DynMap();
 List<Repeater> repeaters = [];
 
 void main() {
