@@ -266,7 +266,7 @@ class StatefulElementFloop extends StatefulElement
 /// immutable annotation, since the [ObservedMap] requires to be written after
 /// a widget has been instantiated.
 class _ObservedMapWrapper {
-  ObservedMap map;
+  DynMap map;
 }
 
 /// A Floop widget that keeps a mutable [ObservedMap] instance that can be
@@ -293,7 +293,7 @@ abstract class DynamicWidget extends FloopWidget {
   ///
   /// It gets passed on to new [DynamicWidget] instances whenever the context
   /// rebuilds. Assume [dyn] is persistent on calls to [build].
-  ObservedMap get dyn => _dyn.map;
+  DynMap get dyn => _dyn.map;
 
   /// Invoked when the widget's [dyn] member is created.
   ///
@@ -325,7 +325,7 @@ abstract class DynamicWidget extends FloopWidget {
   }
 
   _init() {
-    _dyn.map = ObservedMap();
+    _dyn.map = DynMap();
     initDyn();
   }
 

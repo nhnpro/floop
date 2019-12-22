@@ -410,6 +410,17 @@ abstract class Transitions {
     }
   }
 
+  static reverse(
+      {Object tag,
+      Object key,
+      BuildContext context,
+      bool applyToChildContextsTransitions = false}) {
+    applyToTransitions(
+        _reverse, key, context, tag, applyToChildContextsTransitions);
+  }
+
+  static _reverse(_Transition t) => t.reverse();
+
   /// Restarts transitions as if they were just created.
   ///
   /// For restarting context transitions, [cancel] might be more suitable, since
@@ -466,7 +477,7 @@ abstract class Transitions {
     if (key == null && context == null) {
       cancelAll();
     } else {
-      _applyToTransitions(_cancel, key, context);
+      _applyToTransitions(_cancel, key, context, tag);
     }
   }
 
@@ -507,10 +518,9 @@ int _sort(Element a, Element b) {
   return 0;
 }
 
-Iterable<Element> _getAllChildElements(Iterable<Element> referenceElements) {
+Iterable<Element> _getAllChildElements(Set<Element> referenceElements) {
   // final referenceElements = [for (var t in transitions) t.context as Element];
-  final resultSet = referenceElements.toSet();
-
+  final resultSet = referenceElements;
   final minAncestorDepth = referenceElements.fold(_largeInt, _minDepth);
   var childrenCandidatesIterable = (_Registry.allRegisteredContexts()
           .cast<Element>()
@@ -520,6 +530,7 @@ Iterable<Element> _getAllChildElements(Iterable<Element> referenceElements) {
             ..sort(_sort))
       .reversed;
   assert(() {
+    // This is necessary to avoid Flutter assertion errors in debug mode.
     childrenCandidatesIterable = childrenCandidatesIterable
         .where((element) => (element as FloopElement).active);
     return true;
@@ -531,13 +542,13 @@ Iterable<Element> _getAllChildElements(Iterable<Element> referenceElements) {
 
   // Visits ancesostors and adds registered children to result.
   _visitAncestors(Element child) {
-    // if (!visitingTargets.contains(child)) {
-    //   return;
-    // }
     assert((child as FloopBuildContext).active);
     if (visited.contains(child)) {
       return;
     }
+    // if (!childrenCandidates.contains(child)) { TODO: check this condition, visited is no necessary
+    //   return;
+    // }
     visited.add(child);
     var candidates = <Element>[child];
     child.visitAncestorElements((ancestor) {
@@ -565,7 +576,7 @@ void _applyToAllChildContextTransitions(
     Function(_Transition) apply, Object key, BuildContext context,
     [Object tag]) {
   _apply(BuildContext branchContext) {
-    _applyToTransitions(apply, null, branchContext);
+    _Registry.getForContext(branchContext).forEach(apply);
   }
 
   Iterable<_Transition> transitions;
@@ -578,16 +589,14 @@ void _applyToAllChildContextTransitions(
   } else {
     transitions = _filter(tag, context);
   }
-  var elements = <Element>[
-    for (var t in transitions) if (t.context != null) t.context as Element
-  ];
+  var elements = Set<Element>.from(
+      [for (var t in transitions) if (t.context != null) t.context as Element]);
   var childElements = _getAllChildElements(elements);
   childElements.forEach(_apply);
 }
 
 void _applyToTransitions(
-    Function(_Transition) apply, Object key, BuildContext context,
-    [Object tag]) {
+    Function(_Transition) apply, Object key, BuildContext context, Object tag) {
   if (key != null) {
     final transitionState = _Registry.getForKey(key);
     if (transitionState != null && transitionState.matches(tag, context)) {
@@ -597,6 +606,16 @@ void _applyToTransitions(
     // final filtered = _filter(tag, context);
     // print('Filtered transition legnth: ${filtered.length}');
     _filter(tag, context).forEach(apply);
+  }
+}
+
+applyToTransitions(
+    Function(_Transition) apply, Object key, BuildContext context, Object tag,
+    [bool applyToChildContextsTransitions = false]) {
+  if (applyToChildContextsTransitions) {
+    _applyToAllChildContextTransitions(apply, key, context, tag);
+  } else {
+    _applyToTransitions(apply, key, context, tag);
   }
 }
 
@@ -883,9 +902,7 @@ class _Transition with FastHashCode {
 
   final ObservedValue<double> observedRatio = ObservedValue(0);
 
-  double setProgressRatio(double ratio) =>
-      observedRatio.value = ratio; //observedRatio.setSilently(ratio);
-  double get lastSetProgressRatio => observedRatio.getSilently();
+  double setProgressRatio(double ratio) => observedRatio.value = ratio;
 
   double get lastSetValue => observedRatio.value.clamp(0.0, 1.0);
 
@@ -903,11 +920,12 @@ class _Transition with FastHashCode {
             refreshPeriodicityMillis, true) {
     assert(
         repeatAfterMillis == null || repeatAfterMillis > -aggregatedDuration);
-    shiftedMillis = -currentTimeStep;
+    // shiftedMillis = -currentTimeStep;
     if (context != null && !_Registry.contextIsRegistered(context)) {
       context.addUnmountCallback(() => cancelContextTransitions(context));
     }
     _Registry.register(this);
+    lastUpdateTimeStep = currentTimeStep;
     updater.scheduleUpdate(this);
   }
 
@@ -915,7 +933,7 @@ class _Transition with FastHashCode {
       (refTag == null || tag == refTag) &&
       (refContext == null || context == refContext);
 
-  int shiftedMillis = 0;
+  int progressTime = 0;
   int _pauseTime;
 
   _Status _status = _Status.active;
@@ -925,7 +943,8 @@ class _Transition with FastHashCode {
 
   /// Pause is different from active, a transition only reaches inactive status
   /// when it finishes (reaches its max duration).
-  bool get isPaused => _pauseTime != null;
+  // bool get isPaused => _pauseTime != null;
+  bool get isPaused => _timeDirection % 2 == 0;
 
   bool get shouldDispose => !isActive && context == null;
 
@@ -937,14 +956,10 @@ class _Transition with FastHashCode {
 
   int _repeatTime(int elapsed) {
     if (repeatAfterMillis < 0) {
-      // If repeatAfterMillis is negative, the transition starts advanced,
-      // such that it always reaches its end value.
-      final duration = aggregatedDuration;
-      elapsed -= duration;
-      // Starting from the third cycle the repeat time needs to be added.
-      if (elapsed > duration) {
-        elapsed = -repeatAfterMillis + elapsed % (duration + repeatAfterMillis);
-      }
+      elapsed -= aggregatedDuration;
+      elapsed %= aggregatedDuration + repeatAfterMillis;
+      // The transition starts advanced, it always reaches its end value.
+      elapsed -= repeatAfterMillis;
     } else {
       elapsed %= aggregatedDuration + repeatAfterMillis;
     }
@@ -952,7 +967,8 @@ class _Transition with FastHashCode {
   }
 
   int get elapsedMillis {
-    var elapsed = (_pauseTime ?? lastUpdateTimeStep) + shiftedMillis;
+    // var elapsed = _pauseTime ?? progressTime;
+    var elapsed = progressTime;
     if (repeatAfterMillis != null && elapsed > aggregatedDuration) {
       elapsed = _repeatTime(elapsed);
     }
@@ -967,25 +983,38 @@ class _Transition with FastHashCode {
       (timeMillis - delayMillis) / durationMillis;
 
   pause() {
-    _pauseTime = lastUpdateTimeStep;
+    if (!isPaused) {
+      _timeDirection *= 2;
+    }
   }
 
   resume() {
     if (isPaused) {
-      // print('pause time: $_pauseTime, current time: $currentTimeStep');
-      shiftedMillis += _pauseTime - currentTimeStep;
-      _pauseTime = null;
-      update();
-      // print('resuming time: $elapsedMillis ');
+      // _pauseTime = null;
+      _timeDirection ~/= 2;
+      _forceUpdate(0);
     }
+  }
+
+  reverse([bool forceForward = false]) {
+    final prevTimeFactor = timeFactor;
+    if (forceForward) {
+      _timeDirection = _timeDirection.abs();
+    } else {
+      _timeDirection *= -1;
+    }
+    _forceUpdate(prevTimeFactor);
   }
 
   reset() {
     if (isPaused) {
-      _pauseTime = currentTimeStep;
+      _pauseTime = 0;
+      _timeDirection = 2;
+    } else {
+      _timeDirection = 1;
     }
-    shiftedMillis = -currentTimeStep;
-    update();
+    progressTime = 0;
+    _forceUpdate(0);
   }
 
   restart() {
@@ -996,7 +1025,13 @@ class _Transition with FastHashCode {
   shift(int shiftMillis) {
     // If shiftMillis is null, shift to total duration
     shiftMillis ??= aggregatedDuration - elapsedMillis;
-    shiftedMillis += shiftMillis;
+    progressTime += shiftMillis * timeDirection;
+    _forceUpdate(timeFactor);
+  }
+
+  _forceUpdate(int deltaTimeFactor) {
+    progressTime += (currentTimeStep - lastUpdateTimeStep) * deltaTimeFactor;
+    lastUpdateTimeStep = currentTimeStep;
     update();
   }
 
@@ -1031,7 +1066,11 @@ class _Transition with FastHashCode {
   }
 
   _updateStatus() {
-    if (lastSetProgressRatio > 1) {
+    final reversed = _timeDirection < 0;
+    final ratio = observedRatio.getSilently();
+    if (ratio > 1 && !reversed) {
+      _repeatOrDeactivate();
+    } else if (ratio < 0 && reversed) {
       _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
@@ -1042,6 +1081,21 @@ class _Transition with FastHashCode {
     updater.scheduleUpdate(this);
   }
 
+  /// Used to represent the time direction. If it is multiple of 2, then the
+  /// transition is paused.
+  int _timeDirection = 1;
+
+  int get timeDirection => _timeDirection.sign;
+
+  int get timeFactor => (_timeDirection % 2) * _timeDirection; //.clamp(-1, 1);
+
+  _updateTime() {
+    if (!isPaused) {
+      progressTime += (currentTimeStep - lastUpdateTimeStep) * timeDirection;
+    }
+    lastUpdateTimeStep = currentTimeStep;
+  }
+
   _updateValue() {
     double ratio = computeAbsoluteProgressRatio(elapsedMillis);
     setProgressRatio(ratio);
@@ -1050,15 +1104,13 @@ class _Transition with FastHashCode {
   /// Updates the transition state.
   void update() {
     assert(_status != _Status.defunct);
-    lastUpdateTimeStep = currentTimeStep;
+    _updateTime();
     _updateValue();
     _updateStatus();
     if (shouldDispose) {
       dispose();
-    } else {
-      if (shouldKeepUpdating) {
-        _scheduleNextUpdate();
-      }
+    } else if (shouldKeepUpdating) {
+      _scheduleNextUpdate();
     }
   }
 }
@@ -1068,7 +1120,7 @@ class _TransitionEval extends _Transition {
 
   double _value = 0;
   double get lastSetValue {
-    // Invoked to activate a dynamic value read.
+    // Invoke notifyRead as if is were a value read.
     observedRatio.notifyRead();
     return _value;
   }
@@ -1090,14 +1142,6 @@ class _TransitionEval extends _Transition {
     _value = evaluate(ratio.clamp(0.0, 1.0));
     return ratio;
   }
-
-  // @override
-  // void update() {
-  //   super.update();
-  //   if(isActive) {
-  //     _value = evaluate(super.lastSetValue);
-  //   }
-  // }
 }
 
 class _MultiKey extends LocalKey {

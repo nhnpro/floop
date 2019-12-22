@@ -2,8 +2,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:floop/floop.dart';
-import 'package:floop/transition.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -15,15 +13,15 @@ const growTag = 'circleGrowTag';
 
 const transientTag = 'transientTransitionsTag';
 
-const imageHeight = 200.0;
-const imageWidth = 300.0;
+const num imageHeight = 200;
+const num imageWidth = 300;
 
 const trashBin = TrashBin();
 
 ThemeData theme;
 
 class Dyn {
-  static final dyn = ObservedMap();
+  static final dyn = DynMap();
 
   // Static values.
 
@@ -35,8 +33,8 @@ class Dyn {
   static bool get trashBinActive => dyn[#trashBinActive] ??= false;
   static set trashBinActive(bool active) => dyn[#trashBinActive] = active;
 
-  static SpiralingWidget get dragWidget => dyn[#dragStartWidget];
-  static set dragWidget(SpiralingWidget widget) =>
+  static DragInteraction get dragWidget => dyn[#dragStartWidget];
+  static set dragWidget(DragInteraction widget) =>
       dyn[#dragStartWidget] = widget;
 
   static List<Widget> get spiralingWidgets =>
@@ -52,9 +50,6 @@ class Dyn {
 
   static ExpandInteraction get expandingWidget => dyn[#expandingKey];
   static set expandingWidget(ExpandInteraction key) => dyn[#expandingKey] = key;
-
-  // static Alignment get dragAlignment => dyn[#dragPosition];
-  // static set dragAlignment(Alignment position) => dyn[#dragPosition] = position;
 }
 
 void main() {
@@ -70,7 +65,7 @@ const tagsMap = {
   colorTag: 'Color',
   imageTag: 'Image',
   spiralTag: 'Spiral',
-  rotationTag: 'Rotation',
+  // rotationTag: 'Rotation',
 };
 
 nextTag() {
@@ -177,11 +172,9 @@ class ActionCanceler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: () {
-      if (Dyn.expandingWidget != null) {
-        Dyn.expandingWidget.contract();
-      }
-    });
+    return GestureDetector(
+      onTap: revertTransientTransitions,
+    );
   }
 }
 
@@ -313,7 +306,7 @@ class SpiralingWidget extends DynamicWidget {
   static const minSize = 10.0;
   static const growSize = 100.0;
 
-  static const largeSize = Size(imageWidth, imageHeight);
+  static Size largeSize = Size(imageWidth.toDouble(), imageHeight.toDouble());
 
   static Size referenceSize = Size(0, 0);
 
@@ -332,7 +325,7 @@ class SpiralingWidget extends DynamicWidget {
   // set spiralAlignment(Alignment spiral) => dyn[#spiralAlignment] = spiral;
 
   /// The key used to reference the move back animation.
-  Object get moveBackKey => 'moveBack$SpiralingWidget$key';
+  Object get returnKey => 'moveBack$SpiralingWidget$key';
 
   /// The key used to reference the delete animation.
   Object get deleteKey => 'delete$SpiralingWidget$key';
@@ -349,10 +342,10 @@ class SpiralingWidget extends DynamicWidget {
     return progressRatio;
   }
 
-  void moveBack() {
+  void returnAnimation() {
     Dyn.dragWidget = null;
     // A transition without context is deleted when it finishes.
-    transition(3000, key: moveBackKey);
+    transition(3000, key: returnKey);
   }
 
   delete(BuildContext context) {
@@ -363,7 +356,7 @@ class SpiralingWidget extends DynamicWidget {
   }
 
   Alignment computeCurrentAlignment(double progress) {
-    final moveBackProgress = transitionOf(moveBackKey);
+    final moveBackProgress = transitionOf(returnKey);
     final beeingDragged = Dyn.dragWidget?.key == key;
     Alignment alignment;
     if (moveBackProgress != null) {
@@ -384,64 +377,24 @@ class SpiralingWidget extends DynamicWidget {
     final currentAlignment = computeCurrentAlignment(t);
     final size = minSize + t * growSize;
     return Positioned.fill(
-      child: Align(
+      child: DragInteraction(
+        key: key,
         alignment: currentAlignment,
-        child: Opacity(
-          opacity: 1.0 - deleteProgress,
-          child: GestureDetector(
-            child: ExpandInteraction(
-              key: key,
-              child: child,
-              normalSize: Size(size, size),
-              extraSize: largeSize - Size(size, size),
-            ),
-            onDoubleTap: () => {
-              Transitions.resumeOrPause(
-                  context: context, applyToChildContextsTransitions: true),
-            },
-            onTap: () => {
-              Spiral.putWidgetOnTop(key),
-            },
-            // onLongPress: () => removeSpiralingWidget(key),
-            onLongPressUp: () {
-              // Transitions.cancel(key: dyn);
-            },
-            onPanDown: (details) {
-              Dyn.stackCanvasSize = context.size;
-              dragOffset = currentAlignment.alongSize(context.size);
-              dragAlignment = currentAlignment;
-              if (Dyn.expandingWidget?.key == key) {
-                Dyn.expandingWidget.contract();
-              }
-            },
-            onPanUpdate: (details) {
-              if (transitionOf(deleteKey) != null) {
-                // Widget being deleted.
-                return;
-              }
-              dragOffset += details.delta;
-              Transitions.cancel(key: moveBackKey);
-              Dyn.dragWidget = this;
-              // Keep updating referenceSize in case the app changes it's layout.
-              Dyn.stackCanvasSize = context.size;
-              final newAlignment = dragAlignment +
-                  offsetDeltaToAlignmentDelta(
-                      details.delta, Dyn.stackCanvasSize);
-              if (trashBin.alignmentWithinDeletionBounds(newAlignment)) {
-                trashBin.activate();
-              } else {
-                trashBin.deactivate();
-              }
-              dragAlignment = newAlignment;
-            },
-            onPanEnd: (_) {
-              if (trashBin.active) {
-                delete(context);
-              } else {
-                moveBack();
-              }
-            },
+        child: DefererGestureDetector(
+          child: ExpandInteraction(
+            key: key,
+            child: child,
+            normalSize: Size(size, size),
+            extraSize: largeSize - Size(size, size),
           ),
+          onDoubleTap: () => {
+            Transitions.resumeOrPause(
+                context: context, applyToChildContextsTransitions: true),
+          },
+          onTap: () => {
+            Spiral.putWidgetOnTop(key),
+          },
+          onPanCancel: () => Transitions.reverse(context: context),
         ),
       ),
     );
@@ -449,10 +402,8 @@ class SpiralingWidget extends DynamicWidget {
 }
 
 /// Defined to react on general widgets.
-revertTransientTransitions(Key key) {
-  if (Dyn.expandingWidget?.key == key) {
-    Dyn.expandingWidget.contract();
-  }
+revertTransientTransitions() {
+  Dyn.expandingWidget?.contract();
 }
 
 class DragInteraction extends DynamicWidget {
@@ -461,7 +412,7 @@ class DragInteraction extends DynamicWidget {
   final Widget child;
   final Alignment alignment;
 
-  DragInteraction({this.child, this.alignment});
+  DragInteraction({Key key, this.child, this.alignment}) : super(key: key);
 
   Alignment get dragAlignment => dyn[#dragAlignment];
   set dragAlignment(Alignment drag) => dyn[#dragAlignment] = drag;
@@ -471,8 +422,6 @@ class DragInteraction extends DynamicWidget {
 
   /// The key used to reference the delete animation.
   Object get deleteKey => 'delete$SpiralingWidget$key';
-
-  double get deleteProgress => transitionOf(deleteKey) ?? 0.0;
 
   /// The evaluation function used to trigger the widget delete operation once
   /// the delete transition finishes.
@@ -492,7 +441,7 @@ class DragInteraction extends DynamicWidget {
 
   delete(BuildContext context) {
     assert(trashBin.active);
-    // bindContext is provided to make the transition persists.
+    // bindContext is provided to cause the transition persists.
     transitionEval(1500, deleteEvaluate, key: deleteKey, bindContext: context);
     trashBin.deactivate();
   }
@@ -502,12 +451,12 @@ class DragInteraction extends DynamicWidget {
       // Widget being deleted.
       return;
     }
+    Dyn.dragWidget = this;
     Transitions.cancel(key: moveBackKey);
-    // Dyn.dragWidget = this;
     // Keep updating referenceSize in case the app changes it's layout.
     Dyn.stackCanvasSize = refereceContext.size;
     final newAlignment = dragAlignment +
-        offsetDeltaToAlignmentDelta(details.delta, Dyn.stackCanvasSize);
+        offsetDeltaToAlignmentDelta(details.delta, refereceContext.size);
     if (trashBin.alignmentWithinDeletionBounds(newAlignment)) {
       trashBin.activate();
     } else {
@@ -516,14 +465,15 @@ class DragInteraction extends DynamicWidget {
     dragAlignment = newAlignment;
   }
 
+  bool get beingDragged => Dyn.dragWidget?.key == key;
+
   Alignment interactiveAlignment() {
     final moveBackProgress = transitionOf(moveBackKey);
-    final beingDragged = Dyn.dragWidget?.key == key;
     Alignment resultAlignment;
     if (moveBackProgress != null) {
       resultAlignment =
           Alignment.lerp(dragAlignment, alignment, moveBackProgress);
-    } else if (beingDragged || deleteProgress == 0.0) {
+    } else if (beingDragged || transitionOf(deleteKey) != null) {
       resultAlignment = dragAlignment;
     }
     return resultAlignment;
@@ -532,24 +482,31 @@ class DragInteraction extends DynamicWidget {
   @override
   Widget build(BuildContext context) {
     final currentAlignment = interactiveAlignment() ?? alignment;
-    return Align(
-      alignment: currentAlignment,
-      child: DefererGestureDetector(
-        child: child,
-        onPanDown: (details) {
-          refereceContext = context;
-          Dyn.stackCanvasSize = context.size;
-          dragAlignment = currentAlignment;
-          revertTransientTransitions(key);
-        },
-        onPanUpdate: updateDragAlignment,
-        onPanEnd: (_) {
-          if (trashBin.active) {
-            delete(context);
-          } else {
-            moveBack();
-          }
-        },
+    return SizedBox.expand(
+      child: Align(
+        alignment: currentAlignment,
+        child: DefererGestureDetector(
+          child: Opacity(
+            opacity: 1 - (transitionOf(deleteKey) ?? 0.0),
+            child: child,
+          ),
+          onPanDown: (details) {
+            refereceContext = context;
+            Dyn.dragWidget = this;
+            Dyn.stackCanvasSize = context.size;
+            dragAlignment = currentAlignment;
+            revertTransientTransitions();
+          },
+          onPanCancel: () => Dyn.dragWidget = null,
+          onPanUpdate: updateDragAlignment,
+          onPanEnd: (_) {
+            if (trashBin.active) {
+              delete(context);
+            } else {
+              moveBack();
+            }
+          },
+        ),
       ),
     );
   }
@@ -616,55 +573,13 @@ class ExpandInteraction extends StatelessWidget with Floop {
         child: child,
         onTap: () {
           var expanding = Dyn.expandingWidget;
+          expanding?.contract();
           if (expanding?.sizeKey != sizeKey) {
             expand(context);
           }
-          expanding?.contract();
         },
       ),
     );
-  }
-}
-
-// class DragAndReturn extends DynamicWidget {
-//   final Widget child;
-
-//   DragAndReturn(this.child);
-
-//   Offset get position => dyn[#position];
-//   set position(Offset position) => dyn[#position];
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Positioned(
-
-//         child: GestureDetector(
-//       onPanStart: (DragStartDetails dragStartDetails) {
-//         // Transitions.clear(context: context);
-//         position = dragStartDetails.localPosition;
-//         // Transitions.cancel(key: circle.backKey);
-//         // circle.targetPosition = circle.position;
-//         // placeCircleLast(name);
-//         // Transitions.pause(key: goBackKey);
-//       },
-//       onPanUpdate: (drag) {
-//         // Transitions.pause(key: name + 'back');
-//         position += drag.delta;
-//       },
-//       onPanEnd: (_) {
-
-//       },
-//     ));
-//   }
-// }
-
-class Oscillators {
-  static triangle(double t) {
-    var r = t % 1;
-    if (r > 0.5) {
-      r = 1 - r;
-    }
-    return 2 * r;
   }
 }
 
@@ -737,6 +652,18 @@ class ImageCircle extends DynamicWidget {
 }
 
 class PlaybackOptions extends FloopWidget {
+  static const baseMiilis = 1;
+  static const maxMillis = 40;
+  static var _shiftMillis = baseMiilis;
+
+  static _shiftTime(_) {
+    Transitions.shiftTime(shiftMillis: _shiftMillis, tag: Dyn.activeTag);
+    _shiftMillis +=
+        (_shiftMillis + 1 * _shiftMillis.sign).clamp(-maxMillis, maxMillis);
+  }
+
+  static Repeater repeater = Repeater(_shiftTime, 50);
+
   Widget get titleWidget => Text('${tagAsName() ?? 'All'}');
 
   @override
@@ -769,14 +696,13 @@ class PlaybackOptions extends FloopWidget {
                 color: true ? Colors.red : Colors.indigoAccent),
             onTap: () =>
                 Transitions.shiftTime(shiftMillis: -1000, tag: Dyn.activeTag),
-            // onLongPress: () {
-            //   (store['speedDown'] as Repeater).start();
-            //   store['speedDownPressed'] = true;
-            // },
-            // onLongPressUp: () {
-            //   (store['speedDown'] as Repeater).stop();
-            //   store['speedDownPressed'] = false;
-            // },
+            onLongPress: () {
+              _shiftMillis = -baseMiilis;
+              repeater.start();
+            },
+            onLongPressUp: () {
+              repeater.stop();
+            },
           ),
         ),
         BottomNavigationBarItem(
@@ -788,6 +714,21 @@ class PlaybackOptions extends FloopWidget {
             ),
             onTap: () =>
                 Transitions.shiftTime(shiftMillis: 1000, tag: Dyn.activeTag),
+            onLongPress: () {
+              _shiftMillis = baseMiilis;
+              repeater.start();
+            },
+            onLongPressUp: () {
+              repeater.stop();
+            },
+          ),
+        ),
+        BottomNavigationBarItem(
+          title: titleWidget,
+          icon: IconButton(
+            icon: Icon(Icons.swap_horiz),
+            iconSize: 32,
+            onPressed: () => Transitions.reverse(tag: Dyn.activeTag),
           ),
         ),
         BottomNavigationBarItem(
@@ -805,8 +746,9 @@ class PlaybackOptions extends FloopWidget {
 
 var _fetchLocked = Set<Object>();
 
-Future<Uint8List> fetchAndUpdateImage(
-    [Object lockObject, String url = 'https://picsum.photos/300/200']) async {
+Future<Uint8List> fetchImage(
+    [Object lockObject,
+    String url = 'https://picsum.photos/${imageWidth}/${imageHeight}']) async {
   if (_fetchLocked.contains(lockObject)) {
     return null;
   }
@@ -821,15 +763,12 @@ Future<Uint8List> fetchAndUpdateImage(
   }
 }
 
-final emptyBytes = Uint8List.fromList([]);
-
 class RandomImage extends DynamicWidget {
   RandomImage();
 
-  initDyn() async {
+  initDyn() {
     // dyn member is persistant over rebuilds.
     dyn[#lockKey] = Object();
-    lastFetchedImageBytes = await fetchAndUpdateImage(lockKey);
     fetchAndLoadImage();
   }
 
@@ -851,7 +790,7 @@ class RandomImage extends DynamicWidget {
 
   fetchAndLoadImage() async {
     image = null;
-    final imageBytes = await fetchAndUpdateImage(lockKey);
+    final imageBytes = await fetchImage(lockKey);
     if (imageBytes != null) {
       lastFetchedImageBytes = imageBytes;
       loadImage();
@@ -862,20 +801,22 @@ class RandomImage extends DynamicWidget {
       2 *
       pi *
       transition(1000,
-          delayMillis: 5000, repeatAfterMillis: -2000, tag: rotationTag);
+          delayMillis: 5000, repeatAfterMillis: -2000, tag: imageTag);
 
   @override
   Widget build(BuildContext context) {
+    var t = transition(3000, tag: imageTag);
     return DefererGestureDetector(
       child: image == null
           ? null
           : Opacity(
-              opacity: transition(3000, tag: imageTag),
+              opacity: t,
               child: Transform.rotate(
                 child: image,
                 angle: rotationAngle,
               )),
       onLongPress: () async {
+        print('image time $t');
         await fetchAndLoadImage();
         Transitions.reset(context: context);
       },
@@ -888,21 +829,13 @@ Color randomColor() {
   return Color(Random().nextInt(1 << 32) | blend);
 }
 
-// const gestureToRecognizer = {
-//   Gesture.onTap: TapGestureRecognizer,
-//   Gesture.onDoubleTap: DoubleTapGestureRecognizer,
-//   Gesture.onLongPress: LongPressGestureRecognizer,
-//   Gesture.onLongPressUp: LongPressGestureRecognizer,
-//   Gesture.onPanDown: PanGestureRecognizer,
-//   Gesture.onPanEnd: PanGestureRecognizer,
-// };
-
 enum Gesture {
   onTap,
   onDoubleTap,
   onLongPress,
   onLongPressUp,
   onPanDown,
+  onPanCancel,
   onPanUpdate,
   onPanEnd,
 }
@@ -912,26 +845,30 @@ typedef GestureCallback = void Function(dynamic);
 /// Gesture detector that propagates the gesture to ancestor gesture detectors.
 class DefererGestureDetector extends GestureDetector {
   final Widget child;
-  final VoidCallback onTap;
-  final VoidCallback onDoubleTap;
-  final VoidCallback onLongPress;
-  final VoidCallback onLongPressUp;
-  final GestureCallback onPanDown;
-  final GestureCallback onPanUpdate;
-  final GestureCallback onPanEnd;
+
   DefererGestureDetector(
       {this.child,
-      this.onTap,
-      this.onDoubleTap,
-      this.onLongPress,
-      this.onLongPressUp,
-      this.onPanDown,
-      this.onPanUpdate,
-      this.onPanEnd});
+      onTap,
+      onDoubleTap,
+      onLongPress,
+      onLongPressUp,
+      onPanDown,
+      onPanCancel,
+      onPanUpdate,
+      onPanEnd})
+      : super(
+            child: child,
+            onTap: onTap,
+            onDoubleTap: onDoubleTap,
+            onLongPress: onLongPress,
+            onLongPressUp: onLongPressUp,
+            onPanDown: onPanDown,
+            onPanUpdate: onPanUpdate,
+            onPanEnd: onPanEnd,
+            onPanCancel: onPanCancel);
 
   static triggerGestureAction(GestureDetector gestureDetector, Gesture gesture,
       [details]) {
-    // GestureDetector gestureDetector = context.widget;
     switch (gesture) {
       case Gesture.onTap:
         if (gestureDetector.onTap != null) {
@@ -956,6 +893,11 @@ class DefererGestureDetector extends GestureDetector {
       case Gesture.onPanDown:
         if (gestureDetector.onPanDown != null) {
           gestureDetector.onPanDown(details);
+        }
+        break;
+      case Gesture.onPanCancel:
+        if (gestureDetector.onPanCancel != null) {
+          gestureDetector.onPanCancel();
         }
         break;
       case Gesture.onPanUpdate:
@@ -1007,6 +949,7 @@ class DefererGestureDetector extends GestureDetector {
       onLongPress: createGestureCallback(context, Gesture.onLongPress),
       onLongPressUp: createGestureCallback(context, Gesture.onLongPressUp),
       onPanDown: createGestureCallback(context, Gesture.onPanDown),
+      onPanCancel: createGestureCallback(context, Gesture.onPanCancel),
       onPanUpdate: createGestureCallback(context, Gesture.onPanUpdate),
       onPanEnd: createGestureCallback(context, Gesture.onPanEnd),
     );
