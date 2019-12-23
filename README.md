@@ -6,6 +6,7 @@ Animation API and dynamic values for Flutter widgets. Allows building interactiv
 
 - Add `with Floop` at the end of the widget class definition
 - Read any value from `floop` and the widget will reactively update on changes to the value
+
 **Extra step**:
 - Use `transition(ms)` within the build method to have a value transition from 0 to 1 in `ms` milliseconds.
 
@@ -49,7 +50,7 @@ Example:
 
 - Asynchronous operations like data fetching. Conditionally check `floop['myData'] == null ? LoadingWidget() : DisplayDataWidget(floop['myData'])`.
 
-- Perform simple animations.
+- Animate widgets.
 
 ## Install
 

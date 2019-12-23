@@ -1,3 +1,7 @@
+## [2.0.1] - 23/12/2019
+
+- Minor documentation changes.
+
 ## [2.0.0] - 23/12/2019
 
 - Improved and refactored the Transitions API.

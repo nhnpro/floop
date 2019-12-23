@@ -1,6 +1,5 @@
 name: example
 description: Example usage for Floop library.
-author: Ignacio Catalán <icata2016@gmail.com>
 homepage: https://github.com/icatalud/floop
 
 environment:
