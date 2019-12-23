@@ -1,7 +1,7 @@
 import 'dart:collection';
 
-import 'package:meta/meta.dart';
-import 'package:floop/src/time.dart';
+import './flutter_import.dart' show protected;
+import './time.dart';
 
 import './controller.dart';
 
@@ -26,7 +26,7 @@ abstract class DynValue<V> implements Observed, ValueWrapper<V> {
   getSilently();
 }
 
-/// A special [Map] implementation that provides dynamic values to widgets.
+/// A [Map] implementation that provides dynamic values to widgets.
 ///
 /// Retrieving values from a [DynMap] instance within a Floop widget's build
 /// method will trigger automatic rebuilds of the [BuildContext] on changes to
@@ -42,7 +42,7 @@ convert(value) {
   if (value is Observed) {
     return value;
   } else if (value is Map) {
-    return ObservedMap.of(value);
+    return DynMap.of(value);
   } else if (value is List) {
     return List.unmodifiable(value.map((v) => convert(v)));
   } else {

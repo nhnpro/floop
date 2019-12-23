@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:benchmark_harness/benchmark_harness.dart';
 import 'package:flutter/widgets.dart';
 
-import 'package:floop/floop.dart';
+import 'package:floop/src/observed.dart';
 import 'package:floop/src/controller.dart';
 
 typedef MapCreator = Map Function();
@@ -36,19 +36,20 @@ double benchmarkFunction(f,
   return avgTime;
 }
 
-addObservedSubscriptions(DynMap observed, [int numberOfKeys = 10]) {
+addObservedSubscriptions(ObservedMap observed, [int numberOfKeys = 10]) {
   numberOfKeys =
       numberOfKeys > observed.length ? observed.length : numberOfKeys;
   warmUpController(
       100, observed, observed.keys.toList().sublist(0, numberOfKeys));
 }
 
-void warmUpController(int numberOfElements, [DynMap readMap, Iterable keys]) {
+void warmUpController(int numberOfElements,
+    [ObservedMap readMap, Iterable keys]) {
   assert(() {
     ObservedController.debugReset();
     return true;
   }());
-  readMap = readMap != null ? readMap : DynMap.of(createMapWithValues(3));
+  readMap = readMap != null ? readMap : ObservedMap.of(createMapWithValues(3));
   keys = keys != null ? keys : readMap.keys;
   for (int i = 0; i < numberOfElements; i++) {
     ObservedController.startListening(MockListener());

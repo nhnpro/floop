@@ -1,10 +1,10 @@
 # Floop Examples
 
-The following example is recommended, it displays most features of the library:
+Recommended example, it displays the basic features of the library:
 
 - fetch_image.dart
 
-The rest of the examples from simplest to more sophisticated:
+The rest of the examples (from simplest to more sophisticated):
 
 - clicker.dart  (most basic)
 - icon_thumbnails.dart  (creates own store)
@@ -14,4 +14,5 @@ The rest of the examples from simplest to more sophisticated:
 - drag_circle.dart  (animated)
 - bouncing_number.dart (animated using transition)
 - animated_icons.dart  (animated using Repeater)
-- bubbles.dart (animated heavy on transitions)
+- bubbles.dart (animated heavy on transition)
+- spiral.dart (a polished example that uses most of the transitions API)

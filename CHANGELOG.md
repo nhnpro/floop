@@ -1,6 +1,10 @@
-## [1.1.1] - DATE HERE
+## [2.0.0] - 23/12/2019
 
+- Improved and refactored the Transitions API.
 - Major internal refactor of listening cycle, simplified and faster.
+- Change some API names.
+- DynMap is now the official map of dynamic values (ObservedMap is internal).
+- Added DynValue, a single dynamic value.
 
 ## [1.1.0] - 01/10/2019
 

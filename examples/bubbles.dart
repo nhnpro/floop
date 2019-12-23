@@ -204,6 +204,7 @@ transitionBack(CircleProperties circle, [bool delayed = false]) {
       circle.targetPosition = circle.basePosition;
       transitionBack(circle);
     }
+    return ratio;
   }, key: circle.backKey, delayMillis: delay);
 }
 

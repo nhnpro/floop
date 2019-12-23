@@ -5,11 +5,11 @@ import 'widget_benchmark.dart';
 /// required. On the root folder of a flutter project copy paste the
 /// floop/benchmark and use the following command:
 ///
-/// flutter run --release benchmark\benchmark.dart > benchmarks.txt
+/// flutter run --release benchmarks\benchmark.dart > benchmarks.txt
 ///
 /// Otherwise the benchmarks can be run by using:
 ///
-/// flutter test benchmark\benchmark.dart > benchmarks.txt
+/// flutter test benchmarks\benchmark.dart > benchmarks.txt
 
 void main() {
   print('Running app');

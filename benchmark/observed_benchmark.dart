@@ -1,4 +1,3 @@
-import 'package:floop/floop.dart';
 import 'package:floop/src/controller.dart';
 import 'package:floop/src/observed.dart';
 

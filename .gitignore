@@ -98,3 +98,8 @@ benchmarks/script.py
 playground.dart
 benchmarks/script.js
 dart32.exe
+/benchmark/script.py
+/benchmark/benchmark_misc.dart
+/benchmark/script.js
+/benchmark/pubspec.yaml
+_examples

@@ -110,11 +110,12 @@ double transition(
   final bool canCreate = (bindContext != null) || key != null;
   assert(() {
     if (durationMillis == null) {
-      print('Error: [transition] was invoked with `durationMillis` as null. '
+      debugPrint(
+          'Error: [transition] was invoked with `durationMillis` as null. '
           'To retrieve the value of a keyed transition, use [transitionOf].');
     }
     if (!canCreate && key == null) {
-      print('Error: When invoking [transition] outside a Floop widget\'s '
+      debugPrint('Error: When invoking [transition] outside a Floop widget\'s '
           'build method, the `key` parameter must be not null, otherwise the '
           'transition can have no effect outside of itself.\n'
           'See [transitionEval] to create transitions outside build methods. '
@@ -208,12 +209,13 @@ Object transitionEval(
 }) {
   assert(() {
     if (ObservedController.isListening) {
-      print('Error: should not invoke [transitionEval] while a Floop widget '
+      debugPrint(
+          'Error: should not invoke [transitionEval] while a Floop widget '
           'is building. Use [transition] instead.');
       return false;
     }
     if (durationMillis == null || evaluate == null) {
-      print('Error: bad inputs for [transitionEval], durationMillis and '
+      debugPrint('Error: bad inputs for [transitionEval], durationMillis and '
           'evaluate cannot be null.');
       return false;
     }
@@ -687,7 +689,7 @@ abstract class _Registry {
     assert(key != null);
     if (_keyToTransition.containsKey(key)) {
       assert(() {
-        print('Error: transitions API error, attempting to create a '
+        debugPrint('Error: transitions API error, attempting to create a '
             'transition that already exists.');
         return false;
       }());
@@ -758,7 +760,8 @@ class _SynchronousUpdater {
     // TransitionsConfig._initialize always checks to null. It was added
     // as a trick to initialize static values of the library.
     // _initialize is lazily evaluated the first iime it is referenced (here).
-    _timeStep = TransitionsConfig._initialize ?? currentTimeStep;
+    _timeStep = TransitionsConfig._initialize;
+    newTimeStep();
   }
 
   final int _periodicityMillis;
@@ -783,12 +786,16 @@ class _SynchronousUpdater {
   /// The time used by the transitions to measure their progress.
   int _timeStep;
 
+  void newTimeStep() {
+    _timeStep = truncateTime(TransitionsConfig.referenceClock());
+  }
+
   /// The synchronized clock time for this updater.
   ///
   /// It will only change after a new frame has been rendered.
   int get currentTimeStep {
     if (newFrameWasRendered()) {
-      _timeStep = truncateTime(TransitionsConfig.referenceClock());
+      newTimeStep();
     }
     return _timeStep;
   }
@@ -891,7 +898,6 @@ class _SynchronousUpdater {
 
   /// Updates the transitions and returns true if there are active transitions.
   update() {
-    // print('updating transitions with periodicity $periodicityMillis[ms]');
     final transitions = _transitionsToUpdate;
     _transitionsToUpdate = Set();
     _updateRefreshRateAndPlainTime();
@@ -899,9 +905,7 @@ class _SynchronousUpdater {
       // Disallow transitions from scheduling update callbacks
       lockUpdateScheduling = true;
       for (var transitionState in transitions) {
-        transitionState
-          // ..notifyChange()
-          ..update();
+        transitionState.update();
       }
       if (_transitionsToUpdate.isNotEmpty) {
         _scheduleUpdate(periodicityMillis);
@@ -940,11 +944,11 @@ class _Transition with FastHashCode {
 
   int get aggregatedDuration => durationMillis + delayMillis;
 
-  final DynValue<double> dynValue = DynValue(0);
+  final DynValue<double> dynRatio = DynValue(0);
 
-  double setProgressRatio(double ratio) => dynValue.value = ratio;
+  double setProgressRatio(double ratio) => dynRatio.value = ratio;
 
-  double get lastSetValue => dynValue.value.clamp(0.0, 1.0);
+  double get lastSetValue => dynRatio.value.clamp(0.0, 1.0);
 
   _Transition(
     this.key,
@@ -1101,7 +1105,7 @@ class _Transition with FastHashCode {
   }
 
   cancel() {
-    dynValue.notifyChange();
+    dynRatio.notifyChange();
     dispose();
   }
 
@@ -1109,7 +1113,7 @@ class _Transition with FastHashCode {
   dispose() {
     assert(_status != _Status.defunct);
     updater.cancelScheduledUpdates(this);
-    dynValue.dispose();
+    dynRatio.dispose();
     _Registry.unregister(this);
     assert(() {
       _status = _Status.defunct;
@@ -1131,10 +1135,10 @@ class _Transition with FastHashCode {
 
   _updateStatus() {
     final reversed = _timeDirection < 0;
-    final ratio = dynValue.getSilently();
-    if (ratio > 1 && !reversed) {
+    final ratio = dynRatio.getSilently();
+    if (ratio >= 1 && !reversed) {
       _repeatOrDeactivate();
-    } else if (ratio < 0 && reversed) {
+    } else if (ratio <= 0 && reversed) {
       _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
@@ -1186,7 +1190,7 @@ class _TransitionEval extends _Transition {
   double _value = 0;
   double get lastSetValue {
     // Invoke notifyRead as if is were a value read.
-    dynValue.notifyRead();
+    dynRatio.notifyRead();
     return _value;
   }
 
@@ -1202,10 +1206,9 @@ class _TransitionEval extends _Transition {
   ]) : super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
             repeatAfterMillis, tag, context);
 
-  setProgressRatio(double ratio) {
-    super.setProgressRatio(ratio);
-    _value = evaluate(ratio.clamp(0.0, 1.0));
-    return ratio;
+  update() {
+    super.update();
+    _value = evaluate(dynRatio.getSilently().clamp(0.0, 1.0));
   }
 }
 
@@ -1332,7 +1335,8 @@ Repeater transitionKeyValue<V>(
   assert(update != null);
   assert(() {
     if (update == null && V != dynamic && V != double && V != num) {
-      print('Error: Must provide update function as parameter for type $V.');
+      debugPrint(
+          'Error: Must provide update function as parameter for type $V.');
       return false;
     }
     return true;

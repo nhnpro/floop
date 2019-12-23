@@ -1,5 +1,4 @@
-import 'package:floop/src/flutter_import.dart' show debugPrint;
-import 'package:meta/meta.dart';
+import 'package:floop/src/flutter_import.dart' show protected, debugPrint;
 
 /// Interface required by [ObservedController] to notify changes in observeds.
 ///
