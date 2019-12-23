@@ -18,7 +18,7 @@ Example:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Text widget always displays the current value of #clicks
+      // Text widget always displays the current value of #clicks.
       body: Center(
         child: Opacity(
           opacity: transition(2000),
@@ -28,8 +28,9 @@ Example:
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
         onPressed: () {
-          // change #clicks from anywhere in the app (except build methods)
+          // Change #clicks from anywhere in the app (except build methods).
           floop[#clicks]++;
+          // Control transitions using [Trasitions] methods.
           Transitions.restart(context: context);
         }),
       ),
@@ -39,9 +40,9 @@ Example:
 ```
 
 **Other options**:
-- [DynamicWidget] is a convenient Floop widget that has it's own map of dynamic values accessed through [dyn].
+- [DynamicWidget] is a Floop widget that carries it's own __state__ in the form of a map of dynamic values.
 - `... extends StatelessWidget with Floop` is equivalent to `... extends FloopWidget`.
-- `...extends StatefulWidget with FloopStateful` or extend [FloopStatefulWidget] for stateful widgets.
+- `...extends StatefulWidget with FloopStateful` or extend `... extends FloopStatefulWidget` for stateful widgets.
 - Maps of dynamic values like `floop` can be instantiated using [DynMap].
 
 ## Suggested use cases
@@ -65,7 +66,7 @@ Run `flutter pub get` in the root directory of the project.
 
 ## <a name="transitions">Transitions and Animations</a>
 
-All floop widgets can be easily animated using [transition], which returns a [double] that will go from 0 to 1 in the specified time. Example:
+All floop widgets can be animated using [transition], which returns a [double] that will go from 0 to 1 in the specified time:
 
 ```dart
 @override
@@ -78,9 +79,11 @@ Widget build(BuildContext context) {
 }
 ```
 
-[Transitions] class offers a set of static methods to manipulate created transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc. This operations can be performed selectively by [BuildContext], key and/or tag of the transitions.
-
-**Disclaimer about animations** : The performance of animations has not been benchmarked against the regular Flutter animations. If someone creates a fully animated app using this library and compares its performance to an equivalent app using Flutter Animations, please message me.
+- Transitions of the same refresh periodicity are synchronized.
+- The [Transitions] class offers a set of static methods to control created transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc. These operations can be performed selectively by [BuildContext], key and/or tag.
+- [transitionOf] can be used to retrieve the value of a transition with a given key.
+- [transitionEval] receives an evalaute function as parameter which is used to compute the value on every update. [transitionEval] cannot be used inside build methods, they are intended to be used as responses to UI interactions. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
+- [TransitionsConfig] can be used to set default parameters.
 
 ## <a name="special">Special Considerations</a>
 
@@ -112,7 +115,7 @@ Dynamic values do not work inside [Builder] functions. A workaround is to read t
 Widget build(BuildContext context) {
   return Builder(
     builder: (context) => Opacity(
-      // Error, [transition] cannot be invoked outside a Floop widget's build.
+      // Error
       opacity: transition(3000),
       child: Container(
         // The widget will not update if floop[myText] changes.
@@ -126,7 +129,7 @@ The builder function is a callback that executes outside of the encompassing Flo
 
 ### Transitions and Keys in Stateless Widgets
 
-Use keys on widgets that invoke [transition] when the following conditions are met:
+Use keys on widgets that invoke [transition] when these conditions are met:
 
 - The widgets belong to the same array of children widgets `...children: [widget1, widget2,...],`
 - They have the same widget class
@@ -136,16 +139,16 @@ They are the same conditions when keys should be used on Stateful widgets.
 
 ## <a name="details">Details</a>
 
-### ObsevedMap
+### DynMap
 
 `floop` is an instance of [DynMap], which implements [Map]. Other instances can be created in the same way as any map is created, e.g: `Map<String, int> myDynInts  = DynMap()`.
 
-Widgets only subscribe to the keys **read during the last build**. This is consistent, if a key is not read during the last build, a change on it's value has no impact on the widget's build output.
+Widgets subscribe to the keys read during their last build.
 
 ### Maps and Lists
 
-[Map] and [List] values are not stored as they are when using `[]=` operator, but rather they get deep copied. Every [Map] gets copied as an [DynMap] instance, while lists get copied using [List.unmodifiable]. This behavior ensures that either the values cannot be changed or if they change, the changes will be detected to update elements accordingly.
-Maps and lists can still be stored as they are by using the method [DynMap.setValue]. It also receives optional parameter to prevent triggering updates.
+[Map] and [List] values are not stored as they are when using `[]=` operator, they get deep copied. Every [Map] gets copied as a [DynMap] instance, while lists get copied using [List.unmodifiable]. This behavior ensures that either the values cannot be changed or if they change, the changes will be detected to update elements accordingly.
+Maps and lists can still be stored as they are by using the method [DynMap.setValue]. This method also receives optional parameter to prevent triggering updates to widgets.
 
 ### Initializing and Disposing a Context
 
@@ -153,20 +156,20 @@ Maps and lists can still be stored as they are by using the method [DynMap.setVa
 
 [Floop.disposeContext] is invoked by an [BuildContext] instance when it's unmounted (removed from tree to never be used again).
 
-Those methods would be the equivalent of what [State.init] and [State.dispose] are. They can be overriden to initialize or dispose dynamic values.
+These methods are the equivalent to [State.init] and [State.dispose]. They can be overriden to initialize or dispose dynamic values.
 
 ## <a name="performance">Performance</a>
 
 Performance rules of thumb:
 
-- Including [Floop] on a widget is far less impactful than wrapping a widget with another widget as child.
+- Including [Floop] on a widget is less impactful than wrapping a widget with another widget.
 - Reading one value from `floop` inside a build method is like reading five [Map] values
 
-The only impact Floop has on a widget is to its build time, which does not go beyond x1.2 on minimal widgets (a container, a button and a text). On the other hand, wrapping a widget with another widget implies having to perform another build during the element's tree building phase, causing a net build impact time of about x2 for small widgets.
+The only impact Floop has on a widget is to its build time and it does not go beyond x1.2 on minimal widgets (a container, a button and a text).
 
-These build time increases can be considered as rough references when comparing reading data from a [DynMap] in Floop widgets, to reading the same data from a [LinkedHashMap] in widgets without Floop. Only integer numbers were used as keys and values. It was also assumed that the same context would access the same keys on every invocation to [StatelessWidget.build]. It's more expensive when there are different keys read, but that should be an uncommon case.
+These build time increases can be considered as rough references when comparing reading data from a [DynMap] in Floop widgets, to reading the same data from a [LinkedHashMap] in widgets without Floop. Only integer numbers were used as keys and values. It was also assumed that the same context would access the same keys on every invocation to [StatelessWidget.build]. It's more expensive when there are different keys read (that should be an uncommon case).
 
-On small Widgets (less than 10 lines in the build method), including Floop implies the following performance hits in build times:
+On small Widgets (less than 10 lines in the build method), including Floop implies these performance hits in build times:
 - x1.15 when 0 values are read.
 - x1.9 when up to 5 values are read.
 - x2.9 when up to 20 values are read.
@@ -176,16 +179,16 @@ On medium Widgets:
 - x1.6 when up to 5 values are read.
 - x2.5 when up to 20 values are read.
 
-The performance hit when reading from an [DynMap] in comparison to a regular [LinkedHashMap] is the following:
+[DynMap] performances in comparison to a regular [LinkedHashMap] are roughly:
+
+Reading:
 
 - x1.1 using the map like a regular map (outside build methods).
 - x3 while Floop is on 'listening' mode (when a Widget is building).
-- x5 considering the whole preprocessing (start listening) and post processing (stop listening), which means preparing to listen and commiting all the reads that were detected during the build of a widget.
+- x5 considering the whole preprocessing (start listening) and post processing (stop listening).
 
-Generally the performance hit increases slightly with the amount of data read, for example it's about x4.8 for 10^4 values and x5.5 for 10^5 values read.
-
-### Writing performance
-Writing to a [DynMap] has a performance hit of x1.6 in all circumstances, disregarding the extra time that takes Flutter to run [Element.markNeedsBuild] in case there are widgets subscribed to the key that changed it's value.
+Writing:
+- x1.6.
 
 ## Collaborate
 Write code, report bugs, give advice or ideas to improve the library.

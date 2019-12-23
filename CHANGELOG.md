@@ -1,3 +1,11 @@
+## [2.0.3] - 23/12/2019
+
+- Minor documentation changes.
+
+## [2.0.2] - 23/12/2019
+
+- Minor documentation changes.
+
 ## [2.0.1] - 23/12/2019
 
 - Minor documentation changes.
