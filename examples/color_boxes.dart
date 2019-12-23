@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:floop/floop.dart';
+import 'package:floop/transition.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -8,7 +9,7 @@ void main() {
 }
 
 class Dyn {
-  static final _dyn = ObservedMap();
+  static final _dyn = DynMap();
 
   static int get selectedBoxId => _dyn[#selectedBoxId];
   static set selectedBoxId(int id) => _dyn[#selectedBoxId] = id;
@@ -88,13 +89,15 @@ class ColorBox extends DynamicWidget {
   Widget build(BuildContext context) {
     return RaisedButton(
       child: Dyn.selectedBoxId == id
-          ? Text(
-              '$clicks',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 26,
-              ),
-            )
+          ? Opacity(
+              opacity: 1 - transition(2000, key: id),
+              child: Text(
+                '$clicks',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 26,
+                ),
+              ))
           : null,
       color: color,
       onPressed: () {
@@ -103,6 +106,7 @@ class ColorBox extends DynamicWidget {
         Dyn.useRepeatingWidgets ^= switchMode;
         Dyn.selectedBoxId = switchMode ? null : id;
         Dyn.totalClicks++;
+        Transitions.restart(key: id);
         // Note that [Dyn.widgets] is copied into a new list prior to
         // shuffling. This is because when [List] instances are stored in an
         // [ObservedMap], they are copied and stored as unmodifiable lists.
@@ -154,17 +158,20 @@ class ColorBoxState<ColorBoxStateful> extends State {
   Widget build(BuildContext context) {
     return RaisedButton(
       child: Dyn.selectedBoxId == id
-          ? Text(
-              '$clicks',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 26,
-              ),
-            )
+          ? Opacity(
+              opacity: 1 - transition(2000, key: id),
+              child: Text(
+                '$clicks',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 26,
+                ),
+              ))
           : null,
       color: color,
       onPressed: () {
         setState(() => clicks++);
+        Transitions.restart(key: id);
         Dyn.selectedBoxId = id;
         Dyn.totalClicks++;
         Dyn.widgets = Dyn.widgets.toList()..shuffle();

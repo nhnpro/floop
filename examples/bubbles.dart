@@ -63,7 +63,7 @@ class InteractiveCircle extends FloopWidget {
   Widget build(BuildContext context) {
     // print('building circle $name');
     int ms = min(5000, 500 * circle.count);
-    var x = transition(ms, key: name, refreshRateMillis: 100);
+    var x = transition(ms, key: name, refreshPeriodicityMillis: 100);
     var pos = circle.position; // reads floop map
     return Positioned(
       left: pos.dx,
@@ -97,15 +97,15 @@ class InteractiveCircle extends FloopWidget {
               circle.count = (circle.count + 1).clamp(0, 99);
               circle.baseColor = circle.color;
               circle.color = randomColor();
-              Transitions.clear(key: name);
+              Transitions.cancel(key: name);
               Transitions.resumeOrPause(key: circle.backKey);
             },
             onDoubleTap: () {
-              Transitions.clear(context: context);
+              Transitions.cancel(context: context);
             },
             onPanStart: (_) {
               // Transitions.clear(context: context);
-              Transitions.clear(key: circle.backKey);
+              Transitions.cancel(key: circle.backKey);
               circle.targetPosition = circle.position;
               placeCircleLast(name);
               // Transitions.pause(key: goBackKey);
@@ -117,8 +117,8 @@ class InteractiveCircle extends FloopWidget {
             onPanEnd: (_) => transitionBack(circle),
             onLongPress: () {
               removeCircle(name);
-              Transitions.clear(context: context);
-              Transitions.clear(key: circle.backKey);
+              Transitions.cancel(context: context);
+              Transitions.cancel(key: circle.backKey);
             }),
       ),
     );
@@ -143,19 +143,13 @@ class CircleProperties {
   Offset targetPosition;
 
   CircleProperties([double diameter = diameter])
-      : id = _ids,
-        name = 'circle$_ids',
+      : name = 'circle$_ids',
         backKey = 'circle${_ids}back0',
         _count = 'circle${_ids}count',
         _pos = 'circle${_ids}pos',
         _color = 'circle${_ids}color',
-        _diameter = diameter {
-    _ids++;
-    floop['circleWidgets'] = circleWidgets
-      ..add(InteractiveCircle(
-        this,
-        key: ValueKey(id),
-      ));
+        _diameter = diameter,
+        id = _ids++ {
     count = 0;
     color = Colors.white;
   }
@@ -165,7 +159,7 @@ class CircleProperties {
   int get count => floop[_count];
   set count(int val) => floop[_count] = val;
 
-  get position => floop[_pos];
+  Offset get position => floop[_pos];
   set position(Offset newPos) => floop[_pos] = newPos;
 
   Color get color => floop[_color];
@@ -190,11 +184,16 @@ spawnCircle(Offset offset, Size maxSpace) {
   circle.targetPosition = randomPosition(maxSpace.width, maxSpace.height);
   circle.baseColor = Colors.white;
 
+  floop['circleWidgets'] = circleWidgets
+    ..add(InteractiveCircle(
+      circle,
+      key: ValueKey(circle.id),
+    ));
   transitionBack(circle, true);
 }
 
 transitionBack(CircleProperties circle, [bool delayed = false]) {
-  Transitions.clear(key: circle.backKey);
+  Transitions.cancel(key: circle.backKey);
   int delay = delayed ? circle.delay : 0;
   circle.basePosition = circle.position;
   transitionEval(1000 * timeFactor, (ratio) {
@@ -205,6 +204,7 @@ transitionBack(CircleProperties circle, [bool delayed = false]) {
       circle.targetPosition = circle.basePosition;
       transitionBack(circle);
     }
+    return ratio;
   }, key: circle.backKey, delayMillis: delay);
 }
 

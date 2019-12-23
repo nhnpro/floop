@@ -76,7 +76,7 @@ class PhraseWidget extends FloopWidget {
       subtitle: Text(phrase.autor),
       onTap: () {
         // Transitions.restart(context: context);
-        Transitions.shift(shiftTimeMillis: 300, context: context);
+        Transitions.shiftTime(shiftMillis: 300, context: context);
       },
       onLongPress: () => Transitions.restart(context: context),
     );

@@ -31,14 +31,16 @@ class PerspectiveLayout extends StatelessWidget with Floop {
           ..rotateY(-0.01 * floop['offset'].dx), // changed,
         alignment: FractionalOffset.center,
         child: GestureDetector(
-          onPanStart: (_) => Transitions.clear(key: Key('resetOffset')),
+          onPanStart: (_) => Transitions.cancel(key: Key('resetOffset')),
           onPanUpdate: (details) => floop['offset'] += details.delta,
           onDoubleTap: () {
             var oldOffset = floop['offset'];
             transitionEval(
               3000,
-              (ratio) =>
-                  floop['offset'] = Offset.lerp(oldOffset, Offset.zero, ratio),
+              (ratio) {
+                floop['offset'] = Offset.lerp(oldOffset, Offset.zero, ratio);
+                return ratio;
+              },
               key: Key('resetOffset'),
             );
           },
@@ -58,13 +60,16 @@ class PerspectiveLayout extends StatelessWidget with Floop {
         child: Icon(Icons.add),
         onPressed: () {
           floop['clicks']++;
-          Transitions.clearAll();
+          Transitions.cancelAll();
           transitionEval(
             3000,
-            (x) => floop['rotate'] = Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateX(x * 2 * pi)
-              ..rotateY(x * 2 * pi),
+            (x) {
+              floop['rotate'] = Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateX(x * 2 * pi)
+                ..rotateY(x * 2 * pi);
+              return x;
+            },
             key: Key('rotate'),
           );
         },

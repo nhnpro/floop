@@ -1,0 +1,22 @@
+name: floop
+description: Dynamic values for widgets. Changes values from anywhere and affected widgets are updated automatically.
+version: 2.0.0
+homepage: https://github.com/icatalud/floop
+
+environment:
+  sdk: ">=2.3.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pedantic: ^1.0.0
+  mockito: ^4.1.0
+  benchmark_harness:
+  
+
+# For information on the generic Dart part of this file, see the
+# following page: https://www.dartlang.org/tools/pub/pubspec

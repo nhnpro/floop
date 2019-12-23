@@ -91,3 +91,15 @@ benchmarks/misc_benchmarks_not_include.dart
 
 *._dart
 temp
+__packages_old
+benchmarks/benchmark_misc.dart
+
+benchmarks/script.py
+playground.dart
+benchmarks/script.js
+dart32.exe
+/benchmark/script.py
+/benchmark/benchmark_misc.dart
+/benchmark/script.js
+/benchmark/pubspec.yaml
+_examples
