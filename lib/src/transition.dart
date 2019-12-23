@@ -148,19 +148,16 @@ double transition(
   return transitionState.lastSetValue;
 }
 
-/// Creates a transition that returns the evaluation of it's progress ratio by
-/// the function `evaluate`.
+/// Creates a transition with a value computed on every update by evaluating
+/// its progress ratio on `evaluate`. Returns the key.
 ///
 /// Should not be invoked from within a Floop widget's [build] method.
 ///
+/// If `key` is not provided, a unique key is generated.
+///
 /// `durationMillis` and `evaluate` must not be null.
 ///
-/// Refer to [transition] for full description about the parameters.
-///
-/// It is suggested to provide `bindContext`. Bound transitions are
-/// automatically deleted when the context unmounts. Otherwise (if not careful)
-/// unreferenced long or repeating transitions will keep running indefinitely
-/// in the background until they are canceled with [Transition.cancelAll].
+/// Refer to [transition] for a full description about the parameters.
 ///
 /// Example:
 ///
@@ -251,12 +248,12 @@ abstract class TransitionsConfig {
   /// Set to 1 to get the maximum possible refresh rate.
   static int get refreshPeriodicityMillis => _refreshPeriodicityMillis;
 
-  static set refreshPeriodicityMillis(int newPeriodicityMillis) {
-    assert(newPeriodicityMillis != null && newPeriodicityMillis > 0);
-    _refreshPeriodicityMillis = newPeriodicityMillis;
+  static set refreshPeriodicityMillis(int periodicityMillis) {
+    assert(periodicityMillis != null && periodicityMillis > 0);
+    _refreshPeriodicityMillis = periodicityMillis;
   }
 
-  /// The minimum size of time steps of transition updates.
+  /// The minimum size of time steps for transition updates.
   ///
   /// Defaults to the max granularity of one millisecond. It can be useful to
   /// set to bigger values to limit the transitions possible states. For
@@ -266,6 +263,11 @@ abstract class TransitionsConfig {
   static int timeGranularityMillis = 1;
 
   static MillisecondsReturner _referenceClock;
+
+  static int _defaultClock() {
+    final time = milliseconds();
+    return time - time % timeGranularityMillis;
+  }
 
   /// The clock used to measure the transitions progress.
   ///
@@ -306,11 +308,10 @@ abstract class TransitionsConfig {
   static void setDefaults() {
     refreshPeriodicityMillis = 20;
     timeGranularityMillis = 10;
-    referenceClock =
-        () => milliseconds() - milliseconds() % timeGranularityMillis;
+    referenceClock = _defaultClock;
   }
 
-  /// null var used as a hack to force initialization of config parameters.
+  /// value used as a trick to force initialization of config parameters.
   static final _initialize = () {
     TransitionsConfig.setDefaults();
     return null;
@@ -1318,8 +1319,6 @@ String transitionString(String string, int durationMillis,
           refreshPeriodicityMillis: refreshRateMillis,
           delayMillis: delayMillis,
           key: key));
-  //     .toInt();
-  // return string.substring(0, length);
 }
 
 /// Transitions the value of `key` in the provided `map`.

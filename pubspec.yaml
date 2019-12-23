@@ -1,6 +1,6 @@
 name: floop
 description: Animation API and dynamic values for widgets. Change values from anywhere and affected widgets are updated automatically. Animate any widget with one line of code.
-version: 2.0.1
+version: 2.0.3
 homepage: https://github.com/icatalud/floop
 
 environment:
