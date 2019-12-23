@@ -40,7 +40,7 @@ Example:
 ```
 
 **Other options**:
-- [DynamicWidget] is a Floop widget that carries it's own __state__ in the form of a map of dynamic values.
+- [DynamicWidget] is a Floop widget that carries it's own _state_ in the form of a map of dynamic values.
 - `... extends StatelessWidget with Floop` is equivalent to `... extends FloopWidget`.
 - `...extends StatefulWidget with FloopStateful` or extend `... extends FloopStatefulWidget` for stateful widgets.
 - Maps of dynamic values like `floop` can be instantiated using [DynMap].
@@ -82,7 +82,7 @@ Widget build(BuildContext context) {
 - Transitions of the same refresh periodicity are synchronized.
 - The [Transitions] class offers a set of static methods to control created transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc. These operations can be performed selectively by [BuildContext], key and/or tag.
 - [transitionOf] can be used to retrieve the value of a transition with a given key.
-- [transitionEval] receives an evalaute function as parameter which is used to compute the value on every update. [transitionEval] cannot be used inside build methods, they are intended to be used as responses to UI interactions. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
+- [transitionEval] receives an evalaute function as parameter which is used to compute the value on every update. It cannot be used inside build methods, they are intended to be used as responses to UI interactions. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
 - [TransitionsConfig] can be used to set default parameters.
 
 ## <a name="special">Special Considerations</a>
@@ -115,7 +115,7 @@ Dynamic values do not work inside [Builder] functions. A workaround is to read t
 Widget build(BuildContext context) {
   return Builder(
     builder: (context) => Opacity(
-      // Error
+      // Error.
       opacity: transition(3000),
       child: Container(
         // The widget will not update if floop[myText] changes.
@@ -129,13 +129,7 @@ The builder function is a callback that executes outside of the encompassing Flo
 
 ### Transitions and Keys in Stateless Widgets
 
-Use keys on widgets that invoke [transition] when these conditions are met:
-
-- The widgets belong to the same array of children widgets `...children: [widget1, widget2,...],`
-- They have the same widget class
-- The list of children is sometimes be reordered
-
-They are the same conditions when keys should be used on Stateful widgets.
+Use keys on widgets that invoke [transition] when the widgets belong to the same list of children widgets `...children: [widget1, widget2,...],` and this list can change. These are the same conditions when keys should be used on Stateful widgets.
 
 ## <a name="details">Details</a>
 
