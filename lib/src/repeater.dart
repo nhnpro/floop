@@ -1,4 +1,4 @@
-typedef RepeaterCallback = Function(Repeater);
+typedef RepeaterCallback = void Function(Repeater);
 
 /// A class for making asynchronous calls to a function with a certain frequency.
 class Repeater extends Stopwatch {

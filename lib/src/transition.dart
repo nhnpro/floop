@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:floop/src/time.dart';
 import 'package:floop/transition.dart';
+// import 'package:matcher/matcher.dart' as matcherPack;
+// import 'package:matcher/src/interfaces.dart';
 
 import './flutter_import.dart';
 import './controller.dart';
@@ -19,6 +21,19 @@ const _largeInt = 1 << 62 | 1 << 53 | (1 << 31) | (1 << 30);
 /// it exists, `null` otherwise.
 double transitionOf(Object key) {
   return _Registry.getForKey(key)?.lastSetValue;
+}
+
+enum TransitionType {
+  /// A standard transition. Everything specified in the documentation applies
+  /// to them.
+  standard,
+
+  /// Specifies that the transition cannot be controlled through Transitions
+  /// methods, except cancelled with [Transition.cancelAll].
+  ///
+  /// Intended to be used on transient aesthethics animations, which will never
+  /// be co
+  transient,
 }
 
 /// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
@@ -237,6 +252,25 @@ Object transitionEval(
   return key;
 }
 
+// abstract class TransitionDescription {
+//   BuildContext context;
+//   Object key;
+//   Object tag;
+// }
+
+// abstract class TransitionMatcher {
+//   TransitionMatcher();
+
+//   /// Does the matching of the actual vs expected values.
+//   ///
+//   /// [item] is the actual value. [matchState] can be supplied
+//   /// and may be used to add details about the mismatch that are too
+//   /// costly to determine in [describeMismatch].
+//   bool matches(_T, Map matchState) {
+
+//   }
+// }
+
 abstract class TransitionsConfig {
   static int _refreshPeriodicityMillis = 20;
 
@@ -323,13 +357,13 @@ enum ShiftType {
   current,
 
   /// Sets the transition to it's last starting time and then shifts the time.
-  /// If the current progress of the transition is prior to it's starting time,
-  /// then the behavior is equivalent to `current`.
+  /// If the current progress is prior to its starting time, then the behavior
+  /// is equivalent to `current`.
   begin,
 
   /// Sets the transition to it's next end time and then shifts the time.
-  /// If the current progress of the transition have exceeded it's end time,
-  /// then the behavior is equivalent to `current`.
+  /// If the current progress exceeded its end time, then the behavior is
+  /// equivalent to `current`.
   end,
 }
 
@@ -381,12 +415,15 @@ abstract class Transitions {
   ///
   /// `tag`, `key` and `context` can be specified to filter transitions.
   ///
+  /// Refer to [restart] for detailed documentation about filtering.
+  ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static pause(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     applyToTransitions(_pause, key, context, tag, applyToChildren);
   }
@@ -400,9 +437,10 @@ abstract class Transitions {
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static resume(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     applyToTransitions(_resume, key, context, tag, applyToChildren);
   }
@@ -418,9 +456,10 @@ abstract class Transitions {
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static resumeOrPause(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     applyToTransitions(_resumeOrPause, key, context, tag, applyToChildren);
   }
@@ -435,14 +474,16 @@ abstract class Transitions {
 
   /// Reverses the time progress of transitions.
   ///
-  /// `tag`, `key` and `context` can be specified to filter transitions.
+  /// `tag`, `key` and `context` can be specified to filter transitions. Null
+  /// represents any.
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static reverse(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     applyToTransitions(_reverse, key, context, tag, applyToChildren);
   }
@@ -453,14 +494,17 @@ abstract class Transitions {
   ///
   /// Restart is equivalent to applying [reset] and [resume].
   ///
-  /// `tag`, `key` and `context` can be specified to filter transitions.
+  /// `tag`, `key` and `context` can be specified to filter transitions. They
+  /// can be either a [Match] closure or a value. Passing a value produces the
+  /// same output as passing a [Match] closure that checks for equality.
+  ///
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static restart(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {tag = matchAnything,
+      key = matchAnything,
+      context = matchAnything,
       bool applyToChildren = false}) {
     applyToTransitions(_restart, key, context, tag, applyToChildren);
   }
@@ -474,9 +518,10 @@ abstract class Transitions {
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
   static reset(
-      {Object tag,
-      Object key,
-      BuildContext context,
+      {key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     applyToTransitions(_reset, key, context, tag, applyToChildren);
   }
@@ -491,10 +536,11 @@ abstract class Transitions {
   /// filtered transitions contexts and children context transitions.
   static shiftTime(
       {int shiftMillis,
-      Object tag,
-      Object key,
-      BuildContext context,
       ShiftType shiftType = ShiftType.current,
+      key = matchAnything,
+      tag = matchAnything,
+      context = matchAnything,
+      // bool inverseFiltering = false,
       bool applyToChildren = false}) {
     if (shiftType == ShiftType.begin) {
       applyToTransitions(_shiftBegin, key, context, tag, applyToChildren);
@@ -510,7 +556,7 @@ abstract class Transitions {
   static _shiftEnd(_Transition t) => t.shiftEnd();
   static _shiftBegin(_Transition t) => t.shiftBegin();
 
-  /// Clear all transitions. Equivalent to invoking `Transitions.cancel()`.
+  /// Deletes all transitions. Equivalent to invoking `Transitions.cancel()`.
   static cancelAll() => _Registry.allTransitions().toList().forEach(_cancel);
 
   /// Deletes transitions.
@@ -539,22 +585,169 @@ abstract class Transitions {
   }
 }
 
-Iterable<_Transition> _filter(Object tag, BuildContext context) {
-  // return _Registry.allTransitions()
-  //     .where((transitionState) => transitionState.matches(tag, context));
-  Iterable<_Transition> transitions;
-  if (tag != null && context != null) {
-    transitions = _Registry.getForContext(context)
-        ?.where((transitionState) => transitionState.tag == tag);
-  } else if (tag != null) {
-    transitions = _Registry.getForTag(tag);
-  } else if (context != null) {
-    transitions = _Registry.getForContext(context);
-  } else {
-    transitions = _Registry.allTransitions();
+/// An object that can be used to apply operations to group of transitions.
+class TransitionGroup {
+  final Object key;
+  final Object tag;
+  final BuildContext context;
+
+  /// Transitions of this group evaluate true when passed to `match`.
+  TransitionMatcher matcher;
+
+  /// Create an object that represents transitions that match the parameters.
+  ///
+  /// Any of the non null `key`, `tag` or `context` are matched by these group
+  /// transitions.
+  TransitionGroup(
+      {this.key, this.tag, this.context, this.matcher = matchAnything});
+
+  _apply(apply, bool applyToChildren) {
+    applyToTransitions(
+        Transitions._restart, key, context, tag, applyToChildren);
   }
-  return transitions?.toList() ?? const [];
+
+  resume({bool applyToChildren = false}) {
+    _apply(Transitions._resume, applyToChildren);
+  }
+
+  pause({bool applyToChildren = false}) {
+    _apply(Transitions._pause, applyToChildren);
+  }
+
+  /// Resumes paused and pauses active.
+  resumeOrPause({bool applyToChildren = false}) {
+    _apply(Transitions._resumeOrPause, applyToChildren);
+  }
+
+  /// Resumes the time direction.
+  reverse({bool applyToChildren = false}) {
+    _apply(Transitions._reverse, applyToChildren);
+  }
+
+  /// Equivalent to reset + resume.
+  restart({bool applyToChildren = false}) {
+    _apply(Transitions._restart, applyToChildren);
+  }
+
+  reset({bool applyToChildren = false}) {
+    _apply(Transitions._reset, applyToChildren);
+  }
+
+  /// Shifts the progress time by `shiftMillis`.
+  shiftTime(
+      {int shiftMillis,
+      ShiftType shiftType = ShiftType.current,
+      bool applyToChildren = false}) {
+    if (shiftType == ShiftType.begin) {
+      applyToTransitions(
+          Transitions._shiftBegin, key, context, tag, applyToChildren);
+    } else if (shiftType == ShiftType.end) {
+      applyToTransitions(
+          Transitions._shiftEnd, key, context, tag, applyToChildren);
+    }
+    if (shiftMillis != null) {
+      applyToTransitions((_Transition t) => t.shift(shiftMillis), key, context,
+          tag, applyToChildren);
+    }
+  }
+
+  /// Deletes the transitions.
+  ///
+  /// Particularly useful to cause a context to rebuild as if it was being
+  /// built for the first time.
+  cancel({bool applyToChildren = false}) {
+    _apply(Transitions._cancel, applyToChildren);
+  }
 }
+
+typedef Match = bool Function(dynamic);
+
+bool matchAnything(other) => true;
+
+// abstract class Matcher {
+//   bool matches(other);
+// }
+
+// class ReverseMatcher implements Matcher {
+//   final Matcher matcher;
+//   ReverseMatcher(this.matcher);
+//   bool matches(other) => !matcher.matches(other);
+// }
+
+// class MatchAnything implements Matcher {
+//   const MatchAnything();
+//   bool matches(other) => true;
+// }
+
+// const matchAnything = MatchAnything();
+
+// class EqualMatcher implements Matcher {
+//   final Object _expected;
+//   const EqualMatcher(this._expected);
+//   @override
+//   bool matches(item) => item == _expected;
+// }
+
+// Matcher _wrapMatcher(value, [bool reverseMatching = false]) {
+//   Matcher matcher = matchAnything;
+//   if (value != null && value is! Matcher) {
+//     value = EqualMatcher(value);
+//   }
+//   return matcher;
+// }
+
+// Match _convertToMatch(value) {
+//   Match match;
+//   if (value is! Match) {
+//     assert(value != matchAnything);
+//     match = (other) => value == other;
+//   } else {
+//     match = value;
+//   }
+//   return match;
+// }
+
+// _filterByMatcher(Iterable<_Transition> filterTargets, dynamic key, dynamic tag,
+//     dynamic context) {
+//   final keyMatch = _convertToMatch(key);
+//   final tagMatch = _convertToMatch(tag);
+//   final contextMatch = _convertToMatch(context);
+//   return filterTargets.where((transitionState) =>
+//       transitionState.matches(keyMatch, tagMatch, contextMatch));
+// }
+
+// Iterable<_Transition> _filter(tag, context, key,
+//     [bool inverseFiltering = false]) {
+//   Iterable<_Transition> transitions;
+//   if (key != null) {
+//     final transitionState = _Registry.getForKey(key);
+//     if (transitionState?.matches(
+//             matchAnything, _wrapMatcher(tag), _wrapMatcher(context)) ==
+//         true) {
+//       transitions = [transitionState];
+//     }
+//   } else if (tag != null && context != null) {
+//     transitions = _Registry.getForContext(context)
+//         ?.where((transitionState) => transitionState.tag == tag);
+//   } else if (tag != null) {
+//     transitions = _Registry.getForTag(tag);
+//   } else if (context != null) {
+//     transitions = _Registry.getForContext(context);
+//   } else {
+//     transitions = _Registry.allTransitions();
+//   }
+//   // Return.
+//   if (transitions != null) {
+//     if (inverseFiltering) {
+//       // Filter tagged.
+//       final referenceSet = transitions.toSet();
+//       transitions =
+//           _Registry.allTransitions().where((t) => !referenceSet.contains(t));
+//     }
+//     return transitions.toList();
+//   }
+//   return const [];
+// }
 
 int _minDepth(int depth, Element element) {
   if (element.depth < depth) {
@@ -571,7 +764,7 @@ int _sort(Element a, Element b) {
   return 0;
 }
 
-Iterable<Element> _getAllChildElements(Set<Element> referenceElements) {
+void _addChildElements(Set<Element> referenceElements) {
   final resultSet = referenceElements;
   final minAncestorDepth = referenceElements.fold(_largeInt, _minDepth);
   var childrenCandidatesIterable = (_Registry.allRegisteredContexts()
@@ -614,52 +807,99 @@ Iterable<Element> _getAllChildElements(Set<Element> referenceElements) {
   }
 
   childrenCandidatesIterable.forEach(_visitAncestors);
-  return resultSet;
 }
 
-void _applyToAllChildContextTransitions(
-    Function(_Transition) apply, Object key, BuildContext context,
-    [Object tag]) {
-  _apply(BuildContext branchContext) {
-    _Registry.getForContext(branchContext).forEach(apply);
-  }
+// void _applyToAllChildContextTransitions(
+//     Function(_Transition) apply, Object key, BuildContext context,
+//     [Object tag]) {
+//   _apply(BuildContext branchContext) {
+//     _Registry.getForContext(branchContext).forEach(apply);
+//   }
 
-  Iterable<_Transition> transitions;
-  if (key != null) {
-    final transitionState = _Registry.getForKey(key);
-    if (transitionState?.context != null &&
-        transitionState.matches(tag, context)) {
-      transitions = [transitionState];
-    }
-  } else {
-    transitions = _filter(tag, context);
-  }
-  var elements = Set<Element>.from(
+//   Iterable<_Transition> transitions;
+//   if (key != null) {
+//     final transitionState = _Registry.getForKey(key);
+//     if (transitionState?.context != null &&
+//         transitionState.matches(tag, context)) {
+//       transitions = [transitionState];
+//     }
+//   } else {
+//     transitions = _filter(tag, context);
+//   }
+//   var elements = Set<Element>.from(
+//       [for (var t in transitions) if (t.context != null) t.context as Element]);
+//   var childElements = _addChildElements(elements);
+//   childElements.forEach(_apply);
+// }
+
+// void _applyToTransitions(
+//     Function(_Transition) apply, Object key, BuildContext context, Object tag) {
+//   if (key != null) {
+//     final transitionState = _Registry.getForKey(key);
+//     if (transitionState != null && transitionState.matches(tag, context)) {
+//       apply(_Registry.getForKey(key));
+//     }
+//   } else {
+//     _filter(tag, context).forEach(apply);
+//   }
+// }
+
+Iterable<_Transition> _getContextAndDescendantContextTransitions(
+    Iterable<_Transition> transitions) {
+  final elements = Set<Element>.from(
       [for (var t in transitions) if (t.context != null) t.context as Element]);
-  var childElements = _getAllChildElements(elements);
-  childElements.forEach(_apply);
+  _addChildElements(elements);
+  var result = Iterable<_Transition>.empty();
+  for (var context in elements) {
+    result = result.followedBy(_Registry.getForContext(context));
+  }
+  return result;
 }
 
-void _applyToTransitions(
-    Function(_Transition) apply, Object key, BuildContext context, Object tag) {
+Iterable<_Transition> _preFilter(key, tag, context) {
+  Iterable<_Transition> filtered;
   if (key != null) {
     final transitionState = _Registry.getForKey(key);
-    if (transitionState != null && transitionState.matches(tag, context)) {
-      apply(_Registry.getForKey(key));
-    }
-  } else {
-    _filter(tag, context).forEach(apply);
+    filtered = transitionState.matches(tag, context) == true
+        ? [transitionState]
+        : const [];
   }
+  if (filtered == null) {
+    if (context != null) {
+      filtered = _Registry.getForContext(context)
+          ?.where((transitionState) => transitionState.tag == tag);
+    } else if (tag != null) {
+      filtered = _Registry.getForTag(tag);
+    }
+  }
+  return filtered ?? _Registry.allTransitions();
 }
+
+abstract class TransitionView {
+  Object get key;
+  Object get tag;
+  BuildContext get context;
+}
+
+typedef TransitionMatcher = bool Function(TransitionView);
+
+// matcher ??= (TransitionView view) =>
+//       (context == null || view.context == context) &&
+//       (tag == null || view.tag == tag);
 
 applyToTransitions(
-    Function(_Transition) apply, Object key, BuildContext context, Object tag,
-    [bool applyToChildren = false]) {
-  if (applyToChildren) {
-    _applyToAllChildContextTransitions(apply, key, context, tag);
-  } else {
-    _applyToTransitions(apply, key, context, tag);
+    Function(_Transition) apply, key, context, tag, bool applyToChildren,
+    [TransitionMatcher matcher]) {
+  Iterable<_Transition> filteredTransitions = _preFilter(key, tag, context);
+  if (matcher != null) {
+    filteredTransitions = filteredTransitions.where((t) => matcher(t));
   }
+  // _filterByMatcher(filteredTransitions, key, tag, context);
+  if (applyToChildren) {
+    filteredTransitions =
+        _getContextAndDescendantContextTransitions(filteredTransitions);
+  }
+  filteredTransitions.toList().forEach(apply);
 }
 
 Set<T> _createEmptySet<T>() => Set();
@@ -923,7 +1163,7 @@ enum _Status {
   defunct,
 }
 
-class _Transition with FastHashCode {
+class _Transition with FastHashCode implements TransitionView {
   static cancelContextTransitions(BuildContext context) {
     _Registry.unregisterContext(context)..forEach(_disposeTransition);
   }
@@ -1110,8 +1350,15 @@ class _Transition with FastHashCode {
     dispose();
   }
 
+  // _dispose() {
+
+  // }
+
   /// Invoked when the transition is not going to be used again.
   dispose() {
+    // A micro task is scheduled to avoid concurrent modification to iterables
+    // during the update process.
+    // scheduleMicrotask(_dispose);
     assert(_status != _Status.defunct);
     updater.cancelScheduledUpdates(this);
     dynRatio.dispose();
