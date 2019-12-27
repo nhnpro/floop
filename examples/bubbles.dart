@@ -41,7 +41,7 @@ class Bubbles extends StatelessWidget with Floop {
         floatingActionButton: FloatingActionButton(
             child: Icon(Icons.repeat),
             onPressed: () {
-              Transitions.resumeOrPause();
+              TransitionGroup().resumeOrPause();
             }),
       );
     });
@@ -97,28 +97,28 @@ class InteractiveCircle extends FloopWidget {
               circle.count = (circle.count + 1).clamp(0, 99);
               circle.baseColor = circle.color;
               circle.color = randomColor();
-              Transitions.cancel(key: name);
-              Transitions.resumeOrPause(key: circle.backKey);
+              TransitionGroup(key: name).cancel();
+              TransitionGroup(key: circle.backKey).resumeOrPause();
             },
             onDoubleTap: () {
-              Transitions.cancel(context: context);
+              TransitionGroup(context: context).cancel();
             },
             onPanStart: (_) {
-              // Transitions.clear(context: context);
-              Transitions.cancel(key: circle.backKey);
+              // TransitionGroup(context: context).clear();
+              TransitionGroup(key: circle.backKey).cancel();
               circle.targetPosition = circle.position;
               placeCircleLast(name);
-              // Transitions.pause(key: goBackKey);
+              // TransitionGroup(key: goBackKey).pause();
             },
             onPanUpdate: (drag) {
-              // Transitions.pause(key: name + 'back');
+              // TransitionGroup(key: name + 'back').pause();
               circle.position += drag.delta;
             },
             onPanEnd: (_) => transitionBack(circle),
             onLongPress: () {
               removeCircle(name);
-              Transitions.cancel(context: context);
-              Transitions.cancel(key: circle.backKey);
+              TransitionGroup(context: context).cancel();
+              TransitionGroup(key: circle.backKey).cancel();
             }),
       ),
     );
@@ -193,7 +193,7 @@ spawnCircle(Offset offset, Size maxSpace) {
 }
 
 transitionBack(CircleProperties circle, [bool delayed = false]) {
-  Transitions.cancel(key: circle.backKey);
+  TransitionGroup(key: circle.backKey).cancel();
   int delay = delayed ? circle.delay : 0;
   circle.basePosition = circle.position;
   transitionEval(1000 * timeFactor, (ratio) {

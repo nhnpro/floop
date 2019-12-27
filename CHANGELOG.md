@@ -1,3 +1,7 @@
+## [2.1.0] - 27/12/2019
+
+- Added TransitionGroup.
+
 ## [2.0.3] - 23/12/2019
 
 - Minor documentation changes.

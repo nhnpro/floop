@@ -39,27 +39,51 @@ enum TransitionType {
 /// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
 ///
 /// Specially designed to be invoked from within Floop widgets [build]. Input
-/// parameters should remain constant on every rebuild.
+/// parameters should be the same on every rebuild.
 ///
 /// `durationMillis` must not be null.
 ///
-/// `refreshPeriodicityMillis` is the periodicity at which the transition
-/// attempts to update it's progress.
+/// `refreshPeriodicityMillis` is the periodicity at which it attempts to
+/// update it's progress.
 ///
-/// The transition can start after a delay of `delayMillis`.
+/// It will start after a delay of `delayMillis`.
 ///
-/// If provided, the transition will repeat after `repeatAfterMillis`.
+/// If provided, it will repeat after `repeatAfterMillis`.
 ///
-/// A `key` uniquely identifies a transition. When invoked outside of a [build]
-/// method `key` must be specified.
+/// A `key` is a unique identifier. When invoked outside of a [build] method
+/// `key` must be specified. To retrieve the value of a transition using
+/// [transitionOf], `key` must be specified.
 ///
-/// `tag` can be specified to identify transitions non uniquely.
+/// `tag` is non unique identifier.
 ///
-/// Transitions can be referenced using the `key` or `tag` to apply operations
-/// to them through [Transitions] or retrieve the value with [transitionOf].
+/// Transitions can be referenced using the `key` or `tag` and control them
+/// with [TransitionGroup].
 ///
 /// `bindContext` binds the transitions to the context. Inside [build] methods
 /// it defaults to the [BuildContext] being built.
+///
+/// Example:
+///
+/// ```
+/// class MyWidget extends StatelessWidget with Floop {
+///   ...
+///
+///   @override
+///   Widget build(BuildContext context, MyButtonState state) {
+///     double t = transition(5000);
+///     return ...
+///         Text('T is at $t'),
+///         ...
+///         ...onPressed: () => TransitionGroup(context: context).restart(),
+///         ...
+///     ...
+///   }
+/// }
+/// ```
+///
+/// In the example above, `x` transitions from 0 to 1 in five seconds and when
+/// there is a click event the transition is restarted. The `Text` widget will
+/// always display the updated value.
 ///
 /// Details:
 ///
@@ -75,38 +99,15 @@ enum TransitionType {
 ///  * When `key` is not provided, transitions are identified by all other
 ///    input parameters. If any input parameter is different on a context
 ///    rebuild, a new transition will be created. Input parameters should
-///    not be changing on rebuilds or it will create infinite rebuild cycles.
+///    not change on rebuilds or it will create infinite rebuild cycles.
 ///
 ///  * This method does not work inside builders, like [LayoutBuilder], as
 ///    builders build outside of the encompassing [build] method. A workaround
 ///    is to use a `var t = transition(...)` in the body of the [build] method
 ///    and then reference the var from within the builder function.
 ///
-/// Example:
-///
-/// ```
-/// class MyWidget extends StatelessWidget with Floop {
-///   ...
-///
-///   @override
-///   Widget build(BuildContext context, MyButtonState state) {
-///     double t = transition(5000);
-///     return ...
-///         Text('T is at $t'),
-///         ...
-///         ...onPressed: () => Transitions.restart(context: context),
-///         ...
-///     ...
-///   }
-/// }
-/// ```
-///
-/// In the example above, `x` transitions from 0 to 1 in five seconds and when
-/// there is a click event the transition is restarted. The `Text` widget will
-/// always display the updated value.
-///
 /// See also:
-///  * [Transitions], an API to modify the ongoing transitions state.
+///  * [TransitionGroup], an API to modify the ongoing transitions state.
 ///  * [transitionEval] a more versatile function for creating transitions from
 ///    outside build methods.
 ///  * [transitionOf] to retrieve the value of ongoing transitions.
@@ -189,7 +190,7 @@ double transition(
 ///         ...
 ///         ...onPressed: () {
 ///              final clicks = _clicks++;
-///              Transitions.cancel(key: #key);
+///              TransitionGroup(key: #key).cancel();
 ///              transitionEval(5000, (r) => r * clicks, key: #key,
 ///                  bindContext: bindContext, repeatAfterMillis: 1000);
 ///              }
@@ -251,25 +252,6 @@ Object transitionEval(
   }
   return key;
 }
-
-// abstract class TransitionDescription {
-//   BuildContext context;
-//   Object key;
-//   Object tag;
-// }
-
-// abstract class TransitionMatcher {
-//   TransitionMatcher();
-
-//   /// Does the matching of the actual vs expected values.
-//   ///
-//   /// [item] is the actual value. [matchState] can be supplied
-//   /// and may be used to add details about the mismatch that are too
-//   /// costly to determine in [describeMismatch].
-//   bool matches(_T, Map matchState) {
-
-//   }
-// }
 
 abstract class TransitionsConfig {
   static int _refreshPeriodicityMillis = 20;
@@ -419,11 +401,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static pause(
-      {key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_pause, key, context, tag, applyToChildren);
   }
@@ -436,11 +418,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static resume(
-      {key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_resume, key, context, tag, applyToChildren);
   }
@@ -455,11 +437,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static resumeOrPause(
-      {key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_resumeOrPause, key, context, tag, applyToChildren);
   }
@@ -479,11 +461,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static reverse(
-      {key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_reverse, key, context, tag, applyToChildren);
   }
@@ -501,10 +483,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static restart(
-      {tag = matchAnything,
-      key = matchAnything,
-      context = matchAnything,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_restart, key, context, tag, applyToChildren);
   }
@@ -517,11 +500,11 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static reset(
-      {key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      {Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     applyToTransitions(_reset, key, context, tag, applyToChildren);
   }
@@ -534,13 +517,13 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static shiftTime(
       {int shiftMillis,
       ShiftType shiftType = ShiftType.current,
-      key = matchAnything,
-      tag = matchAnything,
-      context = matchAnything,
-      // bool inverseFiltering = false,
+      Object tag,
+      Object key,
+      BuildContext context,
       bool applyToChildren = false}) {
     if (shiftType == ShiftType.begin) {
       applyToTransitions(_shiftBegin, key, context, tag, applyToChildren);
@@ -556,7 +539,7 @@ abstract class Transitions {
   static _shiftEnd(_Transition t) => t.shiftEnd();
   static _shiftBegin(_Transition t) => t.shiftBegin();
 
-  /// Deletes all transitions. Equivalent to invoking `Transitions.cancel()`.
+  /// Deletes all transitions. Equivalent to `TransitionGroup().cancel()`.
   static cancelAll() => _Registry.allTransitions().toList().forEach(_cancel);
 
   /// Deletes transitions.
@@ -568,6 +551,7 @@ abstract class Transitions {
   ///
   /// If `applyToChildren` is set, the operation will be applied to all
   /// filtered transitions contexts and children context transitions.
+  @Deprecated('TransitionGroup should be used instead.')
   static cancel(
       {Object tag,
       Object key,
@@ -594,16 +578,22 @@ class TransitionGroup {
   /// Transitions of this group evaluate true when passed to `match`.
   TransitionMatcher matcher;
 
-  /// Create an object that represents transitions that match the parameters.
+  /// Create an object that represents transitions that match the parameters
+  /// and provides methods to control them.
   ///
-  /// Any of the non null `key`, `tag` or `context` are matched by these group
-  /// transitions.
-  TransitionGroup(
-      {this.key, this.tag, this.context, this.matcher = matchAnything});
+  /// Non null `key`, `tag` and/or `context` are matched.
+  ///
+  /// `matcher` can be provided for advanced filtering.
+  ///
+  /// Operations accept an `applyToChildren` parameter and if set the operation
+  /// is applied to all transitions that are bound to the context and child
+  /// contexts of the transitions from this group.
+  ///
+  /// A transition group with no parameters represents all transitions.
+  TransitionGroup({this.key, this.tag, this.context, this.matcher});
 
-  _apply(apply, bool applyToChildren) {
-    applyToTransitions(
-        Transitions._restart, key, context, tag, applyToChildren);
+  _apply(operation, bool applyToChildren) {
+    applyToTransitions(operation, key, context, tag, applyToChildren, matcher);
   }
 
   resume({bool applyToChildren = false}) {
@@ -639,15 +629,12 @@ class TransitionGroup {
       ShiftType shiftType = ShiftType.current,
       bool applyToChildren = false}) {
     if (shiftType == ShiftType.begin) {
-      applyToTransitions(
-          Transitions._shiftBegin, key, context, tag, applyToChildren);
+      _apply(Transitions._shiftBegin, applyToChildren);
     } else if (shiftType == ShiftType.end) {
-      applyToTransitions(
-          Transitions._shiftEnd, key, context, tag, applyToChildren);
+      _apply(Transitions._shiftEnd, applyToChildren);
     }
     if (shiftMillis != null) {
-      applyToTransitions((_Transition t) => t.shift(shiftMillis), key, context,
-          tag, applyToChildren);
+      _apply((_Transition t) => t.shift(shiftMillis), applyToChildren);
     }
   }
 
@@ -663,91 +650,6 @@ class TransitionGroup {
 typedef Match = bool Function(dynamic);
 
 bool matchAnything(other) => true;
-
-// abstract class Matcher {
-//   bool matches(other);
-// }
-
-// class ReverseMatcher implements Matcher {
-//   final Matcher matcher;
-//   ReverseMatcher(this.matcher);
-//   bool matches(other) => !matcher.matches(other);
-// }
-
-// class MatchAnything implements Matcher {
-//   const MatchAnything();
-//   bool matches(other) => true;
-// }
-
-// const matchAnything = MatchAnything();
-
-// class EqualMatcher implements Matcher {
-//   final Object _expected;
-//   const EqualMatcher(this._expected);
-//   @override
-//   bool matches(item) => item == _expected;
-// }
-
-// Matcher _wrapMatcher(value, [bool reverseMatching = false]) {
-//   Matcher matcher = matchAnything;
-//   if (value != null && value is! Matcher) {
-//     value = EqualMatcher(value);
-//   }
-//   return matcher;
-// }
-
-// Match _convertToMatch(value) {
-//   Match match;
-//   if (value is! Match) {
-//     assert(value != matchAnything);
-//     match = (other) => value == other;
-//   } else {
-//     match = value;
-//   }
-//   return match;
-// }
-
-// _filterByMatcher(Iterable<_Transition> filterTargets, dynamic key, dynamic tag,
-//     dynamic context) {
-//   final keyMatch = _convertToMatch(key);
-//   final tagMatch = _convertToMatch(tag);
-//   final contextMatch = _convertToMatch(context);
-//   return filterTargets.where((transitionState) =>
-//       transitionState.matches(keyMatch, tagMatch, contextMatch));
-// }
-
-// Iterable<_Transition> _filter(tag, context, key,
-//     [bool inverseFiltering = false]) {
-//   Iterable<_Transition> transitions;
-//   if (key != null) {
-//     final transitionState = _Registry.getForKey(key);
-//     if (transitionState?.matches(
-//             matchAnything, _wrapMatcher(tag), _wrapMatcher(context)) ==
-//         true) {
-//       transitions = [transitionState];
-//     }
-//   } else if (tag != null && context != null) {
-//     transitions = _Registry.getForContext(context)
-//         ?.where((transitionState) => transitionState.tag == tag);
-//   } else if (tag != null) {
-//     transitions = _Registry.getForTag(tag);
-//   } else if (context != null) {
-//     transitions = _Registry.getForContext(context);
-//   } else {
-//     transitions = _Registry.allTransitions();
-//   }
-//   // Return.
-//   if (transitions != null) {
-//     if (inverseFiltering) {
-//       // Filter tagged.
-//       final referenceSet = transitions.toSet();
-//       transitions =
-//           _Registry.allTransitions().where((t) => !referenceSet.contains(t));
-//     }
-//     return transitions.toList();
-//   }
-//   return const [];
-// }
 
 int _minDepth(int depth, Element element) {
   if (element.depth < depth) {
@@ -809,41 +711,6 @@ void _addChildElements(Set<Element> referenceElements) {
   childrenCandidatesIterable.forEach(_visitAncestors);
 }
 
-// void _applyToAllChildContextTransitions(
-//     Function(_Transition) apply, Object key, BuildContext context,
-//     [Object tag]) {
-//   _apply(BuildContext branchContext) {
-//     _Registry.getForContext(branchContext).forEach(apply);
-//   }
-
-//   Iterable<_Transition> transitions;
-//   if (key != null) {
-//     final transitionState = _Registry.getForKey(key);
-//     if (transitionState?.context != null &&
-//         transitionState.matches(tag, context)) {
-//       transitions = [transitionState];
-//     }
-//   } else {
-//     transitions = _filter(tag, context);
-//   }
-//   var elements = Set<Element>.from(
-//       [for (var t in transitions) if (t.context != null) t.context as Element]);
-//   var childElements = _addChildElements(elements);
-//   childElements.forEach(_apply);
-// }
-
-// void _applyToTransitions(
-//     Function(_Transition) apply, Object key, BuildContext context, Object tag) {
-//   if (key != null) {
-//     final transitionState = _Registry.getForKey(key);
-//     if (transitionState != null && transitionState.matches(tag, context)) {
-//       apply(_Registry.getForKey(key));
-//     }
-//   } else {
-//     _filter(tag, context).forEach(apply);
-//   }
-// }
-
 Iterable<_Transition> _getContextAndDescendantContextTransitions(
     Iterable<_Transition> transitions) {
   final elements = Set<Element>.from(
@@ -856,18 +723,18 @@ Iterable<_Transition> _getContextAndDescendantContextTransitions(
   return result;
 }
 
-Iterable<_Transition> _preFilter(key, tag, context) {
+Iterable<_Transition> _filter(key, tag, context) {
   Iterable<_Transition> filtered;
   if (key != null) {
     final transitionState = _Registry.getForKey(key);
-    filtered = transitionState.matches(tag, context) == true
+    filtered = transitionState?.matches(tag, context) == true
         ? [transitionState]
         : const [];
   }
   if (filtered == null) {
     if (context != null) {
       filtered = _Registry.getForContext(context)
-          ?.where((transitionState) => transitionState.tag == tag);
+          ?.where((transitionState) => transitionState.matches(tag, null));
     } else if (tag != null) {
       filtered = _Registry.getForTag(tag);
     }
@@ -883,18 +750,13 @@ abstract class TransitionView {
 
 typedef TransitionMatcher = bool Function(TransitionView);
 
-// matcher ??= (TransitionView view) =>
-//       (context == null || view.context == context) &&
-//       (tag == null || view.tag == tag);
-
-applyToTransitions(
-    Function(_Transition) apply, key, context, tag, bool applyToChildren,
+applyToTransitions(Function(_Transition) apply, Object key,
+    BuildContext context, Object tag, bool applyToChildren,
     [TransitionMatcher matcher]) {
-  Iterable<_Transition> filteredTransitions = _preFilter(key, tag, context);
+  Iterable<_Transition> filteredTransitions = _filter(key, tag, context);
   if (matcher != null) {
     filteredTransitions = filteredTransitions.where((t) => matcher(t));
   }
-  // _filterByMatcher(filteredTransitions, key, tag, context);
   if (applyToChildren) {
     filteredTransitions =
         _getContextAndDescendantContextTransitions(filteredTransitions);
@@ -1058,8 +920,6 @@ class _SynchronousUpdater {
   /// Records the last Flutter frame time stamp when an update was performed.
   int _lastUpdateTimeStamp = 0;
 
-  // Duration get lastUpdateTimeStamp => _lastUpdateTimeStamp;
-
   int get lastFrameUpdateTimeStamp =>
       WidgetsBinding.instance.currentSystemFrameTimeStamp.inMilliseconds;
 
@@ -1079,28 +939,25 @@ class _SynchronousUpdater {
 
   static const smoothFactor = 0.85;
 
-  static const _numberSamples = 50;
+  static const _numberSamples = 10;
   final _samples = List.filled(_numberSamples, milliseconds());
   var _sampleIndex = 0;
 
   _updateRefreshRateAndPlainTime() {
     final now = milliseconds();
-    // final newRefreshRate =
-    //     (oneSecondInMillis / (now - _lastStopwatchTime));
     _lastStopwatchTime = now;
-    final index = _sampleIndex++;
+    final index = _sampleIndex++ % _numberSamples;
     _samples[index] = now;
-    _sampleIndex %= _numberSamples;
+    final referenceIndex =
+        _sampleIndex > _numberSamples ? _sampleIndex % _numberSamples : 0;
     refreshRate =
-        1000 * _numberSamples / (_samples[index] - _samples[_sampleIndex]);
-    // refreshRate =
-    //     smoothFactor * refreshRate + (1 - smoothFactor) * newRefreshRate;
+        1000 * _numberSamples / (_samples[index] - _samples[referenceIndex]);
   }
 
   _delayedUpdate() {
     if (_lastUpdateTimeStamp == lastFrameUpdateTimeStamp) {
       // Do not update yet if no new frame has been rendered since last update.
-      // This will happen for small periodicities.
+      // This will happen when the framework is under stress.
       WidgetsBinding.instance.scheduleFrameCallback(_updateCallback);
     } else {
       _updateCallback();
@@ -1203,7 +1060,6 @@ class _Transition with FastHashCode implements TransitionView {
             refreshPeriodicityMillis, true) {
     assert(
         repeatAfterMillis == null || repeatAfterMillis > -aggregatedDuration);
-    // shiftedMillis = -currentTimeStep;
     if (context != null && !_Registry.contextIsRegistered(context)) {
       context.addUnmountCallback(() => cancelContextTransitions(context));
     }
@@ -1235,14 +1091,25 @@ class _Transition with FastHashCode implements TransitionView {
   /// The updater time. It updates asynchronously.
   int get currentTimeStep => updater.currentTimeStep;
 
+  int get cycleTime => aggregatedDuration + repeatAfterMillis + 1;
+
+  int get baseRepeatTime {
+    if (repeatAfterMillis != null &&
+        progressTime > aggregatedDuration &&
+        repeatAfterMillis < 0) {
+      return -repeatAfterMillis;
+    }
+    return 0;
+  }
+
   int _repeatTime(int elapsed) {
     if (repeatAfterMillis < 0) {
       elapsed -= aggregatedDuration;
-      elapsed %= aggregatedDuration + repeatAfterMillis;
-      // The transition starts advanced, it always reaches its end value.
+      elapsed %= cycleTime;
+      // The transition starts advanced, finishing right at its end time.
       elapsed -= repeatAfterMillis;
     } else {
-      elapsed %= aggregatedDuration + repeatAfterMillis;
+      elapsed %= cycleTime;
     }
     return elapsed;
   }
@@ -1297,7 +1164,7 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   _shiftBegin() {
-    int elapsed = elapsedMillis;
+    int elapsed = elapsedMillis - baseRepeatTime;
     if (elapsed > 0) {
       progressTime -= elapsed;
     }
@@ -1350,15 +1217,8 @@ class _Transition with FastHashCode implements TransitionView {
     dispose();
   }
 
-  // _dispose() {
-
-  // }
-
   /// Invoked when the transition is not going to be used again.
   dispose() {
-    // A micro task is scheduled to avoid concurrent modification to iterables
-    // during the update process.
-    // scheduleMicrotask(_dispose);
     assert(_status != _Status.defunct);
     updater.cancelScheduledUpdates(this);
     dynRatio.dispose();
@@ -1577,7 +1437,8 @@ String transitionString(String string, int durationMillis,
 /// subscribed widgets to auto rebuild while the transition lasts.
 Repeater transitionKeyValue<V>(
     Map<dynamic, V> map, Object key, int durationMillis,
-    {V update(double elapsedToDurationRatio), int refreshRateMillis = 20}) {
+    {V update(double elapsedToDurationRatio),
+    int refreshPeriodicityMillis = 20}) {
   assert(update != null);
   assert(() {
     if (update == null && V != dynamic && V != double && V != num) {
@@ -1591,5 +1452,5 @@ Repeater transitionKeyValue<V>(
   return Repeater.transition(durationMillis, (double ratio) {
     // var value = update(ratio);
     map[key] = update(ratio);
-  }, refreshRateMillis: refreshRateMillis);
+  }, refreshPeriodicityMillis: refreshPeriodicityMillis);
 }

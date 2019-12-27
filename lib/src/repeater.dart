@@ -13,21 +13,21 @@ class Repeater extends Stopwatch {
   /// Useful for transmitting information between callbacks.
   dynamic storage;
 
-  /// The frequency of the function calls when method `start` is called.
-  int frequencyMilliseconds;
+  /// The periodicity of the function calls when method `start` is called.
+  int periodicityMilliseconds;
 
   /// Maximum duration of the recurrent calls once this repeaters starts.
   int durationMilliseconds;
 
   Repeater(this.fn,
-      [this.frequencyMilliseconds = 50, this.durationMilliseconds]);
+      {this.periodicityMilliseconds = 50, this.durationMilliseconds});
 
   /// Creates a repeater that transitions a number from 0 to 1 inclusive,
   /// passing it as parameter to the function `evaluate` as the transition
   /// progresses.
   ///
   /// The transition lasts `durationMillis` milliseconds and updates with a
-  /// frequency of `refreshRateMillis` milliseconds.
+  /// periodicity of `refreshPeriodicityMillis` milliseconds.
   ///
   /// The number starts transitioning after `delayMillis` milliseconds, but
   /// the recurrent calls to `evaluate` start immediately (passing 0 until
@@ -37,7 +37,7 @@ class Repeater extends Stopwatch {
   /// finishes, passing the created repeater instance as parameter.
   factory Repeater.transition(
       int durationMillis, evaluate(double elapsedToDurationRatio),
-      {int refreshRateMillis = 20,
+      {int refreshPeriodicityMillis = 20,
       int delayMillis = 0,
       RepeaterCallback onFinish}) {
     callback(Repeater repeater) {
@@ -50,7 +50,9 @@ class Repeater extends Stopwatch {
       }
     }
 
-    return Repeater(callback, refreshRateMillis, durationMillis + delayMillis);
+    return Repeater(callback,
+        periodicityMilliseconds: refreshPeriodicityMillis,
+        durationMilliseconds: durationMillis + delayMillis);
   }
 
   /// Stops this [Repeater].
@@ -108,7 +110,7 @@ class Repeater extends Stopwatch {
   }
 
   _run() {
-    Future.delayed(Duration(milliseconds: frequencyMilliseconds), () {
+    Future.delayed(Duration(milliseconds: periodicityMilliseconds), () {
       assert(isLocked);
       if (super.isRunning) {
         if (durationMilliseconds != null &&

@@ -51,7 +51,7 @@ class Phrases extends StatelessWidget with Floop {
           // When setting a value of type [List] in `floop`, it always gets
           // copied, therefore `floop['phraseWidgets']` is never the same
           // object as `phraseWidgets`.
-          Transitions.restart();
+          TransitionGroup().restart();
           floop['phraseWidgets'] = phraseWidgets..shuffle();
         },
       ),
@@ -75,10 +75,11 @@ class PhraseWidget extends FloopWidget {
       ),
       subtitle: Text(phrase.autor),
       onTap: () {
-        // Transitions.restart(context: context);
-        Transitions.shiftTime(shiftMillis: 300, context: context);
+        TransitionGroup(context: context).shiftTime(
+          shiftMillis: 300,
+        );
       },
-      onLongPress: () => Transitions.restart(context: context),
+      onLongPress: () => TransitionGroup(context: context).restart(),
     );
   }
 }

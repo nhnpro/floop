@@ -106,7 +106,7 @@ class ColorBox extends DynamicWidget {
         Dyn.useRepeatingWidgets ^= switchMode;
         Dyn.selectedBoxId = switchMode ? null : id;
         Dyn.totalClicks++;
-        Transitions.restart(key: id);
+        TransitionGroup(key: id).restart();
         // Note that [Dyn.widgets] is copied into a new list prior to
         // shuffling. This is because when [List] instances are stored in an
         // [ObservedMap], they are copied and stored as unmodifiable lists.
@@ -171,7 +171,7 @@ class ColorBoxState<ColorBoxStateful> extends State {
       color: color,
       onPressed: () {
         setState(() => clicks++);
-        Transitions.restart(key: id);
+        TransitionGroup(key: id).restart();
         Dyn.selectedBoxId = id;
         Dyn.totalClicks++;
         Dyn.widgets = Dyn.widgets.toList()..shuffle();

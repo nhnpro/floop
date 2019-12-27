@@ -9,5 +9,6 @@ export './src/transition.dart'
         transition,
         transitionEval,
         transitionOf,
+        TransitionGroup,
         Transitions,
         TransitionsConfig;

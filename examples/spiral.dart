@@ -22,7 +22,7 @@ class Dyn {
   static set spiralingWidgets(List<Widget> updatedList) =>
       dyn[#spiralImages] = updatedList;
 
-  static AnimationTag get activeTag => dyn[#activeTag];
+  static AnimationTag get activeTag => dyn[#activeTag] ??= AnimationTag.all;
   static set activeTag(AnimationTag tag) => dyn[#activeTag] = tag;
 
   static bool get optionsBarPaused => dyn[#optionsBarPaused] ??= false;
@@ -182,12 +182,13 @@ class SpiralingWidget extends FloopWidget {
             extraSize: largeSize - size,
           ),
           onDoubleTap: () => {
-            Transitions.resumeOrPause(context: context, applyToChildren: true),
+            TransitionGroup(context: context)
+                .resumeOrPause(applyToChildren: true),
           },
           onTap: () => {
             Spiral.putWidgetOnTop(key),
           },
-          onPanCancel: () => Transitions.reverse(context: context),
+          onPanCancel: () => TransitionGroup(context: context).reverse(),
         ),
       ),
     );
@@ -234,13 +235,13 @@ class DragInteraction extends DynamicWidget {
 
   delete(BuildContext context) {
     assert(trashBin.active);
-    // bindContext is provided to cause the transition persist.
+    // bindContext is provided to make it persist after it finishes.
     transitionEval(1500, deleteEvaluate, key: deleteKey, bindContext: context);
     trashBin.deactivate();
   }
 
   void updateDragAlignment(DragUpdateDetails details) {
-    Transitions.cancel(key: moveBackKey);
+    TransitionGroup(key: moveBackKey).cancel();
     final newAlignment = dragAlignment +
         offsetDeltaToAlignmentDelta(details.delta, dragCanvasSize);
     if (trashBin.alignmentWithinDeletionBounds(newAlignment)) {
@@ -252,6 +253,7 @@ class DragInteraction extends DynamicWidget {
   }
 
   bool get beingDragged => Dyn.dragWidget?.key == key;
+  bool get beingDeleted => transitionOf(deleteKey) != null;
 
   Alignment interactiveAlignment() {
     final moveBackProgress = transitionOf(moveBackKey);
@@ -259,7 +261,7 @@ class DragInteraction extends DynamicWidget {
     if (moveBackProgress != null) {
       resultAlignment =
           Alignment.lerp(dragAlignment, baseAlignment, moveBackProgress);
-    } else if (beingDragged || transitionOf(deleteKey) != null) {
+    } else if (beingDragged || beingDeleted) {
       resultAlignment = dragAlignment;
     }
     return resultAlignment;
@@ -279,8 +281,7 @@ class DragInteraction extends DynamicWidget {
           onPanDown: revertTransientTransitions,
           onPanCancel: () => Dyn.dragWidget = null,
           onPanUpdate: (details) {
-            if (transitionOf(deleteKey) != null) {
-              // Widget is being deleted.
+            if (beingDeleted) {
               return;
             }
             if (!beingDragged) {
@@ -294,7 +295,7 @@ class DragInteraction extends DynamicWidget {
           onPanEnd: (_) {
             if (trashBin.active) {
               delete(context);
-            } else {
+            } else if (!beingDeleted) {
               moveBack();
             }
             Dyn.dragWidget = null;
@@ -342,7 +343,7 @@ class ExpandInteraction extends StatelessWidget with Floop {
   contract() {
     final lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
     // Cancel deletes the transition.
-    Transitions.cancel(key: sizeKey);
+    TransitionGroup(key: sizeKey).cancel();
     // Context is not provided so that the transition is deleted when
     // it finishes.
     transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: sizeKey);
@@ -369,9 +370,11 @@ class ExpandInteraction extends StatelessWidget with Floop {
         child: child,
         onTap: () {
           var expanding = Dyn.expandingWidget;
-          expanding?.contract();
           if (expanding?.sizeKey != sizeKey) {
+            expanding?.contract();
             expand(context);
+          } else {
+            expanding?.contract();
           }
         },
       ),
@@ -414,7 +417,7 @@ class ImageCircle extends DynamicWidget {
         onTap: () {
           baseColor = transitionedColor;
           color = randomColor();
-          Transitions.reset(context: context);
+          TransitionGroup(context: context).reset();
         });
   }
 }
@@ -443,7 +446,7 @@ class RandomImage extends DynamicWidget {
 
   initDyn() {
     // dyn member is persistant on rebuilds.
-    dyn[#lockKey] = Object();
+    dyn[#key] = Object();
     fetchAndLoadImage();
   }
 
@@ -475,6 +478,7 @@ class RandomImage extends DynamicWidget {
   double get rotationAngle =>
       2 *
       pi *
+      // A negative repeatAfter time substracts the delay on repetition.
       transition(1000,
           delayMillis: 5000, repeatAfterMillis: -2000, tag: AnimationTag.image);
 
@@ -491,7 +495,7 @@ class RandomImage extends DynamicWidget {
               )),
       onLongPress: () async {
         await fetchAndLoadImage();
-        Transitions.reset(context: context);
+        TransitionGroup(context: context).reset();
       },
     );
   }
@@ -507,23 +511,25 @@ class PlaybackOptions extends FloopWidget {
   static const maxMillis = 40;
   static var _shiftMillis = baseMiilis;
 
-  static Match _lastTagFilter;
+  static TransitionGroup transitionGroup;
 
-  static Match newTagFilter() {
+  static TransitionGroup newTransitionGroup() {
     final activeTag = Dyn.activeTag;
-    _lastTagFilter = (tag) =>
-        activeTag == tag ||
-        (activeTag == AnimationTag.all && tag != AnimationTag.aesthetic);
-    return _lastTagFilter;
+    transitionGroup = TransitionGroup(
+        matcher: (transitionView) =>
+            activeTag == transitionView.tag ||
+            (activeTag == AnimationTag.all &&
+                transitionView.tag != AnimationTag.aesthetic));
+    return transitionGroup;
   }
 
   static _shiftTime(_) {
-    Transitions.shiftTime(shiftMillis: _shiftMillis, tag: _lastTagFilter);
+    transitionGroup.shiftTime(shiftMillis: _shiftMillis);
     _shiftMillis +=
         (_shiftMillis + 1 * _shiftMillis.sign).clamp(-maxMillis, maxMillis);
   }
 
-  static Repeater repeater = Repeater(_shiftTime, 50);
+  static Repeater repeater = Repeater(_shiftTime, periodicityMilliseconds: 50);
 
   final titleWidget = Text('${tagAsName() ?? 'All'}');
 
@@ -542,10 +548,10 @@ class PlaybackOptions extends FloopWidget {
               iconSize: 32,
               onPressed: () {
                 if (Dyn.optionsBarPaused) {
-                  Transitions.resume(tag: newTagFilter());
+                  newTransitionGroup().resume();
                   Dyn.optionsBarPaused = false;
                 } else {
-                  Transitions.pause(tag: newTagFilter());
+                  newTransitionGroup().pause();
                   Dyn.optionsBarPaused = true;
                 }
               }),
@@ -557,12 +563,12 @@ class PlaybackOptions extends FloopWidget {
                 color: Dyn.shiftDirection == ShiftDirection.backwards
                     ? Colors.red
                     : Colors.indigoAccent),
-            onTap: () => Transitions.shiftTime(
-                shiftType: ShiftType.begin, tag: newTagFilter()),
+            onTap: () =>
+                newTransitionGroup().shiftTime(shiftType: ShiftType.begin),
             onLongPress: () {
               Dyn.shiftDirection = ShiftDirection.backwards;
               _shiftMillis = -baseMiilis;
-              newTagFilter();
+              newTransitionGroup();
               repeater.start();
             },
             onLongPressUp: () {
@@ -580,12 +586,12 @@ class PlaybackOptions extends FloopWidget {
                   ? Colors.red
                   : Colors.indigoAccent,
             ),
-            onTap: () => Transitions.shiftTime(
-                shiftType: ShiftType.end, tag: newTagFilter()),
+            onTap: () =>
+                newTransitionGroup().shiftTime(shiftType: ShiftType.end),
             onLongPress: () {
               Dyn.shiftDirection = ShiftDirection.forward;
               _shiftMillis = baseMiilis;
-              newTagFilter();
+              newTransitionGroup();
               repeater.start();
             },
             onLongPressUp: () {
@@ -599,7 +605,7 @@ class PlaybackOptions extends FloopWidget {
           icon: IconButton(
             icon: Icon(Icons.swap_horiz),
             iconSize: 32,
-            onPressed: () => Transitions.reverse(tag: newTagFilter()),
+            onPressed: () => newTransitionGroup().reverse(),
           ),
         ),
         BottomNavigationBarItem(
@@ -607,7 +613,7 @@ class PlaybackOptions extends FloopWidget {
           icon: IconButton(
             icon: Icon(Icons.refresh),
             iconSize: 32,
-            onPressed: () => Transitions.reset(tag: newTagFilter()),
+            onPressed: () => newTransitionGroup().reset(),
           ),
         ),
       ],
@@ -673,7 +679,7 @@ nextTag() {
   }
   // Null tag implies all transitions.
   Dyn.activeTag = tag;
-  Transitions.restart(tag: AnimationTag.aesthetic);
+  TransitionGroup(tag: AnimationTag.aesthetic).restart();
 }
 
 class TrashBin extends StatelessWidget with Floop {
@@ -705,7 +711,7 @@ class TrashBin extends StatelessWidget with Floop {
   }
 
   deactivate() {
-    Transitions.cancel(key: trashBinKey);
+    TransitionGroup(key: trashBinKey).cancel();
     Dyn.trashBinActive = false;
   }
 
