@@ -31,7 +31,7 @@ class Clicker extends StatelessWidget with Floop {
           child: Icon(Icons.add),
           onPressed: () {
             floop['clicks']++;
-            Transitions.restart(context: context);
+            TransitionGroup(context: context).restart();
           }),
     );
   }

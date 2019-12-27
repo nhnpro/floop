@@ -45,16 +45,16 @@ initializeRepeaters() {
     Repeater(
         (Repeater per) => store['iconsShift'] =
             per.periodicLinearInt(1000 * 1000, icons.length),
-        200),
+        periodicityMilliseconds: 200),
   ];
   store['speedUp'] = Repeater(
       (_) => store['rotationSpeed'] =
           min(0.4, (store['rotationSpeed'] as double) + 0.01),
-      100);
+      periodicityMilliseconds: 100);
   store['speedDown'] = Repeater(
       (_) => store['rotationSpeed'] =
           max(-0.4, (store['rotationSpeed'] as double) - 0.01),
-      100);
+      periodicityMilliseconds: 100);
 }
 
 shiftRight(List list, int shift) {

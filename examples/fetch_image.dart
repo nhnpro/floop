@@ -48,7 +48,7 @@ class ImageDisplay extends StatelessWidget with Floop {
           await fetchAndUpdateImage();
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
-          Transitions.restart(context: context);
+          TransitionGroup(context: context).restart();
         },
       ),
     );
@@ -67,7 +67,7 @@ class TransitionImage extends FloopWidget {
       child: Opacity(opacity: transition(1500), child: image),
       onTap: () async {
         if (await fetchAndUpdateImage()) {
-          Transitions.restart(context: context);
+          TransitionGroup(context: context).restart();
         }
       },
     );
@@ -120,7 +120,7 @@ class ImageDisplay2 extends StatelessWidget with Floop {
           await fetchAndUpdateImage2();
           // Restarting context transitions after the new image has loaded
           // causes the new image to also transition from top to center.
-          Transitions.restart(context: context);
+          TransitionGroup(context: context).restart();
         },
       ),
     );

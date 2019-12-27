@@ -30,8 +30,8 @@ Example:
         onPressed: () {
           // Change #clicks from anywhere in the app (except build methods).
           floop[#clicks]++;
-          // Control transitions using [Trasitions] methods.
-          Transitions.restart(context: context);
+          // Control transitions using [TrasitionGroup] methods.
+          TransitionGroup(context: context).restart();
         }),
       ),
     );
@@ -79,11 +79,12 @@ Widget build(BuildContext context) {
 }
 ```
 
-- Transitions of the same refresh periodicity are synchronized.
-- The [Transitions] class offers a set of static methods to control created transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc. These operations can be performed selectively by [BuildContext], key and/or tag.
-- [transitionOf] can be used to retrieve the value of a transition with a given key.
-- [transitionEval] receives an evalaute function as parameter which is used to compute the value on every update. It cannot be used inside build methods, they are intended to be used as responses to UI interactions. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
-- [TransitionsConfig] can be used to set default parameters.
+Transitions of the same refresh periodicity are synchronized.
+
+[TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc.
+[transitionOf] retrieves values.
+[transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
+[TransitionsConfig] to set default parameters.
 
 ## <a name="special">Special Considerations</a>
 

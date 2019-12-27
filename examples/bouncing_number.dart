@@ -31,7 +31,7 @@ class PerspectiveLayout extends StatelessWidget with Floop {
           ..rotateY(-0.01 * floop['offset'].dx), // changed,
         alignment: FractionalOffset.center,
         child: GestureDetector(
-          onPanStart: (_) => Transitions.cancel(key: Key('resetOffset')),
+          onPanStart: (_) => TransitionGroup(key: Key('resetOffset')).cancel(),
           onPanUpdate: (details) => floop['offset'] += details.delta,
           onDoubleTap: () {
             var oldOffset = floop['offset'];
