@@ -108,7 +108,7 @@ class Spiral extends StatelessWidget with Floop {
           Align(
               alignment: Alignment.topRight,
               child: Text(
-                  'Refresh rate: ${Transitions.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
+                  'Refresh rate: ${TransitionGroup.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
           Align(
               alignment: Alignment.bottomCenter,
               child: const SelectTransitionButton()),
@@ -253,6 +253,7 @@ class DragInteraction extends DynamicWidget {
   }
 
   bool get beingDragged => Dyn.dragWidget?.key == key;
+
   bool get beingDeleted => transitionOf(deleteKey) != null;
 
   Alignment interactiveAlignment() {
@@ -278,7 +279,6 @@ class DragInteraction extends DynamicWidget {
             opacity: 1 - (transitionOf(deleteKey) ?? 0.0),
             child: child,
           ),
-          onPanDown: revertTransientTransitions,
           onPanCancel: () => Dyn.dragWidget = null,
           onPanUpdate: (details) {
             if (beingDeleted) {
@@ -315,7 +315,7 @@ class ExpandInteraction extends StatelessWidget with Floop {
   final Size normalSize;
   final Offset extraSize;
   const ExpandInteraction(
-      {@required key,
+      {@required Key key,
       this.child,
       @required this.normalSize,
       @required this.extraSize})
@@ -341,13 +341,12 @@ class ExpandInteraction extends StatelessWidget with Floop {
   }
 
   contract() {
-    final lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
+    var lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
     // Cancel deletes the transition.
     TransitionGroup(key: sizeKey).cancel();
     // Context is not provided so that the transition is deleted when
     // it finishes.
     transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: sizeKey);
-    Dyn.expandingWidget = null;
   }
 
   @override
@@ -370,13 +369,13 @@ class ExpandInteraction extends StatelessWidget with Floop {
         child: child,
         onTap: () {
           var expanding = Dyn.expandingWidget;
-          if (expanding?.sizeKey != sizeKey) {
-            expanding?.contract();
+          if (expanding?.key != key) {
             expand(context);
           } else {
-            expanding?.contract();
+            Dyn.expandingWidget = null;
           }
         },
+        onPanDown: revertTransientTransitions,
       ),
     );
   }
@@ -634,9 +633,10 @@ class ActionCanceler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: revertTransientTransitions,
-    );
+    return GestureDetector(onTap: () {
+      revertTransientTransitions();
+      Dyn.expandingWidget = null;
+    });
   }
 }
 
