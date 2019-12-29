@@ -111,7 +111,7 @@ class Spiral extends StatelessWidget with Floop {
                   'Refresh rate: ${TransitionGroup.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
           Align(
               alignment: Alignment.bottomCenter,
-              child: const SelectTransitionButton()),
+              child: const SelectAnimationButton()),
           Align(
             alignment: TrashBin.alignment,
             child: const TrashBin(),
@@ -374,6 +374,7 @@ class ExpandInteraction extends StatelessWidget with Floop {
           } else {
             Dyn.expandingWidget = null;
           }
+          expanding?.contract();
         },
         onPanDown: revertTransientTransitions,
       ),
@@ -575,6 +576,13 @@ class PlaybackOptions extends FloopWidget {
               repeater.stop();
             },
           ),
+          // icon: IncreaseButton(
+          //   Icons.fast_rewind,
+          //   ValueKey(#rewindAnimations),
+          //   onTap: newTransitionGroup().shiftTime(shiftType: ShiftType.end),
+          //   increase: createShiftCallback(),
+          //   incrementalAmount: -1,
+          // ),
         ),
         BottomNavigationBarItem(
           title: titleWidget,
@@ -598,6 +606,13 @@ class PlaybackOptions extends FloopWidget {
               repeater.stop();
             },
           ),
+          // icon: IncreaseButton(
+          //   Icons.fast_forward,
+          //   ValueKey(#advanceAnimations),
+          //   onTap: newTransitionGroup().shiftTime(shiftType: ShiftType.end),
+          //   increase: createShiftCallback(),
+          //   incrementalAmount: 1,
+          // ),
         ),
         BottomNavigationBarItem(
           title: titleWidget,
@@ -619,14 +634,62 @@ class PlaybackOptions extends FloopWidget {
     );
   }
 
-  // static _applyOperation(TransitionOperation operation) {
-  //   final tag = Dyn.activeTag ?? AnimationTag.aesthetic;
-  //   bool reverseFilter = tag == AnimationTag.aesthetic ? true : false;
-  //   operation(tag: tag, reverseFilter: reverseFilter);
-  // }
+  createShiftCallback() {
+    final group = newTransitionGroup();
+    return (time) => group.shiftTime(shiftMillis: time);
+  }
 }
 
-typedef TransitionOperation = Function({Object tag, bool reverseFilter});
+typedef IncreaseCallback = Function(num increaseAmount);
+
+class IncreaseButton extends StatelessWidget with Floop {
+  static Object get currentlyIncreasingKey => floop[#currentlyIncreasing];
+  static set currentlyIncreasingKey(key) => floop[#currentlyIncreasing] = key;
+
+  static num increaseAmount = 0;
+  static Repeater repeater = Repeater((_) {});
+
+  final IconData icon;
+  final IncreaseCallback increase;
+  final GestureTapCallback onTap;
+  final num incrementalAmount, baseIncrease;
+  IncreaseButton(this.icon, Key key,
+      {@required this.increase,
+      @required this.onTap,
+      @required this.incrementalAmount,
+      this.baseIncrease = 0})
+      : super(key: key);
+
+  stopIncreasing() {
+    repeater.stop();
+  }
+
+  _increaseCallback(_) {
+    increaseAmount += incrementalAmount;
+    increase(increaseAmount);
+  }
+
+  startIncreasing() {
+    stopIncreasing();
+    currentlyIncreasingKey = key;
+    increaseAmount = baseIncrease;
+    repeater = Repeater(_increaseCallback, periodicityMilliseconds: 50);
+    repeater.start();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      child: Icon(
+        icon,
+        color: currentlyIncreasingKey == key ? Colors.red : Colors.indigoAccent,
+      ),
+      onTap: onTap,
+      onLongPress: startIncreasing,
+      onLongPressUp: stopIncreasing,
+    );
+  }
+}
 
 class ActionCanceler extends StatelessWidget {
   const ActionCanceler();
@@ -640,8 +703,8 @@ class ActionCanceler extends StatelessWidget {
   }
 }
 
-class SelectTransitionButton extends StatelessWidget with Floop {
-  const SelectTransitionButton();
+class SelectAnimationButton extends StatelessWidget with Floop {
+  const SelectAnimationButton();
 
   @override
   Widget build(BuildContext context) {

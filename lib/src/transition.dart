@@ -254,6 +254,25 @@ Object transitionEval(
 }
 
 abstract class TransitionsConfig {
+  static int _updatesDelayLimitThreshold;
+
+  /// The delay time that the asynchronous updates can take before the library
+  /// determes they have taken too long.
+  ///
+  /// If a new update has not been performed after this threshold, new async
+  /// update callbacks can be created even though there are ongoing callbacks.
+  ///
+  /// This is used interally but it is exposed since it can have an impact on
+  /// the app.
+  static int get updatesDelayLimitThreshold =>
+      _initialize ?? _updatesDelayLimitThreshold;
+
+  static set updatesDelayLimitThreshold(int thresholdMillis) {
+    _setDefaults();
+    assert(thresholdMillis > 0);
+    _updatesDelayLimitThreshold = thresholdMillis;
+  }
+
   static int _refreshPeriodicityMillis;
 
   /// The default refresh periodicity for transitions.
@@ -332,6 +351,7 @@ abstract class TransitionsConfig {
   /// Sets the default config values.
   static void setDefaults() {
     _initialized = true;
+    _updatesDelayLimitThreshold = 20;
     refreshPeriodicityMillis = 20;
     timeGranularityMillis = 1;
     _timeDilation = 1.0;
@@ -676,7 +696,7 @@ class TransitionGroup {
 
   /// Shifts the progress time by `shiftMillis`.
   shiftTime(
-      {int shiftMillis,
+      {int shiftMillis = 0,
       ShiftType shiftType = ShiftType.current,
       bool applyToChildren = false}) {
     if (shiftType == ShiftType.begin) {
@@ -684,9 +704,7 @@ class TransitionGroup {
     } else if (shiftType == ShiftType.end) {
       _apply(Transitions._shiftEnd, applyToChildren);
     }
-    if (shiftMillis != null) {
-      _apply((_Transition t) => t.shift(shiftMillis), applyToChildren);
-    }
+    _apply((_Transition t) => t.shift(shiftMillis), applyToChildren);
   }
 
   /// Deletes the transitions.
@@ -887,8 +905,10 @@ const oneSecondInMillis = 1000;
 /// 2. Creates the callback that updates transitions
 ///
 /// Transitions with the same refreshPeriodicity are synchronized by using the
-/// same _SyncUpdater.
+/// same [_SynchronousUpdater] instance.
 class _SynchronousUpdater {
+  static int get elapsedMillis => milliseconds();
+
   static final ObservedMap<int, _SynchronousUpdater> _periodicityToUpdater =
       ObservedMap();
 
@@ -931,12 +951,6 @@ class _SynchronousUpdater {
 
   /// Times used for updating.
 
-  /// Time measured directly from a stopwatch.
-  ///
-  /// Used for calculating the refresh rate with real time and not not scaled,
-  /// paused, rounded, etc, like [currentTimeStep] could be.
-  int _lastStopwatchTime = milliseconds();
-
   /// The time used by the transitions to measure their progress.
   int _timeStep;
 
@@ -948,23 +962,29 @@ class _SynchronousUpdater {
   ///
   /// It will only change after a new frame has been rendered.
   int get currentTimeStep {
-    if (newFrameWasRendered()) {
+    if (!updatingLock && newFrameWasRendered()) {
       newTimeStep();
     }
     return _timeStep;
   }
 
-  int get nextUpdateMinWaitTime =>
-      periodicityMillis - (lastFrameTimeStamp - _referenceFrameTimeStamp);
+  int get idealUpdateTime =>
+      truncateTime(lastStopwatchTime) + periodicityMillis;
+
+  int rectifyUpdateTime(int updateTime) {
+    if (elapsedMillis >= updateTime) {
+      updateTime = elapsedMillis + (periodicityMillis + 1) ~/ 2;
+    }
+    return updateTime;
+  }
 
   /// The target update time for the next update.
-  ///
-  /// It's null when no future updates are going to be performed.
   int _targetUpdateTime = -_largeInt;
 
   /// Number of frames per second (with updated transition progress).
   ObservedValue<double> _observedRefreshRate =
       TimedDynValue(Duration(milliseconds: 500), 0);
+
   double get refreshRate => _observedRefreshRate.value;
   set refreshRate(double rate) => _observedRefreshRate.value = rate;
 
@@ -976,24 +996,30 @@ class _SynchronousUpdater {
 
   bool newFrameWasRendered() => _referenceFrameTimeStamp != lastFrameTimeStamp;
 
+  bool updateCallbackIsTakingTooLong() {
+    return elapsedMillis >
+        _targetUpdateTime + TransitionsConfig._updatesDelayLimitThreshold;
+  }
+
   /// Whether a future update is scheduled.
   ///
-  /// If _targetUpdateTime!=null an update is scheduled. The second condition
-  /// is used as fallback mechanism in case there is an error and
-  /// _targetUpdateTime is never set back to null.
-  bool willUpdate() =>
-      _transitionsToUpdate.isNotEmpty &&
-      _targetUpdateTime != null &&
-      (milliseconds() < _targetUpdateTime + periodicityMillis ||
-          !newFrameWasRendered());
+  /// If the update takes too long, it can return false even when there is a
+  /// callback in the queue.
+  bool willUpdate() {
+    return _transitionsToUpdate.isNotEmpty &&
+        !(newFrameWasRendered() && updateCallbackIsTakingTooLong());
+  }
 
   static const _numberSamples = 10;
-  final _samples = List.filled(_numberSamples, milliseconds());
+  final _samples = List.filled(_numberSamples, elapsedMillis);
   var _sampleIndex = 0;
 
-  _updateRefreshRateAndPlainTime() {
-    final now = milliseconds();
-    _lastStopwatchTime = now;
+  int get sampleIndex => (_sampleIndex - 1) % _numberSamples;
+
+  int get lastStopwatchTime => _samples[sampleIndex];
+
+  _updateRefreshRate() {
+    final now = elapsedMillis;
     final index = _sampleIndex++ % _numberSamples;
     _samples[index] = now;
     final referenceIndex =
@@ -1003,27 +1029,24 @@ class _SynchronousUpdater {
   }
 
   _delayedUpdate() {
-    print(
-        'Update time passed since Future.delayed: ${milliseconds() - _lastStopwatchTime}');
     if (_referenceFrameTimeStamp == lastFrameTimeStamp) {
-      // Do not update if no new frame has been rendered.
+      // Do not update yet if no new frame has been rendered.
       // This will happen when the framework is under stress.
-      WidgetsBinding.instance.scheduleFrameCallback(_updateCallback);
+      WidgetsBinding.instance..scheduleFrameCallback(update);
     } else {
-      _updateCallback();
+      update();
     }
   }
 
-  _scheduleUpdateCallback(int waitTime) {
-    _targetUpdateTime = _lastStopwatchTime + waitTime;
-    _referenceFrameTimeStamp = lastFrameTimeStamp;
-    final timeToNextUpdate = _targetUpdateTime - _lastStopwatchTime;
-    Future.delayed(Duration(milliseconds: timeToNextUpdate), _delayedUpdate);
+  _scheduleUpdateCallback(int updateTime) {
+    _targetUpdateTime = updateTime;
+    final waitTime = updateTime - elapsedMillis;
+    Future.delayed(Duration(milliseconds: waitTime), _delayedUpdate);
   }
 
   scheduleUpdate(_Transition transitionState) {
-    if (!lockUpdateScheduling && !willUpdate()) {
-      _scheduleUpdateCallback(nextUpdateMinWaitTime);
+    if (!updatingLock && !willUpdate()) {
+      _scheduleUpdateCallback(rectifyUpdateTime(_targetUpdateTime));
     }
     _transitionsToUpdate.add(transitionState);
   }
@@ -1032,29 +1055,26 @@ class _SynchronousUpdater {
     _transitionsToUpdate.remove(transitionState);
   }
 
-  _updateCallback([_]) {
-    _targetUpdateTime = null;
-    update();
-  }
-
-  bool lockUpdateScheduling = false;
+  bool updatingLock = false;
 
   /// Performs the scheduled updates.
-  update() {
+  update([_]) {
+    _updateRefreshRate();
+    _referenceFrameTimeStamp = lastFrameTimeStamp;
+    newTimeStep();
     final transitions = _transitionsToUpdate;
     _transitionsToUpdate = Set();
-    _updateRefreshRateAndPlainTime();
     try {
-      // Disallow transitions from scheduling update callbacks
-      lockUpdateScheduling = true;
+      // Lock prevents scheduling updates and changing currentTimeStep.
+      updatingLock = true;
       for (var transitionState in transitions) {
         transitionState.update();
       }
-      if (_transitionsToUpdate.isNotEmpty) {
-        _scheduleUpdateCallback(periodicityMillis);
-      }
     } finally {
-      lockUpdateScheduling = false;
+      if (_transitionsToUpdate.isNotEmpty) {
+        _scheduleUpdateCallback(rectifyUpdateTime(idealUpdateTime));
+      }
+      updatingLock = false;
     }
   }
 }
@@ -1178,29 +1198,30 @@ class _Transition with FastHashCode implements TransitionView {
 
   resume() {
     if (isPaused) {
+      _forceUpdateProgressTime(0);
       _timeDirection ~/= 2;
-      _forceUpdate(0);
+      if (shouldKeepUpdating) {
+        _scheduleNextUpdate();
+      }
     }
   }
 
   reverse([bool forceForward = false]) {
-    final prevTimeFactor = timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     if (forceForward) {
       _timeDirection = _timeDirection.abs();
     } else {
       _timeDirection *= -1;
     }
-    _forceUpdate(prevTimeFactor);
+    update();
   }
 
   reset() {
-    if (isPaused) {
-      _timeDirection = 2;
-    } else {
-      _timeDirection = 1;
-    }
+    // Sets time to default direction.
+    _timeDirection = _timeDirection.abs();
     progressTime = 0;
-    _forceUpdate(0);
+    lastUpdateTimeStep = currentTimeStep;
+    update();
   }
 
   restart() {
@@ -1216,7 +1237,7 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   shiftBegin() {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     int t = timeDirection;
     if (t == -1) {
       _shiftEnd();
@@ -1224,7 +1245,6 @@ class _Transition with FastHashCode implements TransitionView {
       assert(t == 1);
       _shiftBegin();
     }
-    _forceUpdate(0);
   }
 
   _shiftEnd() {
@@ -1235,7 +1255,7 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   shiftEnd() {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     int t = timeDirection;
     if (t == -1) {
       _shiftBegin();
@@ -1243,18 +1263,16 @@ class _Transition with FastHashCode implements TransitionView {
       assert(t == 1);
       _shiftEnd();
     }
-    _forceUpdate(0);
   }
 
   shift(int shiftMillis) {
     progressTime += shiftMillis * timeDirection;
-    _forceUpdate(timeFactor);
+    update();
   }
 
-  _forceUpdate(int deltaTimeFactor) {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * deltaTimeFactor;
+  _forceUpdateProgressTime(int forcedTimeFactor) {
+    progressTime += (currentTimeStep - lastUpdateTimeStep) * forcedTimeFactor;
     lastUpdateTimeStep = currentTimeStep;
-    update();
   }
 
   cancel() {
@@ -1289,9 +1307,9 @@ class _Transition with FastHashCode implements TransitionView {
   _updateStatus() {
     final reversed = _timeDirection < 0;
     final ratio = dynRatio.getSilently();
-    if (ratio >= 1 && !reversed) {
+    if (ratio > 1 && !reversed) {
       _repeatOrDeactivate();
-    } else if (ratio <= 0 && reversed) {
+    } else if (ratio < 0 && reversed) {
       _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
