@@ -318,14 +318,30 @@ abstract class TransitionsConfig {
   /// This resets timeDilationFactor to 1.
   static set referenceClock(MillisecondsReturner clock) {
     _setDefaults();
-    _timeDilation = 1.0;
+    _dynTimeDilation.value = 1.0;
     _referenceClock = clock;
   }
 
-  static double _timeDilation;
+  static DynValue _dynTimeDilation;
 
-  /// The specified time dilation factor in [setTimeDilation].
-  static double get timeDilationFactor => _timeDilation;
+  /// The specified time dilation as a dynamic value.
+  ///
+  /// The time dilation is the factor of the elapsed time since the last
+  /// elapsed progress update for transitions.
+  ///
+  /// The time dilation does not affect the refresh rate of the transitions,
+  /// which uses a separate stopwatch. The default refresh periodicity can be
+  /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  static double get timeDilationFactor => _dynTimeDilation.value;
+
+  /// Sets a time dilating [referenceClock] that continues the current time.
+  ///
+  /// The time dilation does not affect the refresh rate of the transitions, it
+  /// affects their progress rate. The default refresh periodicity can be
+  /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  static set timeDilationFactor(double dilationFactor) {
+    return setTimeDilation(dilationFactor);
+  }
 
   /// Sets a time dilating [referenceClock] that continues the current time.
   ///
@@ -335,9 +351,10 @@ abstract class TransitionsConfig {
   /// The time dilation does not affect the refresh rate of the transitions, it
   /// affects their progress rate. The default refresh periodicity can be
   /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  @Deprecated('Set using [timeDilationFactor] instead.')
   static void setTimeDilation(double dilationFactor) {
     _setDefaults();
-    _timeDilation = dilationFactor;
+    _dynTimeDilation.value = dilationFactor;
     final baseTime = referenceClock();
     final timeOffset = milliseconds();
     _referenceClock = () {
@@ -354,7 +371,7 @@ abstract class TransitionsConfig {
     _updatesDelayLimitThreshold = 20;
     refreshPeriodicityMillis = 20;
     timeGranularityMillis = 1;
-    _timeDilation = 1.0;
+    _dynTimeDilation = DynValue(1.0);
     referenceClock = _defaultClock;
   }
 
