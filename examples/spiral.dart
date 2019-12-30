@@ -10,6 +10,10 @@ import 'package:http/http.dart' as http;
 class Dyn {
   static final dyn = DynMap();
 
+  static String get title =>
+      dyn[#title] ??= 'Playback tageting: ${tagAsName()} transitions';
+  static set title(String title) => dyn[#title] = title;
+
   static bool get trashBinActive => dyn[#trashBinActive] ??= false;
   static set trashBinActive(bool active) => dyn[#trashBinActive] = active;
 
@@ -81,8 +85,6 @@ class Spiral extends StatelessWidget with Floop {
     Dyn.spiralingWidgets ??= List();
   }
 
-  String get targetTransitions => tagAsName();
-
   @override
   Widget build(BuildContext context) {
     theme = Theme.of(context);
@@ -90,7 +92,7 @@ class Spiral extends StatelessWidget with Floop {
       appBar: AppBar(
         title: ListTile(
           title: Text(
-            'Playback tageting: $targetTransitions transitions',
+            Dyn.title,
             style: theme.primaryTextTheme.body1,
           ),
           onTap: nextTag,
@@ -108,13 +110,17 @@ class Spiral extends StatelessWidget with Floop {
           Align(
               alignment: Alignment.topRight,
               child: Text(
-                  'Refresh rate: ${Transitions.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
+                  'Refresh rate: ${TransitionGroup.currentRefreshRateDynamic()?.toStringAsFixed(2)}')),
           Align(
               alignment: Alignment.bottomCenter,
-              child: const SelectTransitionButton()),
+              child: const SelectAnimationButton()),
           Align(
             alignment: TrashBin.alignment,
             child: const TrashBin(),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: const AnimationSpeedSideBar(),
           ),
         ],
       ),
@@ -221,7 +227,7 @@ class DragInteraction extends DynamicWidget {
   /// The evaluation function used to trigger the widget delete operation once
   /// the delete transition finishes.
   double deleteEvaluate(double progressRatio) {
-    if (progressRatio == 1) {
+    if (progressRatio >= 1) {
       // When the ratio is 1 the transition is finished.
       Spiral.deleteSpiralingWidget(key);
     }
@@ -253,6 +259,7 @@ class DragInteraction extends DynamicWidget {
   }
 
   bool get beingDragged => Dyn.dragWidget?.key == key;
+
   bool get beingDeleted => transitionOf(deleteKey) != null;
 
   Alignment interactiveAlignment() {
@@ -278,7 +285,6 @@ class DragInteraction extends DynamicWidget {
             opacity: 1 - (transitionOf(deleteKey) ?? 0.0),
             child: child,
           ),
-          onPanDown: revertTransientTransitions,
           onPanCancel: () => Dyn.dragWidget = null,
           onPanUpdate: (details) {
             if (beingDeleted) {
@@ -315,7 +321,7 @@ class ExpandInteraction extends StatelessWidget with Floop {
   final Size normalSize;
   final Offset extraSize;
   const ExpandInteraction(
-      {@required key,
+      {@required Key key,
       this.child,
       @required this.normalSize,
       @required this.extraSize})
@@ -341,13 +347,12 @@ class ExpandInteraction extends StatelessWidget with Floop {
   }
 
   contract() {
-    final lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
+    var lastExpandingLerpValue = transitionOf(sizeKey) ?? 0;
     // Cancel deletes the transition.
     TransitionGroup(key: sizeKey).cancel();
     // Context is not provided so that the transition is deleted when
     // it finishes.
     transitionEval(400, (r) => (1 - r) * lastExpandingLerpValue, key: sizeKey);
-    Dyn.expandingWidget = null;
   }
 
   @override
@@ -370,13 +375,14 @@ class ExpandInteraction extends StatelessWidget with Floop {
         child: child,
         onTap: () {
           var expanding = Dyn.expandingWidget;
-          if (expanding?.sizeKey != sizeKey) {
-            expanding?.contract();
+          if (expanding?.key != key) {
             expand(context);
           } else {
-            expanding?.contract();
+            Dyn.expandingWidget = null;
           }
+          expanding?.contract();
         },
+        onPanDown: revertTransientTransitions,
       ),
     );
   }
@@ -507,10 +513,6 @@ Color randomColor() {
 }
 
 class PlaybackOptions extends FloopWidget {
-  static const baseMiilis = 1;
-  static const maxMillis = 40;
-  static var _shiftMillis = baseMiilis;
-
   static TransitionGroup transitionGroup;
 
   static TransitionGroup newTransitionGroup() {
@@ -522,14 +524,6 @@ class PlaybackOptions extends FloopWidget {
                 transitionView.tag != AnimationTag.aesthetic));
     return transitionGroup;
   }
-
-  static _shiftTime(_) {
-    transitionGroup.shiftTime(shiftMillis: _shiftMillis);
-    _shiftMillis +=
-        (_shiftMillis + 1 * _shiftMillis.sign).clamp(-maxMillis, maxMillis);
-  }
-
-  static Repeater repeater = Repeater(_shiftTime, periodicityMilliseconds: 50);
 
   final titleWidget = Text('${tagAsName() ?? 'All'}');
 
@@ -558,46 +552,28 @@ class PlaybackOptions extends FloopWidget {
         ),
         BottomNavigationBarItem(
           title: titleWidget,
-          icon: GestureDetector(
-            child: Icon(Icons.fast_rewind,
-                color: Dyn.shiftDirection == ShiftDirection.backwards
-                    ? Colors.red
-                    : Colors.indigoAccent),
+          icon: IncreaseIconButton(
+            child: Icon(
+              Icons.fast_rewind,
+            ),
+            key: ValueKey(#rewindAnimations),
             onTap: () =>
                 newTransitionGroup().shiftTime(shiftType: ShiftType.begin),
-            onLongPress: () {
-              Dyn.shiftDirection = ShiftDirection.backwards;
-              _shiftMillis = -baseMiilis;
-              newTransitionGroup();
-              repeater.start();
-            },
-            onLongPressUp: () {
-              Dyn.shiftDirection = ShiftDirection.none;
-              repeater.stop();
-            },
+            increment: (time) =>
+                newTransitionGroup().shiftTime(shiftMillis: time),
+            incrementalAmount: -15,
           ),
         ),
         BottomNavigationBarItem(
           title: titleWidget,
-          icon: GestureDetector(
-            child: Icon(
-              Icons.fast_forward,
-              color: Dyn.shiftDirection == ShiftDirection.forward
-                  ? Colors.red
-                  : Colors.indigoAccent,
-            ),
+          icon: IncreaseIconButton(
+            child: Icon(Icons.fast_forward),
+            key: ValueKey(#advanceAnimations),
             onTap: () =>
                 newTransitionGroup().shiftTime(shiftType: ShiftType.end),
-            onLongPress: () {
-              Dyn.shiftDirection = ShiftDirection.forward;
-              _shiftMillis = baseMiilis;
-              newTransitionGroup();
-              repeater.start();
-            },
-            onLongPressUp: () {
-              Dyn.shiftDirection = ShiftDirection.none;
-              repeater.stop();
-            },
+            increment: (time) =>
+                newTransitionGroup().shiftTime(shiftMillis: time),
+            incrementalAmount: 15,
           ),
         ),
         BottomNavigationBarItem(
@@ -613,35 +589,175 @@ class PlaybackOptions extends FloopWidget {
           icon: IconButton(
             icon: Icon(Icons.refresh),
             iconSize: 32,
-            onPressed: () => newTransitionGroup().reset(),
+            onPressed: () {
+              newTransitionGroup().reset();
+              TransitionsConfig.timeDilationFactor = 1.0;
+            },
           ),
         ),
       ],
     );
   }
-
-  // static _applyOperation(TransitionOperation operation) {
-  //   final tag = Dyn.activeTag ?? AnimationTag.aesthetic;
-  //   bool reverseFilter = tag == AnimationTag.aesthetic ? true : false;
-  //   operation(tag: tag, reverseFilter: reverseFilter);
-  // }
 }
 
-typedef TransitionOperation = Function({Object tag, bool reverseFilter});
+class AnimationSpeedSideBar extends StatelessWidget with Floop {
+  static const incrementalAmount = 0.005;
+  static const tapAmount = 0.1;
+  static final baseIconColor = Colors.green[700];
+
+  const AnimationSpeedSideBar();
+
+  changeSpeed(num deltaSpeed) {
+    TransitionsConfig.timeDilationFactor += deltaSpeed;
+    setTitle();
+  }
+
+  Widget iconButton(IconData icon, int sign) {
+    return Container(
+      padding: EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(0),
+        color: theme.primaryColorLight,
+      ),
+      child: IncreaseIconButton(
+        child: Icon(
+          icon,
+        ),
+        iconBaseColor: baseIconColor,
+        key: ValueKey('$sign increaseSpeed'),
+        onTap: () => changeSpeed(sign * tapAmount),
+        increment: changeSpeed,
+        incrementalAmount: sign * incrementalAmount,
+      ),
+    );
+  }
+
+  setTitle() {
+    Dyn.title =
+        'Animations speed: ${TransitionsConfig.timeDilationFactor.toStringAsFixed(2)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        iconButton(Icons.add, 1),
+        iconButton(Icons.remove, -1),
+        Container(
+          width: 0,
+          height: 10,
+        ),
+        Container(
+          padding: EdgeInsets.only(right: 5),
+          child: GestureDetector(
+            child: Text(
+              '${TransitionsConfig.timeDilationFactor.toStringAsFixed(1)}',
+            ),
+            onTap: () => TransitionsConfig.timeDilationFactor = 1.0,
+          ),
+        )
+      ],
+    );
+  }
+}
+
+typedef IncreaseCallback = Function(num increaseAmount);
+doNothing([_]) {}
+
+class IncreaseIconButton extends StatelessWidget with Floop {
+  static Object get currentlyIncreasingKey => floop[#currentlyIncreasing];
+  static set currentlyIncreasingKey(key) => floop[#currentlyIncreasing] = key;
+
+  static num currentIncreaseAmount = 0;
+  static Repeater repeater = Repeater(doNothing);
+
+  static const limitIncrease = 50;
+
+  final Widget child;
+  final IncreaseCallback increment;
+  final GestureTapCallback onTap;
+  final num incrementalAmount, baseIncrease, maxIncreaseAmount;
+  final Color iconBaseColor;
+  IncreaseIconButton(
+      {this.child,
+      @required Key key,
+      @required this.increment,
+      @required this.onTap,
+      @required this.incrementalAmount,
+      this.iconBaseColor = Colors.indigoAccent,
+      this.baseIncrease = 0})
+      : maxIncreaseAmount = incrementalAmount.abs() * 50,
+        super(key: key);
+
+  stopIncreasing() {
+    repeater.stop();
+    currentlyIncreasingKey = null;
+  }
+
+  _increaseCallback(_) {
+    currentIncreaseAmount = (currentIncreaseAmount + incrementalAmount)
+        .clamp(-maxIncreaseAmount, maxIncreaseAmount);
+    increment(currentIncreaseAmount);
+  }
+
+  startIncreasing() {
+    stopIncreasing();
+    currentlyIncreasingKey = key;
+    currentIncreaseAmount = baseIncrease;
+    repeater = Repeater(_increaseCallback, periodicityMilliseconds: 50);
+    repeater.start();
+  }
+
+  Color get iconColor {
+    Color color = iconBaseColor;
+    if (currentlyIncreasingKey == key) {
+      color = Colors.red;
+    } else if (transitionOf(key) != null) {
+      color = Color.lerp(
+        Colors.red,
+        color,
+        transitionOf(key),
+      );
+    }
+    return color;
+  }
+
+  onTapAction() {
+    transition(400, key: key, tag: AnimationTag.aesthetic);
+    onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      child: Theme(
+        data: theme.copyWith(
+            iconTheme: theme.iconTheme.copyWith(color: iconColor)),
+        child: child,
+      ),
+      onTap: onTapAction,
+      onLongPress: startIncreasing,
+      onLongPressUp: stopIncreasing,
+    );
+  }
+}
 
 class ActionCanceler extends StatelessWidget {
   const ActionCanceler();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: revertTransientTransitions,
-    );
+    return GestureDetector(onTap: () {
+      revertTransientTransitions();
+      Dyn.expandingWidget = null;
+    });
   }
 }
 
-class SelectTransitionButton extends StatelessWidget with Floop {
-  const SelectTransitionButton();
+class SelectAnimationButton extends StatelessWidget with Floop {
+  const SelectAnimationButton();
 
   @override
   Widget build(BuildContext context) {
@@ -679,6 +795,7 @@ nextTag() {
   }
   // Null tag implies all transitions.
   Dyn.activeTag = tag;
+  Dyn.title = 'Playback tageting: ${tagAsName()} transitions';
   TransitionGroup(tag: AnimationTag.aesthetic).restart();
 }
 

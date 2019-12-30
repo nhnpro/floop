@@ -254,29 +254,49 @@ Object transitionEval(
 }
 
 abstract class TransitionsConfig {
-  static int _refreshPeriodicityMillis = 20;
+  static int _updatesDelayLimitThreshold;
+
+  /// The delay time that the asynchronous updates can take before the library
+  /// determines they have taken too long.
+  ///
+  /// If a new update has not been performed after this threshold, new async
+  /// update callbacks can be created even though there are ongoing callbacks.
+  ///
+  /// This is used interally but it is exposed since it can have an impact on
+  /// the app.
+  static int get updatesDelayLimitThreshold =>
+      _initialize ?? _updatesDelayLimitThreshold;
+
+  static set updatesDelayLimitThreshold(int thresholdMillis) {
+    _setDefaults();
+    assert(thresholdMillis > 0);
+    _updatesDelayLimitThreshold = thresholdMillis;
+  }
+
+  static int _refreshPeriodicityMillis;
 
   /// The default refresh periodicity for transitions.
   ///
-  /// It defines how often a transition should update it's state. It is only
-  /// used when the periodicity is not specified in the transition itself.
+  /// It defines how often a transition should update it's state. When the
+  /// periodicity is specified in the transition, this value is not used.
   ///
   /// Set to 1 to get the maximum possible refresh rate.
-  static int get refreshPeriodicityMillis => _refreshPeriodicityMillis;
+  static int get refreshPeriodicityMillis =>
+      _initialize ?? _refreshPeriodicityMillis;
 
   static set refreshPeriodicityMillis(int periodicityMillis) {
+    _setDefaults();
     assert(periodicityMillis != null && periodicityMillis > 0);
     _refreshPeriodicityMillis = periodicityMillis;
   }
 
   /// The minimum size of time steps for transition updates.
   ///
-  /// Defaults to the max granularity of one millisecond. It can be useful to
-  /// set to bigger values to limit the transitions possible states. For
-  /// example if it is set to the same value as [refreshPeriodicityMillis],
-  /// then the transitions states will consistenly reproduce when shifting time
-  /// forwards or backwards.
-  static int timeGranularityMillis = 1;
+  /// Defaults to the max granularity of one millisecond. Setting larger values
+  /// serves to limit the possible states of transitions. For example if it is
+  /// set to the same value as [refreshPeriodicityMillis], then the states will
+  /// consistenly reproduce when shifting time forwards or backwards.
+  static int timeGranularityMillis;
 
   static MillisecondsReturner _referenceClock;
 
@@ -287,32 +307,49 @@ abstract class TransitionsConfig {
 
   /// The clock used to measure the transitions progress.
   ///
-  /// It could be any function, so it shouldn't be used as a reliable source
-  /// for real time measuring. By default it returns the elapsed milliseconds
-  /// of an internal stopwatch.
+  /// This could be any function, it shouldn't be used as a reliable source
+  /// for time measuring. By default it returns the elapsed milliseconds of
+  /// an internal stopwatch.
   static MillisecondsReturner get referenceClock => _referenceClock;
 
+  /// Sets the reference clock used by transitions to update their state.
+  ///
+  /// This resets timeDilationFactor to 1.
   static set referenceClock(MillisecondsReturner clock) {
+    _setDefaults();
+    _dynTimeDilation.value = 1.0;
     _referenceClock = clock;
   }
 
-  static double _timeDilation;
+  static DynValue _dynTimeDilation;
 
-  /// The specified time dilation factor in [setTimeDilatingClock].
+  /// The time dilation as a dynamic value.
   ///
-  /// This factor does not necessarily correspond to the current time dilation,
-  /// because [referenceClock] could be set directly.
-  static double get lastTimeDilationFactor => _timeDilation;
+  /// The time dilation does not affect the refresh rate of the transitions, it
+  /// affects their progress rate. The default refresh periodicity can be
+  /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  static double get timeDilationFactor => _dynTimeDilation.value;
+
+  /// Sets a time dilating [referenceClock] that continues the current time.
+  static set timeDilationFactor(double dilationFactor) {
+    return setTimeDilation(dilationFactor);
+  }
 
   /// Sets a time dilating [referenceClock] that continues the current time.
   ///
-  /// `dilationFactor` can be any double and it is used as a factor of the time
-  /// measured by an internal stopwatch.
-  static void setTimeDilatingClock(double dilationFactor) {
-    _timeDilation = dilationFactor;
+  /// `dilationFactor` can be any double and it is used as a factor of the
+  /// time since the dilation was set.
+  ///
+  /// The time dilation does not affect the refresh rate of the transitions, it
+  /// affects their progress rate. The default refresh periodicity can be
+  /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  @Deprecated('Set using [timeDilationFactor] instead.')
+  static void setTimeDilation(double dilationFactor) {
+    _setDefaults();
+    _dynTimeDilation.value = dilationFactor;
     final baseTime = referenceClock();
     final timeOffset = milliseconds();
-    referenceClock = () {
+    _referenceClock = () {
       final dilatedTime =
           ((milliseconds() - timeOffset) * dilationFactor).toInt();
       final currentTime = baseTime + dilatedTime;
@@ -320,16 +357,27 @@ abstract class TransitionsConfig {
     };
   }
 
-  /// Sets the default config values used by [Transitions].
+  /// Sets the default config values.
   static void setDefaults() {
+    _initialized = true;
+    _updatesDelayLimitThreshold = 20;
     refreshPeriodicityMillis = 20;
-    timeGranularityMillis = 10;
+    timeGranularityMillis = 1;
+    _dynTimeDilation = DynValue(1.0);
     referenceClock = _defaultClock;
   }
 
-  /// value used as a trick to force initialization of config parameters.
+  static bool _initialized = false;
+
+  static void _setDefaults() {
+    if (!_initialized) {
+      setDefaults();
+    }
+  }
+
+  /// Value used as a trick to force initialization of config parameters.
   static final _initialize = () {
-    TransitionsConfig.setDefaults();
+    _setDefaults();
     return null;
   }();
 }
@@ -349,7 +397,8 @@ enum ShiftType {
   end,
 }
 
-/// [Transitions] allow manipulating the transitions created by this library.
+/// [Transitions] allow controlling created the transitions.
+@Deprecated('Methods have been replaced by TransitionGroup')
 abstract class Transitions {
   static void _refreshAll() {
     for (var transitionState in _Registry.allTransitions()) {
@@ -358,7 +407,7 @@ abstract class Transitions {
   }
 
   static setTimeDilation(double dilationFactor) {
-    TransitionsConfig.setTimeDilatingClock(dilationFactor);
+    TransitionsConfig.setTimeDilation(dilationFactor);
     _refreshAll();
   }
 
@@ -571,11 +620,42 @@ abstract class Transitions {
 
 /// An object that can be used to apply operations to group of transitions.
 class TransitionGroup {
+  /// The frames per second as a dynamic value.
+  ///
+  /// It targets the refresh rate for transitions with periodicity
+  /// `refreshPeriodicityMillis` if provided, otherwise it targets the default
+  /// refresh periodicity.
+  ///
+  /// Returns `null` if no transitions have been created for the periodicity.
+  ///
+  /// If the Flutter engine is not under stress, the refresh rate should be
+  /// close to the inverse of the refresh periodicty. For example if the
+  /// periodicity is 50 milliseconds, the refreh rate should be around 20 Hz.
+  ///
+  /// See also:
+  ///  * [currentRefreshRate] for the non dynamic value version.
+  static double currentRefreshRateDynamic([int refreshPeriodicityMillis]) {
+    return _SynchronousUpdater.getForPeriodicity(refreshPeriodicityMillis)
+        ?.refreshRate;
+  }
+
+  /// The frames per second for transitions with the given refresh periodicity.
+  ///
+  /// Refer to [currentRefreshRateDynamic] for further documentation.
+  static currentRefreshRate([int refreshPeriodicityMillis]) {
+    _SynchronousUpdater._periodicityToUpdater
+        .getDynValue(// ignore: invalid_use_of_protected_member
+            refreshPeriodicityMillis)
+        ?.getSilently()
+        ?._observedRefreshRate
+        ?.getSilently();
+  }
+
   final Object key;
   final Object tag;
   final BuildContext context;
 
-  /// Transitions of this group evaluate true when passed to `match`.
+  /// Transitions of this group evaluate true when passed to [matcher].
   TransitionMatcher matcher;
 
   /// Create an object that represents transitions that match the parameters
@@ -625,7 +705,7 @@ class TransitionGroup {
 
   /// Shifts the progress time by `shiftMillis`.
   shiftTime(
-      {int shiftMillis,
+      {int shiftMillis = 0,
       ShiftType shiftType = ShiftType.current,
       bool applyToChildren = false}) {
     if (shiftType == ShiftType.begin) {
@@ -633,23 +713,19 @@ class TransitionGroup {
     } else if (shiftType == ShiftType.end) {
       _apply(Transitions._shiftEnd, applyToChildren);
     }
-    if (shiftMillis != null) {
-      _apply((_Transition t) => t.shift(shiftMillis), applyToChildren);
-    }
+    _apply((_Transition t) => t.shift(shiftMillis), applyToChildren);
   }
 
   /// Deletes the transitions.
   ///
   /// Particularly useful to cause a context to rebuild as if it was being
   /// built for the first time.
+  ///
+  /// `TransitionGroup().cancel()` cancels all transitions.
   cancel({bool applyToChildren = false}) {
     _apply(Transitions._cancel, applyToChildren);
   }
 }
-
-typedef Match = bool Function(dynamic);
-
-bool matchAnything(other) => true;
 
 int _minDepth(int depth, Element element) {
   if (element.depth < depth) {
@@ -723,23 +799,23 @@ Iterable<_Transition> _getContextAndDescendantContextTransitions(
   return result;
 }
 
-Iterable<_Transition> _filter(key, tag, context) {
+Iterable<_Transition> _filter(key, tag, BuildContext context) {
   Iterable<_Transition> filtered;
   if (key != null) {
     final transitionState = _Registry.getForKey(key);
-    filtered = transitionState?.matches(tag, context) == true
-        ? [transitionState]
-        : const [];
-  }
-  if (filtered == null) {
-    if (context != null) {
-      filtered = _Registry.getForContext(context)
-          ?.where((transitionState) => transitionState.matches(tag, null));
-    } else if (tag != null) {
-      filtered = _Registry.getForTag(tag);
+    if (transitionState?.matches(tag, context) == true) {
+      filtered = [transitionState];
     }
+  } else if (context != null) {
+    filtered = _Registry.getForContext(context)
+            ?.where((transitionState) => transitionState.matches(tag, null)) ??
+        const [];
+  } else if (tag != null) {
+    filtered = _Registry.getForTag(tag) ?? const [];
+  } else {
+    filtered = _Registry.allTransitions();
   }
-  return filtered ?? _Registry.allTransitions();
+  return filtered ?? const [];
 }
 
 abstract class TransitionView {
@@ -836,8 +912,10 @@ const oneSecondInMillis = 1000;
 /// 2. Creates the callback that updates transitions
 ///
 /// Transitions with the same refreshPeriodicity are synchronized by using the
-/// same _SyncUpdater.
+/// same [_SynchronousUpdater] instance.
 class _SynchronousUpdater {
+  static int get elapsedMillis => milliseconds();
+
   static final ObservedMap<int, _SynchronousUpdater> _periodicityToUpdater =
       ObservedMap();
 
@@ -870,7 +948,7 @@ class _SynchronousUpdater {
   final int _periodicityMillis;
   int get periodicityMillis => _periodicityMillis > 0
       ? _periodicityMillis
-      : TransitionsConfig.refreshPeriodicityMillis;
+      : TransitionsConfig._refreshPeriodicityMillis;
 
   /// Returns the number truncated to a periodicity multiple.
   int truncateTime(int number) {
@@ -879,12 +957,6 @@ class _SynchronousUpdater {
   }
 
   /// Times used for updating.
-
-  /// Time measured directly from a stopwatch.
-  ///
-  /// Used for calculating the refresh rate with real time and not not scaled,
-  /// paused, rounded, etc, like [currentTimeStep] could be.
-  int _lastStopwatchTime = milliseconds();
 
   /// The time used by the transitions to measure their progress.
   int _timeStep;
@@ -897,55 +969,64 @@ class _SynchronousUpdater {
   ///
   /// It will only change after a new frame has been rendered.
   int get currentTimeStep {
-    if (newFrameWasRendered()) {
+    if (!updatingLock && newFrameWasRendered()) {
       newTimeStep();
     }
     return _timeStep;
   }
 
-  int get nextUpdateMinWaitTime =>
-      periodicityMillis - (lastFrameUpdateTimeStamp - _lastUpdateTimeStamp);
+  int get idealUpdateTime =>
+      truncateTime(lastStopwatchTime) + periodicityMillis;
+
+  int rectifyUpdateTime(int updateTime) {
+    if (elapsedMillis >= updateTime) {
+      updateTime = elapsedMillis + (periodicityMillis + 1) ~/ 2;
+    }
+    return updateTime;
+  }
 
   /// The target update time for the next update.
-  ///
-  /// It's null when no future updates are going to be performed.
   int _targetUpdateTime = -_largeInt;
 
   /// Number of frames per second (with updated transition progress).
   ObservedValue<double> _observedRefreshRate =
       TimedDynValue(Duration(milliseconds: 500), 0);
+
   double get refreshRate => _observedRefreshRate.value;
   set refreshRate(double rate) => _observedRefreshRate.value = rate;
 
   /// Records the last Flutter frame time stamp when an update was performed.
-  int _lastUpdateTimeStamp = 0;
+  int _referenceFrameTimeStamp = 0;
 
-  int get lastFrameUpdateTimeStamp =>
+  int get lastFrameTimeStamp =>
       WidgetsBinding.instance.currentSystemFrameTimeStamp.inMilliseconds;
 
-  bool newFrameWasRendered() =>
-      _lastUpdateTimeStamp != lastFrameUpdateTimeStamp;
+  bool newFrameWasRendered() => _referenceFrameTimeStamp != lastFrameTimeStamp;
+
+  bool updateCallbackIsTakingTooLong() {
+    return elapsedMillis >
+        _targetUpdateTime + TransitionsConfig._updatesDelayLimitThreshold;
+  }
 
   /// Whether a future update is scheduled.
   ///
-  /// If _targetUpdateTime!=null an update is scheduled. The second condition
-  /// is used as fallback mechanism in case there is an error and
-  /// _targetUpdateTime is never set back to null.
-  bool willUpdate() =>
-      _transitionsToUpdate.isNotEmpty &&
-      _targetUpdateTime != null &&
-      (milliseconds() < _targetUpdateTime + periodicityMillis ||
-          !newFrameWasRendered());
-
-  static const smoothFactor = 0.85;
+  /// If the update takes too long, it can return false even when there is a
+  /// callback in the queue.
+  bool willUpdate() {
+    return _transitionsToUpdate.isNotEmpty &&
+        !(newFrameWasRendered() && updateCallbackIsTakingTooLong());
+  }
 
   static const _numberSamples = 10;
-  final _samples = List.filled(_numberSamples, milliseconds());
+  final _samples = List.filled(_numberSamples, elapsedMillis);
   var _sampleIndex = 0;
 
-  _updateRefreshRateAndPlainTime() {
-    final now = milliseconds();
-    _lastStopwatchTime = now;
+  int get sampleIndex => (_sampleIndex - 1) % _numberSamples;
+
+  int get lastStopwatchTime => _samples[sampleIndex];
+
+  _updateRefreshRate() {
+    final now = elapsedMillis;
     final index = _sampleIndex++ % _numberSamples;
     _samples[index] = now;
     final referenceIndex =
@@ -955,30 +1036,24 @@ class _SynchronousUpdater {
   }
 
   _delayedUpdate() {
-    if (_lastUpdateTimeStamp == lastFrameUpdateTimeStamp) {
-      // Do not update yet if no new frame has been rendered since last update.
+    if (_referenceFrameTimeStamp == lastFrameTimeStamp) {
+      // Do not update yet if no new frame has been rendered.
       // This will happen when the framework is under stress.
-      WidgetsBinding.instance.scheduleFrameCallback(_updateCallback);
+      WidgetsBinding.instance..scheduleFrameCallback(update);
     } else {
-      _updateCallback();
+      update();
     }
   }
 
-  /// Updates are performed by two chained async callbacks. The first one waits
-  /// for Flutter to render a new frame. The second one in [_delayedUpdate]
-  /// waits for the time remaining. This ensures that the refresh rate
-  /// corresponds to the UI refresh rate.
-  _scheduleUpdate([int waitTime]) {
-    waitTime ??= nextUpdateMinWaitTime;
-    _targetUpdateTime = _lastStopwatchTime + waitTime;
-    _lastUpdateTimeStamp = lastFrameUpdateTimeStamp;
-    final timeToNextUpdate = _targetUpdateTime - _lastStopwatchTime;
-    Future.delayed(Duration(milliseconds: timeToNextUpdate), _delayedUpdate);
+  _scheduleUpdateCallback(int updateTime) {
+    _targetUpdateTime = updateTime;
+    final waitTime = updateTime - elapsedMillis;
+    Future.delayed(Duration(milliseconds: waitTime), _delayedUpdate);
   }
 
   scheduleUpdate(_Transition transitionState) {
-    if (!lockUpdateScheduling && !willUpdate()) {
-      _scheduleUpdate();
+    if (!updatingLock && !willUpdate()) {
+      _scheduleUpdateCallback(rectifyUpdateTime(_targetUpdateTime));
     }
     _transitionsToUpdate.add(transitionState);
   }
@@ -987,29 +1062,26 @@ class _SynchronousUpdater {
     _transitionsToUpdate.remove(transitionState);
   }
 
-  _updateCallback([_]) {
-    _targetUpdateTime = null;
-    update();
-  }
+  bool updatingLock = false;
 
-  bool lockUpdateScheduling = false;
-
-  /// Updates the transitions and returns true if there are active transitions.
-  update() {
+  /// Performs the scheduled updates.
+  update([_]) {
+    _updateRefreshRate();
+    _referenceFrameTimeStamp = lastFrameTimeStamp;
+    newTimeStep();
     final transitions = _transitionsToUpdate;
     _transitionsToUpdate = Set();
-    _updateRefreshRateAndPlainTime();
     try {
-      // Disallow transitions from scheduling update callbacks
-      lockUpdateScheduling = true;
+      // Lock prevents scheduling updates and changing currentTimeStep.
+      updatingLock = true;
       for (var transitionState in transitions) {
         transitionState.update();
       }
-      if (_transitionsToUpdate.isNotEmpty) {
-        _scheduleUpdate(periodicityMillis);
-      }
     } finally {
-      lockUpdateScheduling = false;
+      if (_transitionsToUpdate.isNotEmpty) {
+        _scheduleUpdateCallback(rectifyUpdateTime(idealUpdateTime));
+      }
+      updatingLock = false;
     }
   }
 }
@@ -1133,29 +1205,30 @@ class _Transition with FastHashCode implements TransitionView {
 
   resume() {
     if (isPaused) {
+      _forceUpdateProgressTime(0);
       _timeDirection ~/= 2;
-      _forceUpdate(0);
+      if (shouldKeepUpdating) {
+        _scheduleNextUpdate();
+      }
     }
   }
 
   reverse([bool forceForward = false]) {
-    final prevTimeFactor = timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     if (forceForward) {
       _timeDirection = _timeDirection.abs();
     } else {
       _timeDirection *= -1;
     }
-    _forceUpdate(prevTimeFactor);
+    update();
   }
 
   reset() {
-    if (isPaused) {
-      _timeDirection = 2;
-    } else {
-      _timeDirection = 1;
-    }
+    // Sets time to default direction.
+    _timeDirection = _timeDirection.abs();
     progressTime = 0;
-    _forceUpdate(0);
+    lastUpdateTimeStep = currentTimeStep;
+    update();
   }
 
   restart() {
@@ -1171,7 +1244,7 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   shiftBegin() {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     int t = timeDirection;
     if (t == -1) {
       _shiftEnd();
@@ -1179,7 +1252,6 @@ class _Transition with FastHashCode implements TransitionView {
       assert(t == 1);
       _shiftBegin();
     }
-    _forceUpdate(0);
   }
 
   _shiftEnd() {
@@ -1190,7 +1262,7 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   shiftEnd() {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * timeFactor;
+    _forceUpdateProgressTime(timeFactor);
     int t = timeDirection;
     if (t == -1) {
       _shiftBegin();
@@ -1198,18 +1270,16 @@ class _Transition with FastHashCode implements TransitionView {
       assert(t == 1);
       _shiftEnd();
     }
-    _forceUpdate(0);
   }
 
   shift(int shiftMillis) {
     progressTime += shiftMillis * timeDirection;
-    _forceUpdate(timeFactor);
+    update();
   }
 
-  _forceUpdate(int deltaTimeFactor) {
-    progressTime += (currentTimeStep - lastUpdateTimeStep) * deltaTimeFactor;
+  _forceUpdateProgressTime(int forcedTimeFactor) {
+    progressTime += (currentTimeStep - lastUpdateTimeStep) * forcedTimeFactor;
     lastUpdateTimeStep = currentTimeStep;
-    update();
   }
 
   cancel() {
@@ -1244,9 +1314,9 @@ class _Transition with FastHashCode implements TransitionView {
   _updateStatus() {
     final reversed = _timeDirection < 0;
     final ratio = dynRatio.getSilently();
-    if (ratio >= 1 && !reversed) {
+    if (ratio > 1 && !reversed) {
       _repeatOrDeactivate();
-    } else if (ratio <= 0 && reversed) {
+    } else if (ratio < 0 && reversed) {
       _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
@@ -1295,7 +1365,7 @@ class _Transition with FastHashCode implements TransitionView {
 class _TransitionEval extends _Transition {
   final RatioEvaluator evaluate;
 
-  double _value = 0;
+  double _value;
   double get lastSetValue {
     // Invoke notifyRead as if is were a value read.
     dynRatio.notifyRead();
@@ -1311,7 +1381,8 @@ class _TransitionEval extends _Transition {
     int repeatAfterMillis,
     Object tag,
     FloopBuildContext context,
-  ]) : super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
+  ])  : _value = evaluate(0),
+        super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
             repeatAfterMillis, tag, context);
 
   update() {
@@ -1394,36 +1465,36 @@ abstract class Lerp {
 
 /// Invokes [transition] and scales the return value between `start` and `end`.
 int transitionInt(int start, int end, int durationMillis,
-    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
+    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
   return Lerp.integer(
       start,
       end,
       transition(durationMillis,
-          refreshPeriodicityMillis: refreshRateMillis,
+          refreshPeriodicityMillis: refreshPeriodicityMillis,
           delayMillis: delayMillis,
           key: key));
 }
 
 /// Invokes [transition] and scales the return value between `start` and `end`.
 num transitionNumber(num start, num end, int durationMillis,
-    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
+    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
   return Lerp.number(
       start,
       end,
       transition(durationMillis,
-          refreshPeriodicityMillis: refreshRateMillis,
+          refreshPeriodicityMillis: refreshPeriodicityMillis,
           delayMillis: delayMillis,
           key: key));
 }
 
 /// Transitions a string starting from length 0 to it's full length.
 String transitionString(String string, int durationMillis,
-    {int refreshRateMillis = 20, int delayMillis = 0, Object key}) {
+    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
   return Lerp.string(
       '',
       string,
       transition(durationMillis,
-          refreshPeriodicityMillis: refreshRateMillis,
+          refreshPeriodicityMillis: refreshPeriodicityMillis,
           delayMillis: delayMillis,
           key: key));
 }

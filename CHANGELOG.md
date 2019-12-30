@@ -1,3 +1,15 @@
+## [2.1.3] - 29/12/2019
+
+- Fixes bug where transitions could lose synchronicity.
+
+## [2.1.2] - 28/12/2019
+
+- Bug fixes.
+
+## [2.1.1] - 28/12/2019
+
+- Bug fixes.
+
 ## [2.1.0] - 27/12/2019
 
 - Added TransitionGroup.
