@@ -257,7 +257,7 @@ abstract class TransitionsConfig {
   static int _updatesDelayLimitThreshold;
 
   /// The delay time that the asynchronous updates can take before the library
-  /// determes they have taken too long.
+  /// determines they have taken too long.
   ///
   /// If a new update has not been performed after this threshold, new async
   /// update callbacks can be created even though there are ongoing callbacks.
@@ -277,8 +277,8 @@ abstract class TransitionsConfig {
 
   /// The default refresh periodicity for transitions.
   ///
-  /// It defines how often a transition should update it's state. It is only
-  /// used when the periodicity is not specified in the transition itself.
+  /// It defines how often a transition should update it's state. When the
+  /// periodicity is specified in the transition, this value is not used.
   ///
   /// Set to 1 to get the maximum possible refresh rate.
   static int get refreshPeriodicityMillis =>
@@ -292,11 +292,10 @@ abstract class TransitionsConfig {
 
   /// The minimum size of time steps for transition updates.
   ///
-  /// Defaults to the max granularity of one millisecond. It can be useful to
-  /// set to bigger values to limit the transitions possible states. For
-  /// example if it is set to the same value as [refreshPeriodicityMillis],
-  /// then the transitions states will consistenly reproduce when shifting time
-  /// forwards or backwards.
+  /// Defaults to the max granularity of one millisecond. Setting larger values
+  /// serves to limit the possible states of transitions. For example if it is
+  /// set to the same value as [refreshPeriodicityMillis], then the states will
+  /// consistenly reproduce when shifting time forwards or backwards.
   static int timeGranularityMillis;
 
   static MillisecondsReturner _referenceClock;
@@ -308,9 +307,9 @@ abstract class TransitionsConfig {
 
   /// The clock used to measure the transitions progress.
   ///
-  /// It could be any function, so it shouldn't be used as a reliable source
-  /// for real time measuring. By default it returns the elapsed milliseconds
-  /// of an internal stopwatch.
+  /// This could be any function, it shouldn't be used as a reliable source
+  /// for time measuring. By default it returns the elapsed milliseconds of
+  /// an internal stopwatch.
   static MillisecondsReturner get referenceClock => _referenceClock;
 
   /// Sets the reference clock used by transitions to update their state.
@@ -324,29 +323,22 @@ abstract class TransitionsConfig {
 
   static DynValue _dynTimeDilation;
 
-  /// The specified time dilation as a dynamic value.
-  ///
-  /// The time dilation is the factor of the elapsed time since the last
-  /// elapsed progress update for transitions.
-  ///
-  /// The time dilation does not affect the refresh rate of the transitions,
-  /// which uses a separate stopwatch. The default refresh periodicity can be
-  /// modified by [TransitionsConfig.refreshPeriodicityMillis].
-  static double get timeDilationFactor => _dynTimeDilation.value;
-
-  /// Sets a time dilating [referenceClock] that continues the current time.
+  /// The time dilation as a dynamic value.
   ///
   /// The time dilation does not affect the refresh rate of the transitions, it
   /// affects their progress rate. The default refresh periodicity can be
   /// modified by [TransitionsConfig.refreshPeriodicityMillis].
+  static double get timeDilationFactor => _dynTimeDilation.value;
+
+  /// Sets a time dilating [referenceClock] that continues the current time.
   static set timeDilationFactor(double dilationFactor) {
     return setTimeDilation(dilationFactor);
   }
 
   /// Sets a time dilating [referenceClock] that continues the current time.
   ///
-  /// `dilationFactor` can be any double and it is used as a factor of the time
-  /// difference.
+  /// `dilationFactor` can be any double and it is used as a factor of the
+  /// time since the dilation was set.
   ///
   /// The time dilation does not affect the refresh rate of the transitions, it
   /// affects their progress rate. The default refresh periodicity can be
@@ -405,7 +397,7 @@ enum ShiftType {
   end,
 }
 
-/// [Transitions] allow manipulating the transitions created by this library.
+/// [Transitions] allow controlling created the transitions.
 @Deprecated('Methods have been replaced by TransitionGroup')
 abstract class Transitions {
   static void _refreshAll() {
@@ -628,11 +620,11 @@ abstract class Transitions {
 
 /// An object that can be used to apply operations to group of transitions.
 class TransitionGroup {
-  /// Returns the frames per second read from a Floop dynamic value.
+  /// The frames per second as a dynamic value.
   ///
   /// It targets the refresh rate for transitions with periodicity
-  /// `refreshPeriodicityMillis` if provided, otherwise it returns it for the
-  /// default periodicity.
+  /// `refreshPeriodicityMillis` if provided, otherwise it targets the default
+  /// refresh periodicity.
   ///
   /// Returns `null` if no transitions have been created for the periodicity.
   ///
@@ -663,7 +655,7 @@ class TransitionGroup {
   final Object tag;
   final BuildContext context;
 
-  /// Transitions of this group evaluate true when passed to `match`.
+  /// Transitions of this group evaluate true when passed to [matcher].
   TransitionMatcher matcher;
 
   /// Create an object that represents transitions that match the parameters
@@ -728,14 +720,12 @@ class TransitionGroup {
   ///
   /// Particularly useful to cause a context to rebuild as if it was being
   /// built for the first time.
+  ///
+  /// `TransitionGroup().cancel()` cancels all transitions.
   cancel({bool applyToChildren = false}) {
     _apply(Transitions._cancel, applyToChildren);
   }
 }
-
-typedef Match = bool Function(dynamic);
-
-bool matchAnything(other) => true;
 
 int _minDepth(int depth, Element element) {
   if (element.depth < depth) {
