@@ -5,7 +5,7 @@ Animation API and dynamic values for Flutter widgets. Allows building interactiv
 ### How to use
 
 - Add `with Floop` at the end of the widget class definition
-- Read any value from `floop` and the widget will reactively update on changes to the value
+- Retrieve a value from `floop` and the widget will reactively update on changes to it
 
 **Extra step**:
 - Use `transition(ms)` within the build method to have a value transition from 0 to 1 in `ms` milliseconds.
@@ -81,9 +81,9 @@ Widget build(BuildContext context) {
 
 Transitions of the same refresh periodicity are synchronized.
 
-[TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted, canceled, etc.
+[TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted or canceled.
 [transitionOf] retrieves values.
-[transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them with [transitionOf] from inside build methods.
+[transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them from inside build methods (using [transitionOf]).
 [TransitionsConfig] to set default parameters.
 
 ## <a name="special">Special Considerations</a>
@@ -138,7 +138,7 @@ Use keys on widgets that invoke [transition] when the widgets belong to the same
 
 `floop` is an instance of [DynMap], which implements [Map]. Other instances can be created in the same way as any map is created, e.g: `Map<String, int> myDynInts  = DynMap()`.
 
-Widgets subscribe to the keys read during their last build.
+Widgets subscribe to the values retrieved during their last build.
 
 ### Maps and Lists
 
@@ -164,7 +164,7 @@ The only impact Floop has on a widget is to its build time and it does not go be
 
 These build time increases can be considered as rough references when comparing reading data from a [DynMap] in Floop widgets, to reading the same data from a [LinkedHashMap] in widgets without Floop. Only integer numbers were used as keys and values. It was also assumed that the same context would access the same keys on every invocation to [StatelessWidget.build]. It's more expensive when there are different keys read (that should be an uncommon case).
 
-On small Widgets (less than 10 lines in the build method), including Floop implies these performance hits in build times:
+On small Widgets (less than 10 lines in the build method), including Floop implies these build time performance hits:
 - x1.15 when 0 values are read.
 - x1.9 when up to 5 values are read.
 - x2.9 when up to 20 values are read.
@@ -174,7 +174,7 @@ On medium Widgets:
 - x1.6 when up to 5 values are read.
 - x2.5 when up to 20 values are read.
 
-[DynMap] performances in comparison to a regular [LinkedHashMap] are roughly:
+[DynMap] in comparison to a regular [LinkedHashMap]:
 
 Reading:
 
@@ -186,4 +186,4 @@ Writing:
 - x1.6.
 
 ## Collaborate
-Write code, report bugs, give advice or ideas to improve the library.
+Writing code, reporting bugs, giving advice or ideas to improve the library is appreciated.

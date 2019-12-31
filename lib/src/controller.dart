@@ -1,4 +1,6 @@
-import 'package:floop/src/flutter_import.dart' show protected, debugPrint;
+import 'package:floop/src/flutter.dart' show protected;
+
+import 'error.dart';
 
 /// Interface required by [ObservedController] to notify changes in observeds.
 ///
@@ -10,8 +12,7 @@ abstract class ObservedListener implements FastHashCode {
   /// Handles a change notified by an [ObservedNotifier].
   ///
   /// `postponeEventHandling` advices the listener to postpone the event
-  /// handling. For example when an [ObservedValue] is being set for the first
-  /// time this flag is sometimes used.
+  /// handling.
   @protected
   onObservedChange(ObservedNotifier notifier,
       [bool postponeEventHandling = false]);
@@ -89,13 +90,6 @@ class ObservedController {
     }
     // Most element rebuilds should read the same keys, a quick check is done
     // to handle that case.
-    // Depending on how [Set.containsAll] is implemented, but there is a
-    // potential performance gain by using a cummulative hash for fast Set
-    // comparison. This would imply losing a one hundred percent consistency
-    // in a rare collision case, but certainly worth it for a performance
-    // gain. Most of the time the same Map keys are accesed when rebuilding
-    // widgets, so if Set have the same length and same cummulative hash, a
-    // 99.9999% of the time they will have the same ids stored.
     else if (previousNotifiers.length == _currentNotifiers.length &&
         previousNotifiers.containsAll(_currentNotifiers)) {
       _currentNotifiers.clear();
@@ -120,27 +114,13 @@ class ObservedController {
   /// when listening.
   static bool debugAllowNotificationsWhenListening = false;
 
-  // static bool get allowNotifyWhenListening =>
-  //     _allowNotifyWhenListening;
-
-  // static void suggestPostponeNotificationHandling() {
-  //   _allowNotifyWhenListening = true;
-  // }
-
-  // static void stopSuggestingPostponingNotificationHandling() {
-  //   // assert(_postponeChangeNotifications);
-  //   _allowNotifyWhenListening = false;
-  // }
-
-  // static final Set<ObservedNotifier> postponedNotifiers = Set();
-
   static notifyChangeToListeners(ObservedNotifier notifier,
       [bool advicePostponing = false]) {
     assert(() {
       if (isListening &&
           !advicePostponing &&
           !debugAllowNotificationsWhenListening) {
-        debugPrint(
+        floopError(
             'Error: `${activeListener}` is listening (a widget is building) '
             'while setting value of the [ObservedNotifier] $notifier. '
             '[Observed] instances like [ObservedMap] cannot be modified '
@@ -151,10 +131,6 @@ class ObservedController {
       }
       return true;
     }());
-    // if (_postponeChangeNotifications) {
-    //   postponedNotifiers.add(notifier);
-    //   return;
-    // }
     for (var listener in notifier.listeners) {
       listener.onObservedChange(notifier, advicePostponing);
     }

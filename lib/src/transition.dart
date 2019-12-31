@@ -1,15 +1,14 @@
 import 'dart:async';
 
-import 'package:floop/src/time.dart';
-import 'package:floop/transition.dart';
-// import 'package:matcher/matcher.dart' as matcherPack;
-// import 'package:matcher/src/interfaces.dart';
-
-import './flutter_import.dart';
+import './flutter.dart';
 import './controller.dart';
 import './observed.dart';
 import './mixins.dart';
 import './repeater.dart';
+import './error.dart';
+import './time.dart';
+
+// ignore_for_file: deprecated_member_use_from_same_package
 
 T _doubleAsType<T>(double x) => x as T;
 
@@ -17,23 +16,10 @@ typedef MillisecondsReturner = int Function();
 
 const _largeInt = 1 << 62 | 1 << 53 | (1 << 31) | (1 << 30);
 
-/// Returns the current progess value of the transition registered to `key` if
-/// it exists, `null` otherwise.
+/// Returns the value of a transition registered with `key` if it exists,
+/// `null` otherwise.
 double transitionOf(Object key) {
   return _Registry.getForKey(key)?.lastSetValue;
-}
-
-enum TransitionType {
-  /// A standard transition. Everything specified in the documentation applies
-  /// to them.
-  standard,
-
-  /// Specifies that the transition cannot be controlled through Transitions
-  /// methods, except cancelled with [Transition.cancelAll].
-  ///
-  /// Intended to be used on transient aesthethics animations, which will never
-  /// be co
-  transient,
 }
 
 /// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
@@ -107,10 +93,10 @@ enum TransitionType {
 ///    and then reference the var from within the builder function.
 ///
 /// See also:
-///  * [TransitionGroup], an API to modify the ongoing transitions state.
+///  * [TransitionGroup] to control transitions.
+///  * [transitionOf] to retrieve the value of ongoing transitions.
 ///  * [transitionEval] a more versatile function for creating transitions from
 ///    outside build methods.
-///  * [transitionOf] to retrieve the value of ongoing transitions.
 ///  * [Repeater.transition] to create custom transitions objects that are not
 ///    synchronized and not connected to the [Transitions] API.
 double transition(
@@ -126,18 +112,16 @@ double transition(
   final bool canCreate = (bindContext != null) || key != null;
   assert(() {
     if (durationMillis == null) {
-      debugPrint(
-          'Error: [transition] was invoked with `durationMillis` as null. '
+      throw floopError('[transition] invoked with `durationMillis` as null.\n'
           'To retrieve the value of a keyed transition, use [transitionOf].');
     }
     if (!canCreate && key == null) {
-      debugPrint('Error: When invoking [transition] outside a Floop widget\'s '
-          'build method, the `key` parameter must be not null, otherwise the '
-          'transition can have no effect outside of itself.\n'
-          'See [transitionEval] to create transitions outside build methods. '
+      throw floopError(
+          'When invoking [transition] outside a Floop widget\'s build method, '
+          'the `key` parameter must be not null, otherwise the transition can '
+          'have no effect outside of itself.\n'
           'If this is getting invoked from within a [Builder], check '
           '[transition] docs to handle that case.');
-      return false;
     }
     return true;
   }());
@@ -164,16 +148,17 @@ double transition(
   return transitionState.lastSetValue;
 }
 
-/// Creates a transition with a value computed on every update by evaluating
-/// its progress ratio on `evaluate`. Returns the key.
-///
-/// Should not be invoked from within a Floop widget's [build] method.
-///
-/// If `key` is not provided, a unique key is generated.
+/// Creates a transition with a computed value. Returns its key. Cannot be used
+/// within Floop widgets [build] methods.
 ///
 /// `durationMillis` and `evaluate` must not be null.
 ///
-/// Refer to [transition] for a full description about the parameters.
+/// The value is computed on every update by evaluating the progress ratio on
+/// `evaluate`.
+///
+/// If `key` is not provided, a unique key is generated.
+///
+/// Refer to [transition] for further description about the parameters.
 ///
 /// Example:
 ///
@@ -206,10 +191,6 @@ double transition(
 /// current number of clicks. On every click event the evaluate function
 /// changes (because clicks increases), therefore the old transitions is
 /// canceled in order to register a new one.
-///
-/// See also:
-///  * [transition]
-///  * [Transitions.cancelAll] to delete all registered transitions.
 Object transitionEval(
   int durationMillis,
   RatioEvaluator evaluate, {
@@ -222,15 +203,13 @@ Object transitionEval(
 }) {
   assert(() {
     if (ObservedController.isListening) {
-      debugPrint(
-          'Error: should not invoke [transitionEval] while a Floop widget '
-          'is building. Use [transition] instead.');
-      return false;
+      throw floopError(
+          'Cannnot invoke [transitionEval] while a Floop widget is building. '
+          'Using [transition] and evaluating its value directly could .');
     }
     if (durationMillis == null || evaluate == null) {
-      debugPrint('Error: bad inputs for [transitionEval], durationMillis and '
+      throw floopError('Bad inputs for [transitionEval], durationMillis and '
           'evaluate cannot be null.');
-      return false;
     }
     return true;
   }());
@@ -254,23 +233,21 @@ Object transitionEval(
 }
 
 abstract class TransitionsConfig {
-  static int _updatesDelayLimitThreshold;
+  static int _updateDelayLimitThreshold;
 
   /// The delay time that the asynchronous updates can take before the library
-  /// determines they have taken too long.
+  /// determines they have taken too long and creates new ones.
   ///
-  /// If a new update has not been performed after this threshold, new async
-  /// update callbacks can be created even though there are ongoing callbacks.
-  ///
-  /// This is used interally but it is exposed since it can have an impact on
-  /// the app.
-  static int get updatesDelayLimitThreshold =>
-      _initialize ?? _updatesDelayLimitThreshold;
+  /// This is a safety mechanism that the library uses to recover in case
+  /// something goes wrong. Generally it shouldn't have an impact on apps
+  /// that run smoothly.
+  static int get updateDelayLimitThreshold =>
+      _initialize ?? _updateDelayLimitThreshold;
 
-  static set updatesDelayLimitThreshold(int thresholdMillis) {
+  static set updateDelayLimitThreshold(int thresholdMillis) {
     _setDefaults();
     assert(thresholdMillis > 0);
-    _updatesDelayLimitThreshold = thresholdMillis;
+    _updateDelayLimitThreshold = thresholdMillis;
   }
 
   static int _refreshPeriodicityMillis;
@@ -360,7 +337,7 @@ abstract class TransitionsConfig {
   /// Sets the default config values.
   static void setDefaults() {
     _initialized = true;
-    _updatesDelayLimitThreshold = 20;
+    _updateDelayLimitThreshold = 50;
     refreshPeriodicityMillis = 20;
     timeGranularityMillis = 1;
     _dynTimeDilation = DynValue(1.0);
@@ -868,9 +845,9 @@ abstract class _Registry {
     assert(key != null);
     if (_keyToTransition.containsKey(key)) {
       assert(() {
-        debugPrint('Error: transitions API error, attempting to create a '
-            'transition that already exists.');
-        return false;
+        debugPrint('Internal error, attempting to create a transition that '
+            'already exists. Filling an issue in the repository is '
+            'appreciated (this should not happen).');
       }());
       unregister(_keyToTransition[key]);
     }
@@ -969,24 +946,11 @@ class _SynchronousUpdater {
   ///
   /// It will only change after a new frame has been rendered.
   int get currentTimeStep {
-    if (!updatingLock && newFrameWasRendered()) {
+    if (!updatingLock && !willUpdate) {
       newTimeStep();
     }
     return _timeStep;
   }
-
-  int get idealUpdateTime =>
-      truncateTime(lastStopwatchTime) + periodicityMillis;
-
-  int rectifyUpdateTime(int updateTime) {
-    if (elapsedMillis >= updateTime) {
-      updateTime = elapsedMillis + (periodicityMillis + 1) ~/ 2;
-    }
-    return updateTime;
-  }
-
-  /// The target update time for the next update.
-  int _targetUpdateTime = -_largeInt;
 
   /// Number of frames per second (with updated transition progress).
   ObservedValue<double> _observedRefreshRate =
@@ -995,35 +959,13 @@ class _SynchronousUpdater {
   double get refreshRate => _observedRefreshRate.value;
   set refreshRate(double rate) => _observedRefreshRate.value = rate;
 
-  /// Records the last Flutter frame time stamp when an update was performed.
-  int _referenceFrameTimeStamp = 0;
-
-  int get lastFrameTimeStamp =>
-      WidgetsBinding.instance.currentSystemFrameTimeStamp.inMilliseconds;
-
-  bool newFrameWasRendered() => _referenceFrameTimeStamp != lastFrameTimeStamp;
-
-  bool updateCallbackIsTakingTooLong() {
-    return elapsedMillis >
-        _targetUpdateTime + TransitionsConfig._updatesDelayLimitThreshold;
-  }
-
-  /// Whether a future update is scheduled.
-  ///
-  /// If the update takes too long, it can return false even when there is a
-  /// callback in the queue.
-  bool willUpdate() {
-    return _transitionsToUpdate.isNotEmpty &&
-        !(newFrameWasRendered() && updateCallbackIsTakingTooLong());
-  }
-
   static const _numberSamples = 10;
   final _samples = List.filled(_numberSamples, elapsedMillis);
   var _sampleIndex = 0;
 
-  int get sampleIndex => (_sampleIndex - 1) % _numberSamples;
+  int get lastSampleIndex => (_sampleIndex - 1) % _numberSamples;
 
-  int get lastStopwatchTime => _samples[sampleIndex];
+  int get lastStopwatchTime => _samples[lastSampleIndex];
 
   _updateRefreshRate() {
     final now = elapsedMillis;
@@ -1035,30 +977,58 @@ class _SynchronousUpdater {
         1000 * _numberSamples / (_samples[index] - _samples[referenceIndex]);
   }
 
-  _delayedUpdate() {
-    if (_referenceFrameTimeStamp == lastFrameTimeStamp) {
-      // Do not update yet if no new frame has been rendered.
-      // This will happen when the framework is under stress.
+  int get idealUpdateTime =>
+      truncateTime(lastStopwatchTime) + periodicityMillis;
+
+  /// The time limit for the delayed update to take place.
+  int _updateTimeLimit;
+
+  /// The last Flutter frame time stamp when a frame callback was scheduled.
+  int _referenceFrameTimeStamp;
+
+  int get lastFrameTimeStamp =>
+      WidgetsBinding.instance.currentSystemFrameTimeStamp.inMilliseconds;
+
+  bool get delayedCallbackExists =>
+      _updateTimeLimit != null && elapsedMillis < _updateTimeLimit;
+
+  bool get scheduledFrameCallbackIsRegistered =>
+      _referenceFrameTimeStamp == lastFrameTimeStamp;
+
+  /// Whether a future update is scheduled.
+  bool get willUpdate =>
+      scheduledFrameCallbackIsRegistered || delayedCallbackExists;
+
+  _scheduleFrameCallback() {
+    // It could happen that a secondary delayed triggers if the first one
+    // takes too long.
+    if (!scheduledFrameCallbackIsRegistered) {
+      _referenceFrameTimeStamp = lastFrameTimeStamp;
       WidgetsBinding.instance..scheduleFrameCallback(update);
+    }
+    assert(WidgetsBinding.instance.hasScheduledFrame);
+  }
+
+  _delayedUpdate() {
+    final updateTime = idealUpdateTime;
+    final waitTime = updateTime - elapsedMillis;
+    if (waitTime > 0) {
+      _updateTimeLimit =
+          updateTime + TransitionsConfig._updateDelayLimitThreshold;
+      Future.delayed(Duration(milliseconds: waitTime), _scheduleFrameCallback);
     } else {
-      update();
+      _scheduleFrameCallback();
     }
   }
 
-  _scheduleUpdateCallback(int updateTime) {
-    _targetUpdateTime = updateTime;
-    final waitTime = updateTime - elapsedMillis;
-    Future.delayed(Duration(milliseconds: waitTime), _delayedUpdate);
-  }
-
   scheduleUpdate(_Transition transitionState) {
-    if (!updatingLock && !willUpdate()) {
-      _scheduleUpdateCallback(rectifyUpdateTime(_targetUpdateTime));
+    if (!updatingLock && !willUpdate) {
+      _delayedUpdate();
     }
     _transitionsToUpdate.add(transitionState);
   }
 
-  cancelScheduledUpdates(_Transition transitionState) {
+  cancelScheduledUpdate(_Transition transitionState) {
     _transitionsToUpdate.remove(transitionState);
   }
 
@@ -1066,22 +1036,23 @@ class _SynchronousUpdater {
 
   /// Performs the scheduled updates.
   update([_]) {
-    _updateRefreshRate();
-    _referenceFrameTimeStamp = lastFrameTimeStamp;
-    newTimeStep();
-    final transitions = _transitionsToUpdate;
-    _transitionsToUpdate = Set();
     try {
       // Lock prevents scheduling updates and changing currentTimeStep.
       updatingLock = true;
+      _updateTimeLimit = null;
+      _referenceFrameTimeStamp = null;
+      _updateRefreshRate();
+      newTimeStep();
+      final transitions = _transitionsToUpdate;
+      _transitionsToUpdate = Set();
       for (var transitionState in transitions) {
         transitionState.update();
       }
     } finally {
-      if (_transitionsToUpdate.isNotEmpty) {
-        _scheduleUpdateCallback(rectifyUpdateTime(idealUpdateTime));
-      }
       updatingLock = false;
+      if (_transitionsToUpdate.isNotEmpty) {
+        _delayedUpdate();
+      }
     }
   }
 }
@@ -1224,10 +1195,10 @@ class _Transition with FastHashCode implements TransitionView {
   }
 
   reset() {
+    _forceUpdateProgressTime(0);
     // Sets time to default direction.
     _timeDirection = _timeDirection.abs();
     progressTime = 0;
-    lastUpdateTimeStep = currentTimeStep;
     update();
   }
 
@@ -1290,7 +1261,7 @@ class _Transition with FastHashCode implements TransitionView {
   /// Invoked when the transition is not going to be used again.
   dispose() {
     assert(_status != _Status.defunct);
-    updater.cancelScheduledUpdates(this);
+    updater.cancelScheduledUpdate(this);
     dynRatio.dispose();
     _Registry.unregister(this);
     assert(() {
@@ -1513,9 +1484,9 @@ Repeater transitionKeyValue<V>(
   assert(update != null);
   assert(() {
     if (update == null && V != dynamic && V != double && V != num) {
-      debugPrint(
-          'Error: Must provide update function as parameter for type $V.');
-      return false;
+      throw floopError(
+          'Must provide an update function as parameter for type $V in '
+          '[transitionKeyValue].');
     }
     return true;
   }());

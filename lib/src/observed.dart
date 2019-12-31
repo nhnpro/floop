@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import './flutter_import.dart' show protected;
+import './flutter.dart' show protected;
 import './time.dart';
 
 import './controller.dart';

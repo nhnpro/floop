@@ -10,5 +10,5 @@ export './src/transition.dart'
         transitionEval,
         transitionOf,
         TransitionGroup,
-        Transitions,
+        Transitions, // ignore: deprecated_member_use_from_same_package
         TransitionsConfig;

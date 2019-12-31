@@ -1,6 +1,6 @@
 import 'package:floop/floop.dart';
 
-import './flutter_import.dart';
+import './flutter.dart';
 import './controller.dart';
 
 mixin DisposableWidget on Widget {
