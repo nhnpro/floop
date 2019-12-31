@@ -1,3 +1,7 @@
+## [2.1.4] - 31/12/2019
+
+- Polished transitions update cycles.
+
 ## [2.1.3] - 29/12/2019
 
 - Fixes bug where transitions could lose synchronicity.

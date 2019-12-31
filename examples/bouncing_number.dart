@@ -60,7 +60,7 @@ class PerspectiveLayout extends StatelessWidget with Floop {
         child: Icon(Icons.add),
         onPressed: () {
           floop['clicks']++;
-          Transitions.cancelAll();
+          TransitionGroup().cancel();
           transitionEval(
             3000,
             (x) {
