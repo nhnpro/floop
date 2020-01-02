@@ -1,3 +1,7 @@
+## [2.1.5] - 31/12/2019
+
+- Fix typo in the description.
+
 ## [2.1.4] - 31/12/2019
 
 - Polished transitions update cycles.

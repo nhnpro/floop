@@ -72,11 +72,11 @@ class ObservedValue<T> extends Observed implements DynValue<T> {
     }
   }
 
-  setSilently(T newValue) {
-    _value = newValue;
+  T setSilently(T newValue) {
+    return _value = newValue;
   }
 
-  getSilently() {
+  T getSilently() {
     return _value;
   }
 }
