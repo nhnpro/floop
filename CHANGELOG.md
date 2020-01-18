@@ -1,3 +1,9 @@
+## [3.0.0] - 17/01/2019
+
+- Polished the transitions API
+- ObservedMap now is DynMap
+- Created DynList, a dynamic values List
+
 ## [2.1.5] - 31/12/2019
 
 - Fix typo in the description.

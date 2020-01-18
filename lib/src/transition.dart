@@ -8,13 +8,9 @@ import './repeater.dart';
 import './error.dart';
 import './time.dart';
 
-// ignore_for_file: deprecated_member_use_from_same_package
-
 T _doubleAsType<T>(double x) => x as T;
 
 typedef MillisecondsReturner = int Function();
-
-const _largeInt = 1 << 62 | 1 << 53 | (1 << 31) | (1 << 30);
 
 /// Returns the value of a transition registered with `key` if it exists,
 /// `null` otherwise.
@@ -108,6 +104,25 @@ double transition(
   Object tag,
   FloopBuildContext bindContext,
 }) {
+  return _getOrCreateTransition(durationMillis,
+          refreshPeriodicityMillis: refreshPeriodicityMillis,
+          delayMillis: delayMillis,
+          repeatAfterMillis: repeatAfterMillis,
+          key: key,
+          tag: tag,
+          bindContext: bindContext)
+      .lastSetValue;
+}
+
+_Transition _getOrCreateTransition(
+  int durationMillis, {
+  int refreshPeriodicityMillis,
+  int delayMillis = 0,
+  int repeatAfterMillis,
+  Object key,
+  Object tag,
+  FloopBuildContext bindContext,
+}) {
   bindContext ??= ObservedController.activeListener;
   final bool canCreate = (bindContext != null) || key != null;
   assert(() {
@@ -145,7 +160,7 @@ double transition(
         delayMillis, repeatAfterMillis, tag, bindContext);
   }
   assert(transitionState.lastSetValue != null);
-  return transitionState.lastSetValue;
+  return transitionState;
 }
 
 /// Creates a transition with a computed value. Returns its key. Cannot be used
@@ -308,20 +323,15 @@ abstract class TransitionsConfig {
   static double get timeDilationFactor => _dynTimeDilation.value;
 
   /// Sets a time dilating [referenceClock] that continues the current time.
-  static set timeDilationFactor(double dilationFactor) {
-    return setTimeDilation(dilationFactor);
-  }
-
-  /// Sets a time dilating [referenceClock] that continues the current time.
-  ///
-  /// `dilationFactor` can be any double and it is used as a factor of the
-  /// time since the dilation was set.
   ///
   /// The time dilation does not affect the refresh rate of the transitions, it
   /// affects their progress rate. The default refresh periodicity can be
   /// modified by [TransitionsConfig.refreshPeriodicityMillis].
-  @Deprecated('Set using [timeDilationFactor] instead.')
-  static void setTimeDilation(double dilationFactor) {
+  static set timeDilationFactor(double dilationFactor) {
+    return _setTimeDilation(dilationFactor);
+  }
+
+  static void _setTimeDilation(double dilationFactor) {
     _setDefaults();
     _dynTimeDilation.value = dilationFactor;
     final baseTime = referenceClock();
@@ -437,9 +447,9 @@ class TransitionGroup {
   ///
   /// `matcher` can be provided for advanced filtering.
   ///
-  /// Operations accept `applyToChildren` parameter and if set the operation
-  /// is also applied to transitions that are bound to the context and
-  /// descendant contexts of the transitions from this group.
+  /// Methods accept `rootContext` parameter and if set the operation is only
+  /// applied to transitions of this group that are bound to contexts that
+  /// belong to the widget tree that starts at `rootContext`.
   ///
   /// A transition group with no parameters represents all transitions.
   TransitionGroup({this.key, this.tag, this.context, this.matcher});
@@ -499,83 +509,17 @@ class TransitionGroup {
   }
 }
 
-int _minDepth(int depth, Element element) {
-  if (element.depth < depth) {
-    return element.depth;
-  }
-  return depth;
-}
-
 int _sort(Element a, Element b) {
-  if (a.depth < b.depth)
-    return -1; // ignore: curly_braces_in_flow_control_structures
-  if (b.depth < a.depth)
-    return 1; // ignore: curly_braces_in_flow_control_structures
+  if (a.depth < b.depth) return -1;
+  if (b.depth < a.depth) return 1;
   return 0;
 }
-
-// void _addChildElements(Set<Element> referenceElements) {
-//   final resultSet = referenceElements;
-//   final minAncestorDepth = referenceElements.fold(_largeInt, _minDepth);
-//   var childrenCandidatesIterable = (_Registry.allRegisteredContexts()
-//           .cast<Element>()
-//           .where(
-//               (ele) => ele.depth > minAncestorDepth && !resultSet.contains(ele))
-//           .toList()
-//             ..sort(_sort))
-//       .reversed;
-//   assert(() {
-//     // This is necessary to avoid Flutter assertion errors in debug mode.
-//     childrenCandidatesIterable = childrenCandidatesIterable
-//         .where((element) => (element as FloopElement).active);
-//     return true;
-//   }());
-//   final childrenCandidates = childrenCandidatesIterable.toSet();
-
-//   // Visits ancesostors and adds registered children to result.
-//   _visitAncestors(Element child) {
-//     assert((child as FloopBuildContext).active);
-//     if (!childrenCandidates.remove(child)) {
-//       // Already visited.
-//       return;
-//     }
-//     var candidates = <Element>[child];
-//     child.visitAncestorElements((ancestor) {
-//       if (childrenCandidates.remove(ancestor)) {
-//         candidates.add(ancestor);
-//       }
-//       if (resultSet.contains(ancestor)) {
-//         resultSet.addAll(candidates);
-//         return false;
-//       }
-//       assert(child.depth >= minAncestorDepth);
-//       if (ancestor.depth == minAncestorDepth) {
-//         return false;
-//       }
-//       return true;
-//     });
-//   }
-
-//   childrenCandidatesIterable.forEach(_visitAncestors);
-// }
-
-// Iterable<_Transition> _getContextAndDescendantContextTransitions(
-//     Iterable<_Transition> transitions) {
-//   final elements = Set<Element>.from(
-//       [for (var t in transitions) if (t.context != null) t.context as Element]);
-//   _addChildElements(elements);
-//   var result = Iterable<_Transition>.empty();
-//   for (var context in elements) {
-//     result = result.followedBy(_Registry.getForContext(context));
-//   }
-//   return result;
-// }
 
 Set<Element> _findDescendants(
     Set<Element> descendantCandidates, Element rootContext) {
   final resultSet = Set<Element>()..add(rootContext);
   final minAncestorDepth = rootContext.depth;
-  var childrenCandidatesIterable = (descendantCandidates
+  Iterable<Element> childrenCandidatesIterable = (descendantCandidates
         ..removeWhere((ele) => ele.depth <= minAncestorDepth))
       .toList()
         ..sort(_sort);
@@ -619,6 +563,8 @@ Iterable<_Transition> _filterByRootContext(
   return result;
 }
 
+/// This filter is faster than a plain Matcher filter, because it takes
+/// advantage on how transitions are stored in the registry.
 Iterable<_Transition> _filter(key, tag, BuildContext context) {
   Iterable<_Transition> filtered;
   if (key != null) {
@@ -628,10 +574,9 @@ Iterable<_Transition> _filter(key, tag, BuildContext context) {
     }
   } else if (context != null) {
     filtered = _Registry.getForContext(context)
-            ?.where((transitionState) => transitionState.matches(tag, null)) ??
-        const [];
+        ?.where((transitionState) => transitionState.matches(tag, null));
   } else if (tag != null) {
-    filtered = _Registry.getForTag(tag) ?? const [];
+    filtered = _Registry.getForTag(tag);
   } else {
     filtered = _Registry.allTransitions();
   }
@@ -665,9 +610,9 @@ Set<T> _createEmptySet<T>() => Set();
 
 abstract class _Registry {
   static final Map<BuildContext, Set<_Transition>> _contextToTransitions =
-      ObservedMap();
-  static final Map<Object, _Transition> _keyToTransition = ObservedMap();
-  static final Map<Object, Set<_Transition>> _tagToTransitions = ObservedMap();
+      DynMap();
+  static final Map<Object, _Transition> _keyToTransition = DynMap();
+  static final Map<Object, Set<_Transition>> _tagToTransitions = DynMap();
 
   static _Transition getForKey(Object key) => _keyToTransition[key];
 
@@ -689,9 +634,9 @@ abstract class _Registry {
     assert(key != null);
     if (_keyToTransition.containsKey(key)) {
       assert(() {
-        debugPrint('Internal error, attempting to create a transition that '
-            'already exists. Filling an issue in the repository is '
-            'appreciated (this should not happen).');
+        debugPrint('Floop internal error, attempting to create a transition '
+            'that already exists. Please fill an issue in the repository '
+            '(this should not happen).');
       }());
       unregister(_keyToTransition[key]);
     }
@@ -737,8 +682,8 @@ const oneSecondInMillis = 1000;
 class _SynchronousUpdater {
   static int get elapsedMillis => milliseconds();
 
-  static final ObservedMap<int, _SynchronousUpdater> _periodicityToUpdater =
-      ObservedMap();
+  static final DynMap<int, _SynchronousUpdater> _periodicityToUpdater =
+      DynMap();
 
   static _SynchronousUpdater getForPeriodicity(int periodicityMillis,
       [bool createIfAbsent = false]) {
@@ -797,7 +742,7 @@ class _SynchronousUpdater {
   }
 
   /// Number of frames per second (with updated transition progress).
-  ObservedValue<double> _observedRefreshRate =
+  DynValue<double> _observedRefreshRate =
       TimedDynValue(Duration(milliseconds: 500), 0);
 
   double get refreshRate => _observedRefreshRate.value;
@@ -890,7 +835,10 @@ class _SynchronousUpdater {
       final transitions = _transitionsToUpdate;
       _transitionsToUpdate = Set();
       for (var transitionState in transitions) {
-        transitionState.update();
+        // A transition could get concurrently deleted by UI interactions.
+        if (!transitionState.isDisposed) {
+          transitionState.update();
+        }
       }
     } finally {
       updatingLock = false;
@@ -965,6 +913,8 @@ class _Transition with FastHashCode implements TransitionView {
 
   /// Active represents that the transition has not finished.
   bool get isActive => _status == _Status.active;
+
+  bool get isDisposed => _status == _Status.defunct;
 
   /// Pause is different from active, a transition only reaches inactive status
   /// when it finishes (reaches its max duration).
@@ -1108,10 +1058,7 @@ class _Transition with FastHashCode implements TransitionView {
     updater.cancelScheduledUpdate(this);
     dynRatio.dispose();
     _Registry.unregister(this);
-    assert(() {
-      _status = _Status.defunct;
-      return true;
-    }());
+    _status = _Status.defunct;
   }
 
   int lastUpdateTimeStep = 0;
@@ -1129,9 +1076,9 @@ class _Transition with FastHashCode implements TransitionView {
   _updateStatus() {
     final reversed = _timeDirection < 0;
     final ratio = dynRatio.getSilently();
-    if (ratio > 1 && !reversed) {
+    if (ratio >= 1 && !reversed) {
       _repeatOrDeactivate();
-    } else if (ratio < 0 && reversed) {
+    } else if (ratio <= 0 && reversed) {
       _repeatOrDeactivate();
     } else if (!isActive) {
       _status = _Status.active;
@@ -1183,7 +1130,7 @@ class _TransitionEval extends _Transition {
   double _value;
 
   double get lastSetValue {
-    // Invoke notifyRead as if is were a value read.
+    // Invoke notifyRead as if it were a value read.
     dynRatio.notifyRead();
     return _value;
   }
@@ -1197,13 +1144,14 @@ class _TransitionEval extends _Transition {
     int repeatAfterMillis,
     Object tag,
     FloopBuildContext context,
-  ])  : _value = evaluate(0),
-        super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
-            repeatAfterMillis, tag, context);
+  ]) : super(key, durationMillis, refreshPeriodicityMillis, delayMillis,
+            repeatAfterMillis, tag, context) {
+    _value = evaluate(0);
+  }
 
   update() {
     super.update();
-    // Retrieved through getSilently because dynRatio could be disposed.
+    // Retrieve ratio through getSilently because dynRatio could be disposed.
     _value = evaluate(dynRatio.getSilently().clamp(0.0, 1.0));
   }
 }
@@ -1246,24 +1194,126 @@ Key _createKey(
   }
 }
 
-// extension IntegerLerp on int {
-//   lerp(int end, double t) {
-//     return (this + (end - this) * t).toInt();
-//   }
-// }
+/// Provides function patterns build on top of [transiton].
+abstract class Transition {
+  /// Transitions a [int] between `start` and `end`.
+  static int integer(
+    int start,
+    int end,
+    int durationMillis, {
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    return Lerp.integer(
+        start,
+        end,
+        transition(durationMillis,
+            refreshPeriodicityMillis: refreshPeriodicityMillis,
+            delayMillis: delayMillis,
+            repeatAfterMillis: repeatAfterMillis,
+            key: key,
+            tag: tag,
+            bindContext: bindContext));
+  }
 
-// extension DoubleLerp on double {
-//   lerp(double end, double t) {
-//     return (this + (end - this) * t);
-//   }
-// }
+  /// Transitions a [num] between `start` and `end`.
+  static num number(
+    num start,
+    num end,
+    int durationMillis, {
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    return Lerp.number(
+        start,
+        end,
+        transition(durationMillis,
+            refreshPeriodicityMillis: refreshPeriodicityMillis,
+            delayMillis: delayMillis,
+            repeatAfterMillis: repeatAfterMillis,
+            key: key,
+            tag: tag,
+            bindContext: bindContext));
+  }
 
-// extension StringLerp on String {
-//   lerp(String end, double t) {
-//     return end.substring(0, (end.length * t).toInt()) +
-//         substring((length * t).toInt());
-//   }
-// }
+  /// Transitions a string starting from `initial` to `end`.
+  static String string(
+    String end,
+    int durationMillis, {
+    String initial = '',
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    return Lerp.string(
+        initial,
+        end,
+        transition(durationMillis,
+            refreshPeriodicityMillis: refreshPeriodicityMillis,
+            delayMillis: delayMillis,
+            repeatAfterMillis: repeatAfterMillis,
+            key: key,
+            tag: tag,
+            bindContext: bindContext));
+  }
+}
+
+/// Provides [transition] patterns that cannot be invoked inside build methods.
+abstract class TransitionEval {
+  static double paused(
+    int durationMillis, {
+    RatioEvaluator evaluate,
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    @required Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    final transitionState = _getOrCreateTransition(durationMillis,
+        refreshPeriodicityMillis: refreshPeriodicityMillis,
+        delayMillis: delayMillis,
+        repeatAfterMillis: repeatAfterMillis,
+        key: key,
+        tag: tag,
+        bindContext: bindContext)
+      ..pause();
+    return transitionState.lastSetValue;
+  }
+
+  /// Creates a transition deleting a previous one if it existed.
+  static double restarted(
+    int durationMillis, {
+    RatioEvaluator evaluate,
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    @required Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    final transitionState = _getOrCreateTransition(durationMillis,
+        refreshPeriodicityMillis: refreshPeriodicityMillis,
+        delayMillis: delayMillis,
+        repeatAfterMillis: repeatAfterMillis,
+        key: key,
+        tag: tag,
+        bindContext: bindContext)
+      ..restart();
+    return transitionState.lastSetValue;
+  }
+}
 
 abstract class Lerp {
   static int integer(int start, int end, double t) {
@@ -1274,55 +1324,19 @@ abstract class Lerp {
     return (start + (end - start) * t);
   }
 
-  static string(String start, String end, double t) {
+  static String string(String start, String end, double t) {
     return end.substring(0, (end.length * t).toInt()) +
         start.substring((start.length * t).toInt());
   }
 }
 
-/// Invokes [transition] and scales the return value between `start` and `end`.
-int transitionInt(int start, int end, int durationMillis,
-    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
-  return Lerp.integer(
-      start,
-      end,
-      transition(durationMillis,
-          refreshPeriodicityMillis: refreshPeriodicityMillis,
-          delayMillis: delayMillis,
-          key: key));
-}
-
-/// Invokes [transition] and scales the return value between `start` and `end`.
-num transitionNumber(num start, num end, int durationMillis,
-    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
-  return Lerp.number(
-      start,
-      end,
-      transition(durationMillis,
-          refreshPeriodicityMillis: refreshPeriodicityMillis,
-          delayMillis: delayMillis,
-          key: key));
-}
-
-/// Transitions a string starting from length 0 to it's full length.
-String transitionString(String string, int durationMillis,
-    {int refreshPeriodicityMillis = 20, int delayMillis = 0, Object key}) {
-  return Lerp.string(
-      '',
-      string,
-      transition(durationMillis,
-          refreshPeriodicityMillis: refreshPeriodicityMillis,
-          delayMillis: delayMillis,
-          key: key));
-}
-
-/// Transitions the value of `key` in the provided `map`.
+/// Transitions the value of `key` in `map` using a [Repeater]. Unsynchronized.
 ///
-/// The transition lasts for `durationMillis` and updates it's value
-/// with a rate of `refreshRateMillis`.
+/// This transition is unsynchronized (it's independent), it can only be
+/// controlled throught the returned [Repeater] instance.
 ///
-/// Useful for easily transitiong an [DynMap] key-value and cause the
-/// subscribed widgets to auto rebuild while the transition lasts.
+/// Useful for transitiong an [DynMap] key-value and cause the subscribed
+/// widgets to auto rebuild.
 Repeater transitionKeyValue<V>(
     Map<dynamic, V> map, Object key, int durationMillis,
     {V update(double elapsedToDurationRatio),
@@ -1338,7 +1352,6 @@ Repeater transitionKeyValue<V>(
   }());
   update ??= _doubleAsType;
   return Repeater.transition(durationMillis, (double ratio) {
-    // var value = update(ratio);
     map[key] = update(ratio);
   }, refreshPeriodicityMillis: refreshPeriodicityMillis);
 }

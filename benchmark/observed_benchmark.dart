@@ -3,7 +3,7 @@ import 'package:floop/src/observed.dart';
 
 import 'base.dart';
 
-/// Benchmarks for the ObservedMap implementation.
+/// Benchmarks for the DynMap implementation.
 ///
 /// Enter 'flutter test .\benchmark\observed_benchamark.dart' in console
 /// from the root folder of the project to run the benchmarks.
@@ -48,7 +48,7 @@ runReadBenchmark(Map data, Iterable keys,
 
   ObservedController.debugReset();
 
-  Map readMap = ObservedMap.of(data);
+  Map readMap = DynMap.of(data);
   var obsTime =
       benchmarkFunction(() => plainRead(readMap, keys), 'ObservadMap warm up');
 
@@ -58,7 +58,7 @@ runReadBenchmark(Map data, Iterable keys,
 
   print('');
 
-  readMap = ObservedMap.of(data);
+  readMap = DynMap.of(data);
   obsTime = benchmarkFunction(() => plainRead(readMap, keys), 'ObservadMap');
 
   readMap = Map.of(data);
@@ -66,13 +66,13 @@ runReadBenchmark(Map data, Iterable keys,
 
   print('----Using ${ObservedController}----');
 
-  readMap = ObservedMap.of(data);
+  readMap = DynMap.of(data);
   ObservedController.startListening(mockElement);
   var obsTimeListening = benchmarkFunction(
       () => plainRead(readMap, keys), 'ObservadMap while listening');
   ObservedController.stopListening();
 
-  readMap = ObservedMap.of(data);
+  readMap = DynMap.of(data);
   addObservedSubscriptions(readMap); // loads the controller with subscriptions
   ObservedController.startListening(mockElement);
   var obsTimeListening2 = benchmarkFunction(() => plainRead(readMap, keys),
@@ -80,14 +80,14 @@ runReadBenchmark(Map data, Iterable keys,
   ObservedController.stopListening();
   ObservedController.debugReset();
 
-  readMap = ObservedMap.of(data);
+  readMap = DynMap.of(data);
   var obsTimeListeningCycle = benchmarkFunction(() {
     ObservedController.startListening(mockElement);
     plainRead(readMap, keys);
     ObservedController.stopListening();
   }, 'ObservadMap complete listening cycle');
 
-  readMap = ObservedMap.of(data);
+  readMap = DynMap.of(data);
   addObservedSubscriptions(readMap);
   var obsTimeListeningCycle2 = benchmarkFunction(() {
     ObservedController.startListening(mockElement);
@@ -103,20 +103,20 @@ runReadBenchmark(Map data, Iterable keys,
   // UnifiedController.reset();
   // print('----Using ${UnifiedController}----');
 
-  // readMap = ObservedMap.of(data);
+  // readMap = DynMap.of(data);
   // UnifiedController.startListening(mockElement);
   // var obsTimeLightListening = benchmarkFunction(() => plainRead(readMap, keys),
   //     'ObservadMap while listening with Light controller');
   // UnifiedController.stopListening();
 
-  // readMap = ObservedMap.of(data);
+  // readMap = DynMap.of(data);
   // addObservedSubscriptions(readMap); // loads the controller with subscriptions
   // UnifiedController.startListening(mockElement);
   // var obsTimeLightListening2 = benchmarkFunction(() => plainRead(readMap, keys),
   //     'ObservadMap while listening with filled Light controller');
   // UnifiedController.stopListening();
 
-  // readMap = ObservedMap.of(data);
+  // readMap = DynMap.of(data);
   // var obsTimeLightListeningCycle = benchmarkFunction(() {
   //   UnifiedController.startListening(mockElement);
   //   plainRead(readMap, keys);
@@ -124,7 +124,7 @@ runReadBenchmark(Map data, Iterable keys,
   // }, 'ObservadMap complete listening cycle');
 
   // UnifiedController.reset();
-  // readMap = ObservedMap.of(data);
+  // readMap = DynMap.of(data);
   // addObservedSubscriptions(readMap);
   // var obsTimeLightListeningCycle2 = benchmarkFunction(() {
   //   UnifiedController.startListening(mockElement);
@@ -167,7 +167,7 @@ runWriteBenchmark([
 ]) {
   print('\n${benchmarkHeadLine.toUpperCase()}\n');
 
-  Map writeMap = ObservedMap();
+  Map writeMap = DynMap();
   var obsTime = benchmarkFunction(
       () => plainWrite(writeMap, writeCount), 'ObservadMap 1 warm up');
 
@@ -175,7 +175,7 @@ runWriteBenchmark([
   var refTime = benchmarkFunction(
       () => plainWrite(writeMap, writeCount), 'LinkedHashMap 1 warm up');
 
-  writeMap = ObservedMap();
+  writeMap = DynMap();
   obsTime =
       benchmarkFunction(() => plainWrite(writeMap, writeCount), 'ObservadMap');
 
