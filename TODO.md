@@ -5,7 +5,7 @@
 
 ## Tests
 - Tests for each controller and [ObservedListener]
-- Tests for all overriden operations in [ObservedMap]
+- Tests for all overriden operations in [DynMap]
 - Tests for transitions API
 
 ## Benchmarks

@@ -15,36 +15,15 @@ import './controller.dart';
 ///  * [DynValue] for a single dynamic value.
 final DynMap<Object, dynamic> floop = DynMap();
 
-/// An object that keeps a dynamic value.
-abstract class DynValue<V> implements Observed, ValueWrapper<V> {
-  factory DynValue([V initialValue]) => ObservedValue(initialValue);
-
-  /// Sets the value without triggering updates to subscribed elements.
-  setSilently(V newValue);
-
-  /// Retrieves the value without notifying a value retrieval.
-  getSilently();
-}
-
-/// A [Map] implementation that provides dynamic values to widgets.
-///
-/// Retrieving values from a [DynMap] instance within a Floop widget's build
-/// method will trigger automatic rebuilds of the [BuildContext] on changes to
-/// any of the values retrieved.
-class DynMap<K, V> extends ObservedMap<K, V> {
-  DynMap() : super();
-  DynMap.of(Map<K, V> map) : super.of(map);
-}
-
-class Observed = Object with ObservedNotifierMixin, FastHashCode;
+class Dyn = Object with ObservedNotifierMixin, FastHashCode;
 
 convert(value) {
-  if (value is Observed) {
+  if (value is Dyn) {
     return value;
   } else if (value is Map) {
     return DynMap.of(value);
   } else if (value is List) {
-    return List.unmodifiable(value.map((v) => convert(v)));
+    return DynList.from(value);
   } else {
     return value;
   }
@@ -55,16 +34,18 @@ class ValueWrapper<T> {
   ValueWrapper([this.value]);
 }
 
-@protected
-class ObservedValue<T> extends Observed implements DynValue<T> {
+/// An object that stores a dynamic value.
+class DynValue<T> extends Dyn {
   T _value;
-  ObservedValue([T initialValue]) : _value = initialValue;
+  DynValue([T initialValue]) : _value = initialValue;
 
+  /// Retrieves the dynamic value.
   T get value {
     notifyRead();
     return _value;
   }
 
+  /// Sets the dynamic value.
   set value(T newValue) {
     if (newValue != _value) {
       _value = newValue;
@@ -72,23 +53,25 @@ class ObservedValue<T> extends Observed implements DynValue<T> {
     }
   }
 
-  setSilently(T newValue) {
-    _value = newValue;
+  /// Sets the value without triggering updates.
+  T setSilently(T newValue) {
+    return _value = newValue;
   }
 
-  getSilently() {
+  /// Retrieves value without registering a read.
+  T getSilently() {
     return _value;
   }
 }
 
 /// An dynamic value that notifies value changes with a frequency restriction.
 ///
-/// Changes to notifications to listeners (e.g. Floop widgets) at most
+/// Change notifications to listeners (Floop widgets) are performed at most
 /// once in any time interval of length `minTimeBetweenNotificationsMicros`.
 ///
 /// If not enough time has passed since the last notification, an asynchronous
 /// notification callback is created.
-class TimedDynValue<T> extends ObservedValue<T> {
+class TimedDynValue<T> extends DynValue<T> {
   int _lastNotifyTime;
 
   /// Minimun time between change notifications in microseconds.
@@ -142,22 +125,61 @@ class TimedDynValue<T> extends ObservedValue<T> {
   }
 }
 
-/// A special [Map] implementation that provides dynamic values to widgets.
+/// A [List] implementation that provides dynamic values to widgets.
 ///
-/// Retrieving values from an [ObservedMap] instance within a widget's build
-/// method will trigger automatic rebuilds of the [BuildContext] on changes to
-/// the values retrieved.
-class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
-  final Map<K, ObservedValue<V>> _keyToValue = Map();
+/// Retrieving values from a [DynList] instance within a widget's build method
+/// will trigger automatic rebuilds of the widget when the values change.
+class DynList<T> extends Dyn with ListMixin<T> {
+  final _dynValues;
+
+  DynList([int length]) : _dynValues = List<DynValue<T>>(length);
+  DynList.from(Iterable<T> elements)
+      : _dynValues = List<DynValue<T>>()..length = elements.length {
+    var i = 0;
+    for (var ele in elements) {
+      this[i++] = ele;
+    }
+  }
+
+  @override
+  int get length {
+    notifyRead();
+    return _dynValues.length;
+  }
+
+  set length(int newLength) {
+    if (_dynValues.length != newLength) {
+      notifyChange();
+    }
+    _dynValues.length = newLength;
+  }
+
+  @override
+  operator [](int index) {
+    return _dynValues[index]?.value;
+  }
+
+  @override
+  void operator []=(int index, value) {
+    (_dynValues[index] ??= DynValue(value)).value = convert(value);
+  }
+}
+
+/// A [Map] implementation that provides dynamic values to widgets.
+///
+/// Retrieving values from a [DynMap] instance within a widget's build method
+/// will trigger automatic rebuilds of the widget when the value changes.
+class DynMap<K, V> extends Dyn with MapMixin<K, V> {
+  final Map<K, DynValue<V>> _keyToValue = Map();
 
   // Stores keys that were accessed but have not been set (phantom keys).
-  final Map<K, ObservedValue<V>> _unexistingKeyToNullValue = Map();
+  final Map<K, DynValue<V>> _unexistingKeyToNullValue = Map();
 
-  ObservedMap() : super();
+  DynMap() : super();
 
-  ObservedMap.of(Map<K, V> map) {
+  DynMap.of(Map<K, V> map) {
     for (var entry in map.entries) {
-      _keyToValue[entry.key] = ObservedValue(entry.value);
+      _keyToValue[entry.key] = DynValue(entry.value);
     }
   }
 
@@ -169,7 +191,7 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
       // map of the retrieved but unset keys (phantom keys). This is necessary
       // to update the listener in case the key is set later.
       return (_keyToValue[key] ??
-              _unexistingKeyToNullValue.putIfAbsent(key, () => ObservedValue()))
+              _unexistingKeyToNullValue.putIfAbsent(key, () => DynValue()))
           .value;
     }
     return _keyToValue[key]?.value;
@@ -184,17 +206,13 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     return _keyToValue[key] ?? _unexistingKeyToNullValue[key];
   }
 
-  /// Returns the keys of this [ObservedMap], retrieved from an internal
-  /// [LinkedHashMap] instance.
+  /// The keys of [this].
   ///
-  /// Retrieving [keys] during a [Widget] or [State] build cycle will
-  /// subscribe the correspnding widget to any insertions or removals of
-  /// keys in the Map, regardless of the keys being iterated over or not.
-  /// It does not make the subscription sensitive to the keys corresponding
-  /// values.
+  /// Retrieving [keys] while building a Floop widget subscribes the widget to
+  /// insertions or removals of keys in the Map.
   @override
   Iterable<K> get keys {
-    notifyRead;
+    notifyRead();
     return _keyToValue.keys;
   }
 
@@ -203,7 +221,7 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     if (observedValue == null) {
       observedValue = _unexistingKeyToNullValue.remove(key);
       if (observedValue == null) {
-        _keyToValue[key] = ObservedValue(value);
+        _keyToValue[key] = DynValue(value);
       } else {
         _keyToValue[key] = observedValue;
         observedValue.value = value;
@@ -214,26 +232,25 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
     }
   }
 
-  /// Sets the `value` of `key`. When `value` is of type [Map] or [List] a
-  /// deep copy of `value` is created and stored instead of `value`.
+  /// Sets the `value` of `key`. Values of type [Map] or [List] that are not
+  /// [Dyn] are copied into a new [DynMap] or [DynList].
   ///
-  /// Subscribed elements to the `key` will get updated if `this[key]!=value`.
+  /// Widgets subscribed to `key` will get updated if `this[key]!=value`.
   ///
-  /// Use [setValue] to update a key without deep copying [Map] or [List] or
-  /// for setting values without triggering element updates.
+  /// See also:
   ///
-  /// [Map] and [List] values are recursively traversed saving copied versions
-  /// of them. For values of type [Map] an [ObservedMap] copy of it is stored.
-  /// Values of type [List] are copied using [List.unmodifiable].
+  ///  * [setValue] updates a key without copying [Map] or [List] and widget
+  ///    updates can be disabled.
   operator []=(Object key, V value) {
     _setValue(key, convert(value));
   }
 
-  /// Sets the `value` for the `key` exactly as it is given.
+  /// Sets the `value` for the `key` as it is given.
   ///
-  /// [Element] updates can be avoided by passing `triggerUpdates` as false.
+  /// Widget updates can be avoided by passing `triggerUpdates` as false.
   ///
   /// See also:
+  ///
   ///  * [notifyListenersOfKey] to force a value change notification.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
     if (triggerUpdates) {
@@ -245,13 +262,13 @@ class ObservedMap<K, V> extends Observed with MapMixin<K, V> {
       assert(!_unexistingKeyToNullValue.containsKey(key));
       observedValue.setSilently(value);
     } else {
-      observedValue = _unexistingKeyToNullValue.remove(key) ?? ObservedValue();
+      observedValue = _unexistingKeyToNullValue.remove(key) ?? DynValue();
       observedValue.setSilently(value);
       _keyToValue[key] = observedValue;
     }
   }
 
-  /// Updates all elements subscribed to they key.
+  /// Updates all widgets subscribed to they key.
   ///
   /// It should be rare to use this method, `operator []=` automatically
   /// triggers updates when the `key` value changes.

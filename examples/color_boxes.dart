@@ -109,7 +109,7 @@ class ColorBox extends DynamicWidget {
         TransitionGroup(key: id).restart();
         // Note that [Dyn.widgets] is copied into a new list prior to
         // shuffling. This is because when [List] instances are stored in an
-        // [ObservedMap], they are copied and stored as unmodifiable lists.
+        // [DynMap], they are copied and stored as unmodifiable lists.
         Dyn.widgets = Dyn.widgets.toList()..shuffle();
       },
     );

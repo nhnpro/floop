@@ -3,7 +3,7 @@ import 'package:floop/floop.dart';
 
 import 'constants.dart';
 
-// Create your own store from ObservedMap instead of using `floop` (it's the same)
+// Create your own store from DynMap instead of using `floop` (it's the same)
 Map<String, dynamic> store = DynMap();
 
 void main() {

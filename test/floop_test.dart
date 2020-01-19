@@ -39,7 +39,7 @@ void main() {
     observedMap.addAll({'tasks': tasks});
   });
 
-  group('ObservedMap tests', () {
+  group('DynMap tests', () {
     test('get operations', () {
       expect(observedMap['tasks'].hashCode, isNot(equals(tasks.hashCode)));
       expect(observedMap['tasks'], equals(tasks));
@@ -75,7 +75,7 @@ void main() {
       observedMap['boo'];
       observedMap['tennis'];
       // There are three reads in next statement, observedMap['tasks'], [0] and ['title].
-      // ObservedMap['tasks'] is a [List], and Lists are copied as [UnmodifiableList]
+      // DynMap['tasks'] is a [List], and Lists are copied as [UnmodifiableList]
       // internally by observadMap (see ObservadMap.convert for details), which are
       // not Observed.
       // Only observedMap and observedMap['tasks'][0] are [Observed] datastructures
@@ -90,7 +90,7 @@ void main() {
     });
 
     test(
-        '`[]=` operators alerts ObservedListener', //when key is not in the ObservedMap
+        '`[]=` operators alerts ObservedListener', //when key is not in the DynMap
         () {
       var listener = MockObservedListener();
       subscribeKeyToListener(observedMap, 'boo', listener);

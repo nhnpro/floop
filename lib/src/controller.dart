@@ -21,7 +21,7 @@ abstract class ObservedListener implements FastHashCode {
 /// Interface necessary by [ObservedController] to register and notify
 /// listeners of changes.
 ///
-/// Implemented by [Observed], [ObservedValue] and [ObservedMap].
+/// Implemented by [Observed], [DynValue] and [DynMap].
 abstract class ObservedNotifier implements FastHashCode {
   /// Set used by the controller to store the listeners of the notifier.
   @protected
@@ -120,14 +120,13 @@ class ObservedController {
       if (isListening &&
           !advicePostponing &&
           !debugAllowNotificationsWhenListening) {
-        floopError(
-            'Error: `${activeListener}` is listening (a widget is building) '
+        floopError('`$activeListener` is listening (a widget is building) '
             'while setting value of the [ObservedNotifier] $notifier. '
-            '[Observed] instances like [ObservedMap] cannot be modified '
-            'from within a build method.\n'
+            '[Observed] instances like [DynMap] cannot be modified from '
+            'within a build method.\n'
             'In [FloopWidget] classes, initContext can be used to initialize '
             'values of observeds.');
-        assert(false);
+        return false;
       }
       return true;
     }());
@@ -197,7 +196,7 @@ enum ObservedStatus {
 /// Mixin that connects observeds with [ObservedListener] instances that use
 /// [ObservedController].
 ///
-/// Included by [Observed], base class of [ObservedValue] and [ObservedMap].
+/// Included by [Observed], base class of [DynValue] and [DynMap].
 abstract class ObservedNotifierMixin implements ObservedNotifier {
   var _debugStatus = ObservedStatus.active;
 

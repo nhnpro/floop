@@ -68,7 +68,7 @@ class PhraseWidget extends FloopWidget {
     final text = phrase.text;
     return ListTile(
       title: Text(
-        transitionString(text, text.length * 100),
+        Transition.string(text, text.length * 100),
         style: TextStyle(
             color: Color.lerp(
                 Colors.red, Colors.black, transition(text.length * 100))),

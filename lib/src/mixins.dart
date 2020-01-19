@@ -6,12 +6,12 @@ import './controller.dart';
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
   ///
-  /// Useful to override for initializing values in an [ObservedMap], or any
+  /// Useful to override for initializing values in an [DynMap], or any
   /// other resources that are related only to `context`.
   ///
   /// During the widget tree build cycle [initContext] and [disposeContext] are
-  /// methods where it is safe to write values in and [ObservadMap] or
-  /// [ObservedValue].
+  /// methods where it is safe to write values in and [DynMap] or
+  /// [DynValue].
   ///
   /// Default implementation is no-op, it's not necessary to call super.
   ///
@@ -35,7 +35,7 @@ mixin DisposableWidget on Widget {
 /// Mixin that causes the Widget be listened while building.
 ///
 /// Include this mixin in a StatelessWidget and it will autoupdate on value
-/// changes detected to [ObservedMap] instances read during the build.
+/// changes detected to [DynMap] instances read during the build.
 /// Example: `MyWidget extends StatelessWidget with Floop {...}`.
 mixin Floop on StatelessWidget implements DisposableWidget {
   @override
@@ -263,13 +263,13 @@ class StatefulElementFloop extends StatefulElement
 }
 
 /// Wrapper class used for the mere purpose of skipping the [Widget] class
-/// immutable annotation, since the [ObservedMap] requires to be written after
+/// immutable annotation, since the [DynMap] requires to be written after
 /// a widget has been instantiated.
-class _ObservedMapWrapper {
+class _DynMapWrapper {
   DynMap map;
 }
 
-/// A Floop widget that keeps a mutable [ObservedMap] instance that can be
+/// A Floop widget that keeps a mutable [DynMap] instance that can be
 /// accessed through [dyn].
 ///
 /// To initialize values in [dyn], override the [initDyn] method, which is the
@@ -282,14 +282,14 @@ class _ObservedMapWrapper {
 abstract class DynamicWidget extends FloopWidget {
   DynamicWidget({Key key}) : super(key: key);
 
-  /// Wrapper that hold the internal [ObservedMap].
+  /// Wrapper that hold the internal [DynMap].
   ///
   /// A wrapper is used to bypass the annotation warnings.Ideally the map
-  /// should be stored directly as a variable `ObservedMap _dyn`, but the
+  /// should be stored directly as a variable `DynMap _dyn`, but the
   /// [Widget] `@immutable` annotation requires all fields to be final.
-  final _ObservedMapWrapper _dyn = _ObservedMapWrapper();
+  final _DynMapWrapper _dyn = _DynMapWrapper();
 
-  /// An internal [ObservedMap] instance that provides dynamic values.
+  /// An internal [DynMap] instance that provides dynamic values.
   ///
   /// It gets passed on to new [DynamicWidget] instances whenever the context
   /// rebuilds. Assume [dyn] is persistent on calls to [build].
