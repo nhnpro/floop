@@ -12,7 +12,7 @@ import './controller.dart';
 ///
 /// See also:
 ///
-///  * [DynValue2] for a single dynamic value.
+///  * [DynValue] for a single dynamic value.
 final DynMap<Object, dynamic> floop = DynMap();
 
 class Dyn = Object with ObservedNotifierMixin, FastHashCode;
@@ -165,10 +165,10 @@ class DynList<T> extends Dyn with ListMixin<T> {
   }
 }
 
-/// A special [Map] implementation that provides dynamic values to widgets.
+/// A [Map] implementation that provides dynamic values to widgets.
 ///
 /// Retrieving values from a [DynMap] instance within a widget's build method
-/// will trigger automatic rebuilds of the widget when the values change.
+/// will trigger automatic rebuilds of the widget when the value changes.
 class DynMap<K, V> extends Dyn with MapMixin<K, V> {
   final Map<K, DynValue<V>> _keyToValue = Map();
 
@@ -238,6 +238,7 @@ class DynMap<K, V> extends Dyn with MapMixin<K, V> {
   /// Widgets subscribed to `key` will get updated if `this[key]!=value`.
   ///
   /// See also:
+  ///
   ///  * [setValue] updates a key without copying [Map] or [List] and widget
   ///    updates can be disabled.
   operator []=(Object key, V value) {
@@ -249,6 +250,7 @@ class DynMap<K, V> extends Dyn with MapMixin<K, V> {
   /// Widget updates can be avoided by passing `triggerUpdates` as false.
   ///
   /// See also:
+  ///
   ///  * [notifyListenersOfKey] to force a value change notification.
   setValue(Object key, V value, [bool triggerUpdates = true]) {
     if (triggerUpdates) {

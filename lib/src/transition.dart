@@ -1189,7 +1189,7 @@ Key _createKey(
       context, duration, periodicity, delay, repeatAfter, tagIdentifier);
 }
 
-/// Provides function patterns build on top of [transiton].
+/// Specialized patterns build on top of [transiton].
 abstract class Transition {
   /// Transitions a [int] between `start` and `end`.
   static int integer(
@@ -1282,6 +1282,7 @@ abstract class Lerp {
 /// Returns the same value it receives.
 double identity(double ratio) => ratio;
 
+/// Provides [transitionEval] patterns.
 abstract class TransitionEval {
   static _Transition _get(Object key, bool cancelIfExists) {
     var transitionState = _Registry.getForKey(key);

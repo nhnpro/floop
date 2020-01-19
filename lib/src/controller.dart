@@ -120,14 +120,13 @@ class ObservedController {
       if (isListening &&
           !advicePostponing &&
           !debugAllowNotificationsWhenListening) {
-        floopError(
-            'Error: `${activeListener}` is listening (a widget is building) '
+        floopError('`$activeListener` is listening (a widget is building) '
             'while setting value of the [ObservedNotifier] $notifier. '
-            '[Observed] instances like [DynMap] cannot be modified '
-            'from within a build method.\n'
+            '[Observed] instances like [DynMap] cannot be modified from '
+            'within a build method.\n'
             'In [FloopWidget] classes, initContext can be used to initialize '
             'values of observeds.');
-        assert(false);
+        return false;
       }
       return true;
     }());
