@@ -82,9 +82,10 @@ Widget build(BuildContext context) {
 Transitions of the same refresh periodicity are synchronized.
 
 - [TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted or canceled.
-- [transitionOf] retrieves values.
+- [transitionOf] retrieves the current value.
 - [transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them from inside build methods (using [transitionOf]).
 - [TransitionsConfig] to set default parameters.
+- Classes [Transition] and [TransitionEval] provide methods for more specific transition patterns.
 
 ## <a name="special">Special Considerations</a>
 
@@ -142,7 +143,7 @@ Widgets subscribe to the values retrieved during their last build.
 
 ### Maps and Lists
 
-[Map] and [List] values are not stored as they are when using `[]=` operator, they copied into a new [DynMap] or [DynList] unless they are already of type [Dyn]. This behavior ensures that changes on maps or list are detected in a deep sense.
+[Map] and [List] values are not stored as they are when using `[]=` operator, they are copied into a new [DynMap] or [DynList] unless they are already of type [Dyn]. This behavior ensures that changes on maps or list are detected in a deep sense.
 Maps and lists can still be stored as they are by using the method [DynMap.setValue]. This method also receives optional parameter to prevent triggering updates to widgets.
 
 ### Initializing and Disposing a Context

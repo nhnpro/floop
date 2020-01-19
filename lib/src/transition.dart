@@ -202,7 +202,7 @@ _Transition _getOrCreateTransition(
 /// ```
 ///
 /// In the example above when there is a click event, a new repeating
-/// transition is created whose `evaluate` function scales the value to the
+/// transition is created whose evaluate function scales the value to the
 /// current number of clicks. On every click event the evaluate function
 /// changes (because clicks increases), therefore the old transitions is
 /// canceled in order to register a new one.
@@ -232,7 +232,7 @@ Object transitionEval(
   if (key != null) {
     transitionState = _Registry.getForKey(key);
   }
-  key ??= _createKey();
+  key ??= UniqueKey();
   if (transitionState == null) {
     transitionState = _TransitionEval(
         key,
@@ -1136,8 +1136,8 @@ class _TransitionEval extends _Transition {
   }
 
   _TransitionEval(
-    key,
-    durationMillis, [
+    Object key,
+    int durationMillis, [
     this.evaluate,
     int refreshPeriodicityMillis,
     int delayMillis = 0,
@@ -1182,16 +1182,11 @@ class _MultiKey extends LocalKey {
 }
 
 typedef RatioEvaluator = double Function(double elapsedToDurationRatio);
-typedef ValueCallback<V> = V Function(V transitionValue);
 
 Key _createKey(
     [context, duration, periodicity, delay, repeatAfter, tagIdentifier]) {
-  if (context != null) {
-    return _MultiKey(
-        context, duration, periodicity, delay, repeatAfter, tagIdentifier);
-  } else {
-    return UniqueKey();
-  }
+  return _MultiKey(
+      context, duration, periodicity, delay, repeatAfter, tagIdentifier);
 }
 
 /// Provides function patterns build on top of [transiton].
@@ -1269,52 +1264,6 @@ abstract class Transition {
   }
 }
 
-/// Provides [transition] patterns that cannot be invoked inside build methods.
-abstract class TransitionEval {
-  static double paused(
-    int durationMillis, {
-    RatioEvaluator evaluate,
-    int refreshPeriodicityMillis,
-    int delayMillis = 0,
-    int repeatAfterMillis,
-    @required Object key,
-    Object tag,
-    FloopBuildContext bindContext,
-  }) {
-    final transitionState = _getOrCreateTransition(durationMillis,
-        refreshPeriodicityMillis: refreshPeriodicityMillis,
-        delayMillis: delayMillis,
-        repeatAfterMillis: repeatAfterMillis,
-        key: key,
-        tag: tag,
-        bindContext: bindContext)
-      ..pause();
-    return transitionState.lastSetValue;
-  }
-
-  /// Creates a transition deleting a previous one if it existed.
-  static double restarted(
-    int durationMillis, {
-    RatioEvaluator evaluate,
-    int refreshPeriodicityMillis,
-    int delayMillis = 0,
-    int repeatAfterMillis,
-    @required Object key,
-    Object tag,
-    FloopBuildContext bindContext,
-  }) {
-    final transitionState = _getOrCreateTransition(durationMillis,
-        refreshPeriodicityMillis: refreshPeriodicityMillis,
-        delayMillis: delayMillis,
-        repeatAfterMillis: repeatAfterMillis,
-        key: key,
-        tag: tag,
-        bindContext: bindContext)
-      ..restart();
-    return transitionState.lastSetValue;
-  }
-}
-
 abstract class Lerp {
   static int integer(int start, int end, double t) {
     return (start + (end - start) * t).toInt();
@@ -1327,6 +1276,85 @@ abstract class Lerp {
   static String string(String start, String end, double t) {
     return end.substring(0, (end.length * t).toInt()) +
         start.substring((start.length * t).toInt());
+  }
+}
+
+/// Returns the same value it receives.
+double identity(double ratio) => ratio;
+
+abstract class TransitionEval {
+  static _Transition _get(Object key, bool cancelIfExists) {
+    var transitionState = _Registry.getForKey(key);
+    if (cancelIfExists) {
+      transitionState?.cancel();
+      return null;
+    }
+    return transitionState;
+  }
+
+  /// Creates and pauses a transition. Returns it's key.
+  ///
+  /// If `cancelIfExists` is true it cancels the existing transition registered
+  /// to `key`.
+  static Object paused(
+    int durationMillis, {
+    RatioEvaluator evaluate = identity,
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    @required Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+    bool cancelIfExists = true,
+  }) {
+    assert(key != null);
+    var transitionState = _get(key, cancelIfExists);
+    if (transitionState == null) {
+      transitionState = _TransitionEval(
+          key,
+          durationMillis,
+          evaluate,
+          refreshPeriodicityMillis,
+          delayMillis,
+          repeatAfterMillis,
+          tag,
+          bindContext);
+    }
+    transitionState.pause();
+    return key;
+  }
+
+  /// Creates and restarts a transition. Returns it's key.
+  ///
+  /// If `cancelIfExists` is true it cancels the existing transition registered
+  /// to `key`.
+  static Object restarted(
+    int durationMillis, {
+    RatioEvaluator evaluate = identity,
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    @required Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+    bool cancelIfExists = true,
+  }) {
+    assert(key != null);
+    var transitionState = _get(key, cancelIfExists);
+    if (transitionState == null) {
+      transitionState = _TransitionEval(
+          key,
+          durationMillis,
+          evaluate,
+          refreshPeriodicityMillis,
+          delayMillis,
+          repeatAfterMillis,
+          tag,
+          bindContext);
+    } else {
+      transitionState.restart();
+    }
+    return key;
   }
 }
 

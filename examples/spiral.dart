@@ -430,7 +430,7 @@ class RandomImage extends DynamicWidget {
   set image(Widget widget) => dyn[#image] = widget;
 
   Uint8List get lastFetchedImageBytes =>
-      Uint8List.fromList(dyn[#imageBytes]?.cast<int>());
+      Uint8List.fromList(dyn[#imageBytes].cast<int>());
   // [DynMap.setValue] is alternative to operator `[]=`, it sets the list
   // as it is without copying it to a [DynList].
   set lastFetchedImageBytes(Uint8List bytes) =>
