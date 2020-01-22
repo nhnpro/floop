@@ -284,7 +284,7 @@ abstract class DynamicWidget extends FloopWidget {
 
   /// Wrapper that hold the internal [DynMap].
   ///
-  /// A wrapper is used to bypass the annotation warnings.Ideally the map
+  /// A wrapper is used to bypass the annotation warnings. Ideally the map
   /// should be stored directly as a variable `DynMap _dyn`, but the
   /// [Widget] `@immutable` annotation requires all fields to be final.
   final _DynMapWrapper _dyn = _DynMapWrapper();

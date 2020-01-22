@@ -1,3 +1,8 @@
+## [3.0.0+1] - 22/01/2019
+
+- Minor change to spiral example.
+- Some documentation updates.
+
 ## [3.0.0] - 18/01/2019
 
 - Polished the transitions API

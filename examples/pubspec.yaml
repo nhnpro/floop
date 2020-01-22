@@ -8,7 +8,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  floop: ^2.1.4
+  floop: ^3.0.0
     # path: ../
   http: ^0.12.0
 
