@@ -1,3 +1,9 @@
+## [3.0.1] - 24/01/2019
+
+- Included [Transition] in the main floop package.
+- Added [Transition.sin].
+- Documentation changes.
+
 ## [3.0.0+1] - 22/01/2019
 
 - Minor change to spiral example.

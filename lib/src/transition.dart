@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import './flutter.dart';
 import './controller.dart';
@@ -250,12 +251,12 @@ Object transitionEval(
 abstract class TransitionsConfig {
   static int _updateDelayLimitThreshold;
 
-  /// The delay time that the asynchronous updates can take before the library
-  /// determines they have taken too long and creates new ones.
+  /// (Advanced) The delay time that the asynchronous updates can take before
+  /// the library determines they have taken too long and creates new ones.
   ///
-  /// This is a safety mechanism that the library uses to recover in case
-  /// something goes wrong. Generally it shouldn't have an impact on apps
-  /// that run smoothly.
+  /// This is a safety mechanism that the library uses to recover in case an
+  /// error caused the periodic updates to stop. It shouldn't have an impact
+  /// on apps that run smoothly.
   static int get updateDelayLimitThreshold =>
       _initialize ?? _updateDelayLimitThreshold;
 
@@ -385,6 +386,8 @@ enum ShiftType {
 }
 
 /// An object that can be used to apply operations to group of transitions.
+///
+/// This object must not be used inside build methods.
 class TransitionGroup {
   /// The frames per second as a dynamic value.
   ///
@@ -442,6 +445,8 @@ class TransitionGroup {
   TransitionMatcher matcher;
 
   /// Creates an instance that controls transitions that match the parameters.
+  ///
+  /// Must not be used inside build methods.
   ///
   /// Non null `key`, `tag` and/or `context` are matched.
   ///
@@ -623,9 +628,6 @@ abstract class _Registry {
 
   static bool contextIsRegistered(BuildContext context) =>
       _contextToTransitions.containsKey(context);
-
-  static Iterable<BuildContext> allRegisteredContexts() =>
-      _contextToTransitions.keys;
 
   static Iterable<_Transition> allTransitions() => _keyToTransition.values;
 
@@ -1189,9 +1191,38 @@ Key _createKey(
       context, duration, periodicity, delay, repeatAfter, tagIdentifier);
 }
 
-/// Specialized patterns build on top of [transiton].
+/// Useful patterns build on top of [transiton] for build methods.
+///
+/// The patterns pass the output of [transition] through a function and return.
+/// The underlying transition value is the same as invoking [transition]
+/// directly.
 abstract class Transition {
-  /// Transitions a [int] between `start` and `end`.
+  /// A number transitions between `start` and `end`.
+  static double number(
+    int durationMillis, {
+    num start = 0.0,
+    num end = 1.0,
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    return Lerp.number(
+        start,
+        end,
+        _getOrCreateTransition(durationMillis,
+                refreshPeriodicityMillis: refreshPeriodicityMillis,
+                delayMillis: delayMillis,
+                repeatAfterMillis: repeatAfterMillis,
+                key: key,
+                tag: tag,
+                bindContext: bindContext)
+            .lastSetValue);
+  }
+
+  /// An [int] transitions between `start` and `end`.
   static int integer(
     int start,
     int end,
@@ -1206,40 +1237,17 @@ abstract class Transition {
     return Lerp.integer(
         start,
         end,
-        transition(durationMillis,
-            refreshPeriodicityMillis: refreshPeriodicityMillis,
-            delayMillis: delayMillis,
-            repeatAfterMillis: repeatAfterMillis,
-            key: key,
-            tag: tag,
-            bindContext: bindContext));
+        _getOrCreateTransition(durationMillis,
+                refreshPeriodicityMillis: refreshPeriodicityMillis,
+                delayMillis: delayMillis,
+                repeatAfterMillis: repeatAfterMillis,
+                key: key,
+                tag: tag,
+                bindContext: bindContext)
+            .lastSetValue);
   }
 
-  /// Transitions a [num] between `start` and `end`.
-  static num number(
-    num start,
-    num end,
-    int durationMillis, {
-    int refreshPeriodicityMillis,
-    int delayMillis = 0,
-    int repeatAfterMillis,
-    Object key,
-    Object tag,
-    FloopBuildContext bindContext,
-  }) {
-    return Lerp.number(
-        start,
-        end,
-        transition(durationMillis,
-            refreshPeriodicityMillis: refreshPeriodicityMillis,
-            delayMillis: delayMillis,
-            repeatAfterMillis: repeatAfterMillis,
-            key: key,
-            tag: tag,
-            bindContext: bindContext));
-  }
-
-  /// Transitions a string starting from `initial` to `end`.
+  /// A string transitions from `initial` to `end`.
   static String string(
     String end,
     int durationMillis, {
@@ -1254,13 +1262,38 @@ abstract class Transition {
     return Lerp.string(
         initial,
         end,
-        transition(durationMillis,
-            refreshPeriodicityMillis: refreshPeriodicityMillis,
-            delayMillis: delayMillis,
-            repeatAfterMillis: repeatAfterMillis,
-            key: key,
-            tag: tag,
-            bindContext: bindContext));
+        _getOrCreateTransition(durationMillis,
+                refreshPeriodicityMillis: refreshPeriodicityMillis,
+                delayMillis: delayMillis,
+                repeatAfterMillis: repeatAfterMillis,
+                key: key,
+                tag: tag,
+                bindContext: bindContext)
+            .lastSetValue);
+  }
+
+  /// A value that oscillates between 0 and 1.
+  ///
+  /// Useful for smoothing the value of repeating transitions.
+  static double sin(
+    int durationMillis, {
+    int refreshPeriodicityMillis,
+    int delayMillis = 0,
+    int repeatAfterMillis,
+    Object key,
+    Object tag,
+    FloopBuildContext bindContext,
+  }) {
+    return math.sin(2 *
+        math.pi *
+        _getOrCreateTransition(durationMillis,
+                refreshPeriodicityMillis: refreshPeriodicityMillis,
+                delayMillis: delayMillis,
+                repeatAfterMillis: repeatAfterMillis,
+                key: key,
+                tag: tag,
+                bindContext: bindContext)
+            .lastSetValue);
   }
 }
 

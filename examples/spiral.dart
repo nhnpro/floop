@@ -500,8 +500,8 @@ class Info extends StatelessWidget {
               '* Drag to reverse direction\n'
               '* Drag to trash bin to delete\n'
               '\nOn trash bin:\n'
-              '* Tap to restore last deleted widget\n'
-              '* Long press to empty the bin\n',
+              '* Tap to restore last deleted\n'
+              '* Long press to empty\n',
               strutStyle: StrutStyle(height: 1.8),
             ),
           ),

@@ -81,11 +81,51 @@ Widget build(BuildContext context) {
 
 Transitions of the same refresh periodicity are synchronized.
 
-- [TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted or canceled.
-- [transitionOf] retrieves the current value.
-- [transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them from inside build methods (using [transitionOf]).
-- [TransitionsConfig] to set default parameters.
-- Classes [Transition] and [TransitionEval] provide methods for more specific transition patterns.
+[TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted or canceled. Note that transitions cannot be controlled from inside build methods.
+
+```dart
+var transitionGroup = TransitionGroup(key: #myKey);  // filter transitions with key = #myKey (there can be at most one).
+transitionGroup = TransitionGroup(context: context)  // filter transitions with bindContext = context.
+transitionGroup = TransitionGroup(context: context, tag: #myTag) // filter transitions with bindContext = context and tag = #myTag.
+
+transitionGroup.restart();  // restarts transitions.
+transitionGroup.pause();  // pauses transitions from given context.
+transitionGroup.reverse();  // reverses the time direction.
+transitionGroup.shiftTime(shiftMillis=1000);  // advances the transition by 1 second.
+
+// The refresh rate of transitions can retrieved from:
+double refreshRate = TransitionGroup.currentRefreshRateDynamic();
+```
+
+[transitionOf] retrieves the current value.
+
+```dart
+double t = transitionOf(#myKey);   // retrieves the value of transition with key #myKey (null if it doesn't exist).
+```
+
+[Transition] provide patterns over the output of [transition]. These patterns are only useful inside build methods, they do not change the transition output like [transitionEval] does.
+
+```dart
+Transition.integer(5, 20, 2000);   // an int that transitions from 5 to 20 over 2 seconds.
+Transition.string('My App', 3000);   // a string that starts empty and finishes as 'My app' over 3 seconds.
+Transition.sin(2000, repeatAfterMillis=0);   // a value that oscillates between 0 and 1.
+```
+
+[transitionEval] receives an evaluate function as parameter, but it cannot be used inside build methods. The evaluate function is invoked on every update cycle.
+
+```dart
+transitionEval(3000, (value) => 10*value, key: #myKey);    // The transition output is scaled by 10.
+...
+// reference it somewhere else as:
+transitionOf(#myKey);
+```
+
+[TransitionsConfig] to set default parameters.
+
+```dart
+TransitionsConfig.refreshPeriodicityMillis = 100;  // sets the default refresh periodicity of transitions to 100ms.
+TransitionsConfig.timeDilationFactor = 0.5;  // the update times used by transitions to update their progress ratio is halved.
+```
 
 ## <a name="special">Special Considerations</a>
 

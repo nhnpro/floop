@@ -7,6 +7,7 @@ export './src/repeater.dart' show Repeater;
 export './src/transition.dart'
     show
         transition,
+        Transition,
         transitionEval,
         transitionOf,
         TransitionGroup,
