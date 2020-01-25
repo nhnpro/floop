@@ -6,6 +6,7 @@ import 'package:floop/transition.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+// App tested using Flutter master at commit d68278e3eabd4ad775323be3e1ed27e6c882b9e7
 void main() {
   theme = ThemeData(
     primarySwatch: Colors.blue,
@@ -358,6 +359,8 @@ class ExpandInteraction extends StatelessWidget with Floop {
 }
 
 class ImageCircle extends DynamicWidget {
+  final imageWidget = RandomImage();
+
   initDyn() {
     dyn[#baseColor] ??= randomColor();
     dyn[#color] ??= randomColor();
@@ -386,7 +389,7 @@ class ImageCircle extends DynamicWidget {
     return DefererGestureDetector(
         child: Container(
           color: transitionedColor,
-          child: RandomImage(),
+          child: imageWidget,
         ),
         onTap: () {
           baseColor = transitionedColor;
@@ -416,8 +419,6 @@ Future<Uint8List> fetchImage(
 }
 
 class RandomImage extends DynamicWidget {
-  RandomImage();
-
   initDyn() {
     // dyn member is persistant on rebuilds.
     dyn[#key] = Object();
@@ -499,8 +500,8 @@ class Info extends StatelessWidget {
               '* Drag to reverse direction\n'
               '* Drag to trash bin to delete\n'
               '\nOn trash bin:\n'
-              '* Tap to restore last deleted widget\n'
-              '* Long press to empty the bin\n',
+              '* Tap to restore last deleted\n'
+              '* Long press to empty\n',
               strutStyle: StrutStyle(height: 1.8),
             ),
           ),

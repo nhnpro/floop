@@ -72,7 +72,7 @@ All floop widgets can be animated using [transition], which returns a [double] t
 @override
 Widget build(BuildContext context) {
   return Opacity(
-    opacity: transition(3000), // transitions a number from 0 to 1
+    opacity: transition(3000, key: #myKey), // transitions a number from 0 to 1
     child: Container(
       Text('Text will completely appear after 3 seconds')),
   );
@@ -81,11 +81,68 @@ Widget build(BuildContext context) {
 
 Transitions of the same refresh periodicity are synchronized.
 
-- [TransitionGroup] controls transitions. They can be resumed, reversed, time shifted, paused, restarted or canceled.
-- [transitionOf] retrieves the current value.
-- [transitionEval] receives an evaluate function as parameter. It cannot be used inside build methods. Provide a `key` parameter to be able to reference them from inside build methods (using [transitionOf]).
-- [TransitionsConfig] to set default parameters.
-- Classes [Transition] and [TransitionEval] provide methods for more specific transition patterns.
+#### [TransitionGroup] controls transitions.
+
+Resume, reverse, shift time, pause, restart or cancel. They cannot be controlled from inside build methods. 
+
+```dart
+// filter transitions with `key = #myKey` (there can be at most one).
+var transitionGroup = TransitionGroup(key: #myKey);
+// filter transitions with `bindContext = context` and `tag = #myTag`.
+transitionGroup = TransitionGroup(context: context, tag: #myTag);
+
+transitionGroup.reverse();  // reverses the time direction.
+transitionGroup.shiftTime(shiftMillis=1000);  // advances the time by 1 second.
+
+// Resumes transitions of the group that belong to the widget tree that starts
+// at `rootContext`.
+transitionGroup.resume(rootContext: context);
+```
+
+#### [transitionOf] retrieves the current value
+
+```dart
+// retrieves the current value of transition with key #myKey.
+double t = transitionOf(#myKey);
+```
+
+#### [Transition] provide patterns over the output of [transition]
+
+These patterns are only useful inside build methods, they do not change the transition output like [transitionEval] does.
+
+```dart
+// an int transitions from 5 to 20 over 2 seconds.
+Transition.integer(5, 20, 2000);
+// a string starts empty and finishes as 'My app' over 3 seconds.
+Transition.string('My App', 3000);
+// a value that oscillates between 0 and 1.
+Transition.sin(2000, repeatAfterMillis=0);
+```
+
+#### [transitionEval] receives an evaluate function as parameter
+
+It cannot be used inside build methods. It can be useful to create from UI interactions and reference it with [transitionOf]. The evaluate function is invoked on every update cycle.
+
+```dart
+// The transition output is scaled by 10.
+transitionEval(3000, (value) => 10*value, key: #myKey);
+...
+// reference it somewhere else (for example inside a build method):
+transitionOf(#myKey);
+```
+
+#### [TransitionsConfig] to set default parameters
+
+```dart
+TransitionsConfig.refreshPeriodicityMillis = 100;  // sets the default refresh periodicity of transitions to 100ms.
+TransitionsConfig.timeDilationFactor = 0.5;  // the progress time of transitions advances at half the speed.
+```
+
+#### Refresh rate
+
+```dart
+double refreshRate = TransitionGroup.currentRefreshRateDynamic();
+```
 
 ## <a name="special">Special Considerations</a>
 
