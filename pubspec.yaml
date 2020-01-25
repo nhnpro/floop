@@ -1,6 +1,6 @@
 name: floop
 description: Dynamic values and animation API for Flutter widgets. Widgets rebuild automatically on dynamic values changes. Animate by transitioning a value in one function call.
-version: 3.0.1+0
+version: 3.0.1
 homepage: https://gitlab.com/ignacio_catalan/floop
 
 environment:
