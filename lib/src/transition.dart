@@ -16,7 +16,7 @@ typedef MillisecondsReturner = int Function();
 /// Returns the value of a transition registered with `key` if it exists,
 /// `null` otherwise.
 double transitionOf(Object key) {
-  return _Registry.getForKey(key)?.lastSetValue;
+  return _Registry.getForKey(key)?.currentValueDynamic;
 }
 
 /// Returns a dynamic value that transitions from 0 to 1 in `durationMillis`.
@@ -42,9 +42,9 @@ double transitionOf(Object key) {
 /// Transitions can be referenced and controlled using their `key` or `tag`
 /// with [TransitionGroup].
 ///
-/// If no `bindContext` is provided, the transition is deleted as soon as it
-/// finishes, otherwise it is deleted when `bindContext` unmounts. Invocations
-/// from inside Floop widgets [build] methods are bound by default.
+/// If `bindContext` is provided, the transition is deleted when the context
+/// unmounts, otherwise when it's deleted when it finishes. Invocations from
+/// inside Floop widgets [build] methods are bound by default to `context`.
 ///
 /// Example:
 ///
@@ -112,7 +112,7 @@ double transition(
           key: key,
           tag: tag,
           bindContext: bindContext)
-      .lastSetValue;
+      .currentValueDynamic;
 }
 
 _Transition _getOrCreateTransition(
@@ -134,10 +134,10 @@ _Transition _getOrCreateTransition(
     if (!canCreate && key == null) {
       throw floopError(
           'When invoking [transition] outside a Floop widget\'s build method, '
-          'the `key` parameter must be not null, otherwise the transition can '
-          'have no effect outside of itself.\n'
+          'the `key` parameter must be not null.\n'
+          'Without a key a transition can\'t have effect outside of itself.\n'
           'If this is getting invoked from within a [Builder], check '
-          '[transition] docs to handle that case.');
+          '[transition] docs for an explanation to handle that case.');
     }
     return true;
   }());
@@ -160,7 +160,7 @@ _Transition _getOrCreateTransition(
     transitionState = _Transition(key, durationMillis, refreshPeriodicityMillis,
         delayMillis, repeatAfterMillis, tag, bindContext);
   }
-  assert(transitionState.lastSetValue != null);
+  assert(transitionState.currentValueDynamic != null);
   return transitionState;
 }
 
@@ -251,8 +251,8 @@ Object transitionEval(
 abstract class TransitionsConfig {
   static int _updateDelayLimitThreshold;
 
-  /// (Advanced) The delay time that the asynchronous updates can take before
-  /// the library determines they have taken too long and creates new ones.
+  /// (Advanced) The delay time that an async update callback can take before
+  /// the library determines it took too long and creates a new one.
   ///
   /// This is a safety mechanism that the library uses to recover in case an
   /// error caused the periodic updates to stop. It shouldn't have an impact
@@ -268,18 +268,21 @@ abstract class TransitionsConfig {
 
   static int _refreshPeriodicityMillis;
 
-  /// The default refresh periodicity for transitions.
+  static DynValue<int> _dynRefreshPeriodicity;
+
+  /// The default refresh periodicity for transitions as a dynamic value.
   ///
   /// It defines how often a transition should update it's state. When the
   /// periodicity is specified in the transition, this value is not used.
   ///
   /// Set to 1 to get the maximum possible refresh rate.
   static int get refreshPeriodicityMillis =>
-      _initialize ?? _refreshPeriodicityMillis;
+      _initialize ?? _dynRefreshPeriodicity.value;
 
   static set refreshPeriodicityMillis(int periodicityMillis) {
     _setDefaults();
     assert(periodicityMillis != null && periodicityMillis > 0);
+    _dynRefreshPeriodicity.value = periodicityMillis;
     _refreshPeriodicityMillis = periodicityMillis;
   }
 
@@ -385,9 +388,7 @@ enum ShiftType {
   end,
 }
 
-/// An object that can be used to apply operations to group of transitions.
-///
-/// This object must not be used inside build methods.
+/// An object that can be used to control group of transitions.
 class TransitionGroup {
   /// The frames per second as a dynamic value.
   ///
@@ -446,20 +447,28 @@ class TransitionGroup {
 
   /// Creates an instance that controls transitions that match the parameters.
   ///
-  /// Must not be used inside build methods.
-  ///
   /// Non null `key`, `tag` and/or `context` are matched.
   ///
   /// `matcher` can be provided for advanced filtering.
   ///
-  /// Methods accept `rootContext` parameter and if set the operation is only
+  /// Methods accept `rootContext` parameter and if set the operation is
   /// applied to transitions of this group that are bound to contexts that
   /// belong to the widget tree that starts at `rootContext`.
+  ///
+  /// Transitions cannot be controlled inside build methods.
   ///
   /// A transition group with no parameters represents all transitions.
   TransitionGroup({this.key, this.tag, this.context, this.matcher});
 
   _apply(operation, BuildContext rootContext) {
+    assert(() {
+      if (ObservedController.isListening) {
+        throw floopError(
+            'Cannnot invoke [TransitionGroup] methods while a Floop widget '
+            'is building.');
+      }
+      return true;
+    }());
     applyToTransitions(operation, key, context, tag, rootContext, matcher);
   }
 
@@ -586,12 +595,6 @@ Iterable<_Transition> _filter(key, tag, BuildContext context) {
     filtered = _Registry.allTransitions();
   }
   return filtered ?? const [];
-}
-
-abstract class TransitionView {
-  Object get key;
-  Object get tag;
-  BuildContext get context;
 }
 
 typedef TransitionMatcher = bool Function(TransitionView);
@@ -851,13 +854,22 @@ class _SynchronousUpdater {
   }
 }
 
+abstract class TransitionView {
+  Object get key;
+  Object get tag;
+  BuildContext get context;
+
+  /// The value set in the last update.
+  double get currentValue;
+}
+
 enum _Status {
   active,
   inactive,
   defunct,
 }
 
-class _Transition with FastHashCode implements TransitionView {
+class _Transition extends TransitionView with FastHashCode {
   static cancelContextTransitions(BuildContext context) {
     _Registry.unregisterContext(context)..forEach(_disposeTransition);
   }
@@ -883,7 +895,8 @@ class _Transition with FastHashCode implements TransitionView {
 
   double setProgressRatio(double ratio) => dynRatio.value = ratio;
 
-  double get lastSetValue => dynRatio.value.clamp(0.0, 1.0);
+  double get currentValueDynamic => dynRatio.value.clamp(0.0, 1.0);
+  double get currentValue => dynRatio.getSilently().clamp(0.0, 1.0);
 
   _Transition(
     this.key,
@@ -1131,7 +1144,7 @@ class _TransitionEval extends _Transition {
 
   double _value;
 
-  double get lastSetValue {
+  double get currentValueDynamic {
     // Invoke notifyRead as if it were a value read.
     dynRatio.notifyRead();
     return _value;
@@ -1219,7 +1232,7 @@ abstract class Transition {
                 key: key,
                 tag: tag,
                 bindContext: bindContext)
-            .lastSetValue);
+            .currentValueDynamic);
   }
 
   /// An [int] transitions between `start` and `end`.
@@ -1244,7 +1257,7 @@ abstract class Transition {
                 key: key,
                 tag: tag,
                 bindContext: bindContext)
-            .lastSetValue);
+            .currentValueDynamic);
   }
 
   /// A string transitions from `initial` to `end`.
@@ -1269,7 +1282,7 @@ abstract class Transition {
                 key: key,
                 tag: tag,
                 bindContext: bindContext)
-            .lastSetValue);
+            .currentValueDynamic);
   }
 
   /// A value that oscillates between 0 and 1.
@@ -1293,7 +1306,7 @@ abstract class Transition {
                 key: key,
                 tag: tag,
                 bindContext: bindContext)
-            .lastSetValue);
+            .currentValueDynamic);
   }
 }
 
