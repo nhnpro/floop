@@ -268,7 +268,7 @@ abstract class TransitionsConfig {
 
   static int _refreshPeriodicityMillis;
 
-  static DynValue<int> _dynRefreshPeriodicity;
+  static final _dynRefreshPeriodicity = DynValue<int>();
 
   /// The default refresh periodicity for transitions as a dynamic value.
   ///
@@ -317,7 +317,7 @@ abstract class TransitionsConfig {
     _referenceClock = clock;
   }
 
-  static DynValue _dynTimeDilation;
+  static final _dynTimeDilation = DynValue<double>();
 
   /// The time dilation as a dynamic value.
   ///
@@ -354,7 +354,7 @@ abstract class TransitionsConfig {
     _updateDelayLimitThreshold = 50;
     refreshPeriodicityMillis = 20;
     timeGranularityMillis = 1;
-    _dynTimeDilation = DynValue(1.0);
+    _dynTimeDilation.value = 1.0;
     referenceClock = _defaultClock;
   }
 
