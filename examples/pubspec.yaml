@@ -3,7 +3,7 @@ description: Example usage for Floop library.
 homepage: https://github.com/icatalud/floop
 
 environment:
-  sdk: ">=2.6.0 <3.0.0"
+  sdk: ">=2.3.0 <3.0.0"
 
 dependencies:
   flutter:
