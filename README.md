@@ -15,22 +15,21 @@ Example:
 ```dart
 -class Clicker extends StatelessWidget {
 +class Clicker extends StatelessWidget with Floop {
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Text widget always displays the current value of #clicks.
       body: Center(
         child: Opacity(
+          // opacity goes from 0 to 1 in two seconds
           opacity: transition(2000),
+          // Text always displays the current value of floop[#clicks].
           child: Text('${floop[#clicks]}'),
         )
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
         onPressed: () {
-          // Change #clicks from anywhere in the app (except build methods).
           floop[#clicks]++;
-          // Control transitions using [TrasitionGroup] methods.
+          // Restarts the opacity transition.
           TransitionGroup(context: context).restart();
         }),
       ),

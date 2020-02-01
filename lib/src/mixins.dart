@@ -1,7 +1,6 @@
-import 'package:floop/floop.dart';
-
 import './flutter.dart';
 import './controller.dart';
+import './observed.dart';
 
 mixin DisposableWidget on Widget {
   /// Invoked when `context` is mounted (builds for the first time).
